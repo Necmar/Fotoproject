@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
+use App\Notifications\ResetPasswordNotification as ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -157,7 +157,15 @@ class AuthTest extends TestCase
         $user = User::factory()->create();
         $this->actingAs($user);
 
+        // Changing the e-mail needs the current password.
         $this->putJson('/api/account/profile', ['name' => 'Nieuwe Naam', 'email' => 'Nieuw@Example.com', 'locale' => 'en'])
+            ->assertJsonValidationErrors('current_password');
+        $this->putJson('/api/account/profile', ['name' => 'Nieuwe Naam', 'email' => 'Nieuw@Example.com', 'locale' => 'en', 'current_password' => 'fout'])
+            ->assertJsonValidationErrors('current_password');
+        // Name/language only: no password needed.
+        $this->putJson('/api/account/profile', ['name' => 'Andere Naam', 'email' => $user->email, 'locale' => 'nl'])->assertOk();
+
+        $this->putJson('/api/account/profile', ['name' => 'Nieuwe Naam', 'email' => 'Nieuw@Example.com', 'locale' => 'en', 'current_password' => 'password'])
             ->assertOk()
             ->assertJsonPath('data.email', 'nieuw@example.com')
             ->assertJsonPath('data.email_verified', false)

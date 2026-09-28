@@ -22,7 +22,8 @@ export default function Account() {
 function ProfileForm() {
     const { t } = useTranslation();
     const { user, setUser } = useAuth();
-    const [form, setForm] = useState({ name: user.name, email: user.email, locale: user.locale });
+    const [form, setForm] = useState({ name: user.name, email: user.email, locale: user.locale, current_password: '' });
+    const emailChanged = form.email.trim().toLowerCase() !== user.email;
     const [errors, setErrors] = useState({});
     const [status, setStatus] = useState(null);
     const [busy, setBusy] = useState(false);
@@ -35,6 +36,7 @@ function ProfileForm() {
         try {
             const { data } = await api.put('/account/profile', form);
             setUser(data.data);
+            setForm((f) => ({ ...f, email: data.data.email, current_password: '' }));
             setStatus({
                 type: 'success',
                 text: data.data.email_verified ? t('common.saved') : t('account.email_changed'),
@@ -62,6 +64,17 @@ function ProfileForm() {
                     hint={t('account.email_hint')}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
                 />
+                {emailChanged && (
+                    <Input
+                        label={t('fields.current_password')}
+                        type="password"
+                        autoComplete="current-password"
+                        value={form.current_password}
+                        error={errors.current_password}
+                        hint={t('account.email_password_hint')}
+                        onChange={(e) => setForm({ ...form, current_password: e.target.value })}
+                    />
+                )}
                 <Select
                     label={t('common.language')}
                     value={form.locale}

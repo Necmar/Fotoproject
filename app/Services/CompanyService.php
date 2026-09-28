@@ -96,8 +96,10 @@ class CompanyService
                     $owner->email_verified_at = null;
                 }
 
-                if (! empty($data['password'])) {
+                $passwordChanged = ! empty($data['password']);
+                if ($passwordChanged) {
                     $owner->password = $data['password'];
+                    $owner->remember_token = Str::random(60);
                 }
 
                 if (isset($data['locale'])) {
@@ -106,6 +108,11 @@ class CompanyService
 
                 $emailChanged = $owner->isDirty('email');
                 $owner->save();
+
+                // A password set by the Super Admin ends the owner's existing sessions.
+                if ($passwordChanged) {
+                    DB::table('sessions')->where('user_id', $owner->id)->delete();
+                }
 
                 if ($emailChanged) {
                     $owner->sendEmailVerificationNotification();

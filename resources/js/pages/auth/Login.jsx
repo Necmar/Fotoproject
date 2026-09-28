@@ -45,6 +45,7 @@ export default function Login() {
                 {verified === '1' && <Alert type="success">{t('auth.verify.done')}</Alert>}
                 {verified === 'invalid' && <Alert type="error">{t('auth.verify.invalid')}</Alert>}
                 {signedOutReason === 'account_blocked' && <Alert type="error">{t('auth.blocked')}</Alert>}
+                {signedOutReason === 'session_expired' && <Alert type="info">{t('auth.session_expired')}</Alert>}
                 <Alert type="error">{error}</Alert>
             </div>
 

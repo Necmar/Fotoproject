@@ -13,6 +13,7 @@ use App\Services\ActivityLogger;
 use App\Services\CompanyStatsService;
 use App\Services\OpenAI\OpenAIClient;
 use App\Services\Processing\QueueHealth;
+use App\Services\System\HealthCheck;
 use App\Services\SystemSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,6 +26,14 @@ class SystemController extends Controller
         private readonly SystemSettings $settings,
         private readonly ActivityLogger $activity,
     ) {}
+
+    /** Installation check for the Super Admin (hosting without SSH). */
+    public function health(HealthCheck $health): JsonResponse
+    {
+        $checks = $health->run();
+
+        return response()->json(['data' => ['status' => $health->worstStatus($checks), 'checks' => $checks]]);
+    }
 
     public function dashboard(CompanyStatsService $stats, QueueHealth $queue): JsonResponse
     {

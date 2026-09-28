@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useFetch } from '../../lib/useFetch';
+import HealthCard from '../../components/admin/HealthCard';
 import { formatBytes, formatDate, formatNumber, formatUsd } from '../../lib/format';
 import { Alert, Badge, Card, PageHeader, Spinner, StatCard } from '../../components/ui';
 
@@ -18,6 +19,7 @@ export default function AdminDashboard() {
         <div>
             <PageHeader title={t('admin.dashboard.title')} description={t('admin.dashboard.subtitle')} />
 
+            <HealthCard />
             <QueueCard queue={data.queue} />
 
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

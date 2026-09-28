@@ -14,6 +14,9 @@ use Illuminate\Support\Facades\Schedule;
 */
 
 // Process queued photos for ~50 seconds, then stop. No permanent worker.
+// After an update (upload or Plesk Git): migrations and caches, automatically (production only).
+Schedule::command('bora:deploy')->everyMinute()->withoutOverlapping(10);
+
 Schedule::command('bora:work')->everyMinute()->withoutOverlapping(5);
 
 // Re-queue photos that made no progress (lost jobs, crashed runs).

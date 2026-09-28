@@ -430,3 +430,59 @@ Al aanwezig uit eerdere fases en gecontroleerd: grote uploadknoppen, knoppen voo
 4. Voor/na: tik ergens op de foto en sleep; de scheidslijn volgt je vinger. De pagina erachter scrollt niet mee.
 5. iPhone met notch, liggend: de inhoud valt niet onder de notch; de knop "Verder naar instellingen" staat vrij van de home-balk.
 6. Android (Chrome): dezelfde stappen 1 tot 4.
+
+## Fase 10: Security review, foutafhandeling en productie
+
+**Status:** afgerond. `php artisan test`: 118 tests, 843 assertions, alles groen. React-build slaagt; alle schermen opnieuw nagelopen op mobiel, met de Content Security Policy aan.
+
+### Security review
+
+Een aparte review (zonder kennis van hoe de code gebouwd is) vond geen ernstige lekken: geen toegang tot gegevens van andere bedrijven, geen rechtenescalatie, geen gaten in de bestandsafhandeling. De gevonden verbeterpunten zijn opgelost:
+
+- **Beveiligingsheaders** op iedere response: geen framing (clickjacking), `nosniff`, Referrer-Policy, Permissions-Policy, HSTS op HTTPS in productie en een Content Security Policy (uit te zetten met `BORA_CSP=false`). De HEIC-converter gebruikt nu de CSP-veilige build; zonder die aanpassing had de CSP HEIC-conversie in de browser geblokkeerd.
+- **Wachtwoord gewijzigd** (zelf of door de Super Admin): sessies en "ingelogd blijven" op andere apparaten stoppen.
+- **Inlog-e-mailadres wijzigen** vraagt het huidige wachtwoord.
+- **Opnieuw optimaliseren** (betaalde AI-bewerking) is begrensd: maximaal 5 keer per foto en 300 keer per bedrijf per dag, instelbaar. De viewer toont hoe vaak het nog kan.
+- **Uitnodigingslinks** hebben een eigen tokentabel: een gewone resetlink (60 minuten) kan niet als uitnodiging (3 dagen) gebruikt worden.
+- **Inloggen** heeft nu ook een limiet per IP over alle accounts. Vertrouwde proxy's zijn instelbaar (`TRUSTED_PROXIES`).
+- **Wachtwoord vergeten** verstuurt de mail via de wachtrij: het antwoord is even snel voor bestaande en onbekende adressen.
+- **404-meldingen** tonen nooit meer interne modelnamen.
+- **Veilige cookies** staan standaard aan in productie. Een ontbrekende route voor e-mailverificatie gaf een 500-fout; die bestaat nu. De ongebruikte publieke opslag-route staat uit.
+
+### Foutafhandeling
+
+- Een pagina die crasht toont een nette melding met "Pagina opnieuw laden" in plaats van een wit scherm; details alleen in de console en de serverlogs.
+- Verlopen sessie (419): terug naar inloggen met de melding "Je sessie is verlopen", en een verse CSRF-cookie zodat opnieuw inloggen direct werkt.
+- Na een update laden open tabbladen zichzelf één keer opnieuw als ze bestanden van de oude build nodig hebben.
+
+### Productie op Plesk (zonder SSH)
+
+- **Systeemcontrole** voor de Super Admin (Overzicht) en als `php artisan bora:doctor`: PHP-versie en extensies, geheugen, uploadlimieten, uitvoertijd, applicatiesleutel, debugmodus, HTTPS, veilige cookies, schrijfrechten, schijfruimte, cronjob, e-mail, OpenAI, React-build en de laatste update. Alleen aandachtspunten worden getoond, met concreet advies.
+- **Automatische update-stappen:** de cronjob draait iedere minuut `bora:deploy`. Ziet die (alleen in productie) dat de code veranderd is, dan voert hij migraties uit, leegt caches en cachet routes, views en events. De configuratie wordt bewust niet gecachet, zodat wijzigingen in `.env` direct werken.
+- **`.env.production.example`** met alle productie-instellingen.
+- **`docs/PLESK.md`** herschreven: installatie in 9 stappen, updates, beveiliging en systeemcontrole.
+
+### Toegevoegd
+
+- `app/Http/Middleware/SecurityHeaders.php`
+- `app/Notifications/ResetPasswordNotification.php`
+- `app/Services/System/{HealthCheck,DeployState}.php`, `app/Console/Commands/{Deploy,Doctor}.php`
+- `database/migrations/2026_09_29_000100_add_reoptimize_count_to_images_table.php`, `..._000200_create_password_invite_tokens_table.php`
+- `lang/{nl,en}/health.php`
+- `resources/js/components/admin/HealthCard.jsx`, `resources/js/pages/Crash.jsx`
+- `.env.production.example`
+- `tests/Feature/{Security,Production}Test.php`
+
+### Gewijzigd
+
+`bootstrap/app.php`, `app/Providers/AppServiceProvider.php`, `config/{auth,bora,session,filesystems}.php`, `routes/{api,web,console}.php`, `app/Http/Controllers/Api/Account/ProfileController.php`, `app/Http/Controllers/Api/Admin/SystemController.php`, `app/Http/Requests/Account/UpdateProfileRequest.php`, `app/Http/Resources/ImageResource.php`, `app/Models/User.php`, `app/Services/CompanyService.php`, `app/Services/Processing/ReoptimizeService.php`, `lang/{nl,en}/messages.php`, `resources/js/{App,main}.jsx`, `resources/js/lib/{api,heic}.js`, `resources/js/auth/AuthContext.jsx`, `resources/js/pages/{auth/Login,account/Account,admin/AdminDashboard}.jsx`, `resources/js/components/batch/ImageViewer.jsx`, `resources/js/locales/{nl,en}.json`, `.env.example`, `docs/PLESK.md`, `tests/Feature/AuthTest.php`.
+
+### Handmatig testen (op Plesk)
+
+1. Installeer volgens `docs/PLESK.md` en open Super Admin > Overzicht > Systeemcontrole: alles groen, behalve eventueel "HEIC op de server" (niet erg).
+2. Browser-ontwikkelaarstools > Netwerk: responses hebben `Content-Security-Policy` en `X-Frame-Options: DENY`. Upload een HEIC-foto van een iPhone: wordt omgezet, geen CSP-fouten in de console.
+3. Log in op twee apparaten met "Ingelogd blijven", wijzig op het ene het wachtwoord: het andere is uitgelogd.
+4. Wijzig je e-mailadres in Mijn account: het huidige wachtwoord wordt gevraagd.
+5. Optimaliseer één foto 5 keer opnieuw: de zesde keer komt een nette melding.
+6. Zet een update op de server (Git pull of upload): binnen een minuut staat bij Systeemcontrole > "Laatste update" de nieuwe versie.
+7. Laat het tabblad ruim 8 uur openstaan en klik dan iets: je komt op inloggen met "Je sessie is verlopen" en kunt direct opnieuw inloggen.

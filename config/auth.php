@@ -103,7 +103,8 @@ return [
         // Longer-lived "choose your password" links for companies created by the Super Admin.
         'invites' => [
             'provider' => 'users',
-            'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
+            // Own table: a normal (60 minute) reset token is never accepted as a 3-day invite.
+            'table' => 'password_invite_tokens',
             'expire' => 60 * 24 * 3,
             'throttle' => 0,
         ],

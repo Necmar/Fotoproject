@@ -37,6 +37,13 @@ return [
     ],
 
     // Hard limits the Super Admin cannot exceed from the UI.
+    // "*" trusts the direct peer (Plesk's nginx). Narrow it with a comma separated
+    // list of proxy IPs when Apache could also be reached directly.
+    'trusted_proxies' => env('TRUSTED_PROXIES', '*'),
+
+    // Content Security Policy header (SecurityHeaders middleware). Escape hatch: BORA_CSP=false.
+    'csp' => (bool) env('BORA_CSP', true),
+
     'limits' => [
         'jpg_quality_min' => 85,
         'jpg_quality_max' => 90,
@@ -44,6 +51,9 @@ return [
         'retention_days_min' => 1,
         'retention_days_max' => 30,
         'max_upload_mb_max' => 50,
+        // Each re-optimisation is a paid AI edit: cap per photo and per company per day.
+        'reoptimize_per_image' => (int) env('BORA_REOPTIMIZE_PER_IMAGE', 5),
+        'reoptimize_per_company_per_day' => (int) env('BORA_REOPTIMIZE_PER_DAY', 300),
     ],
 
     'company_defaults' => [

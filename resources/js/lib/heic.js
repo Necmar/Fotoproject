@@ -22,7 +22,7 @@ function withTimeout(promise) {
 }
 
 async function viaLibheif(file) {
-    const { heicTo } = await import('heic-to');
+    const { heicTo } = await import('heic-to/csp'); // CSP-safe build (no string eval)
     return heicTo({ blob: file, type: 'image/jpeg', quality: QUALITY });
 }
 

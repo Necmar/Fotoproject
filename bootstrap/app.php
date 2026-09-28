@@ -4,6 +4,7 @@ use App\Http\Controllers\CronController;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureCompanyOwner;
 use App\Http\Middleware\EnsureSuperAdmin;
+use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -34,6 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->append(SecurityHeaders::class);
         $middleware->web(append: [SetLocale::class]);
 
         $middleware->alias([
@@ -46,8 +48,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') ? null : route('login'));
         $middleware->redirectUsersTo('/');
 
-        // Needed behind Plesk's nginx proxy for correct scheme/IP detection.
-        $middleware->trustProxies(at: '*');
+        // Plesk puts nginx in front of Apache: trusted for scheme/IP detection.
+        // Which proxies is configurable (bora.trusted_proxies), set in AppServiceProvider.
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
@@ -68,7 +70,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
             if ($e instanceof HttpExceptionInterface) {
                 $status = $e->getStatusCode();
-                $message = $e->getMessage() !== '' ? $e->getMessage() : match ($status) {
+                // Route-model 404s carry "No query results for model [...]": never pass those on.
+                $message = $e->getMessage() !== '' && $status !== 404 ? $e->getMessage() : match ($status) {
                     403 => __('messages.errors.forbidden'),
                     404 => __('messages.errors.not_found'),
                     419 => __('messages.errors.session_expired'),

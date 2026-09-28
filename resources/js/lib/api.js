@@ -27,8 +27,8 @@ api.interceptors.response.use(
         const status = error.response?.status;
         const code = error.response?.data?.code;
 
-        if (status === 401 || code === 'account_blocked') {
-            window.dispatchEvent(new CustomEvent('auth:signed-out', { detail: { code: code ?? 'unauthenticated' } }));
+        if (status === 401 || status === 419 || code === 'account_blocked') {
+            window.dispatchEvent(new CustomEvent('auth:signed-out', { detail: { code: code ?? (status === 419 ? 'session_expired' : 'unauthenticated') } }));
         }
 
         return Promise.reject(error);

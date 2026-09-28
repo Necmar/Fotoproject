@@ -16,7 +16,11 @@
         "network": "Cannot reach the server. Check your internet connection.",
         "not_found_title": "Page not found",
         "not_found_text": "This page does not exist (anymore).",
-        "back_home": "Back to start"
+        "back_home": "Back to start",
+        "crash_title": "Something went wrong",
+        "crash_text": "This page could not be shown. Reload the page; your photos and batches are kept.",
+        "reload": "Reload page",
+        "home": "Go to dashboard"
     },
     "nav": {
         "main": "Main menu",
@@ -96,7 +100,8 @@
             "subtitle": "Create an account for your company.",
             "submit": "Create account",
             "link": "Register"
-        }
+        },
+        "session_expired": "Your session has expired. Please sign in again."
     },
     "account": {
         "title": "My account",
@@ -105,7 +110,8 @@
         "password": "Password",
         "change_password": "Change password",
         "email_hint": "After a change you need to confirm the new address.",
-        "email_changed": "Saved. We sent a confirmation link to your new e-mail address."
+        "email_changed": "Saved. We sent a confirmation link to your new e-mail address.",
+        "email_password_hint": "Needed to change your login e-mail."
     },
     "dashboard": {
         "hero_title": "Optimise photos",
@@ -271,6 +277,17 @@
             "last_run": "Last run",
             "never": "Never",
             "failed_24h": "Failed jobs (24 hours)"
+        },
+        "health": {
+            "title": "System check",
+            "all_ok": "All {{count}} checks are fine.",
+            "show_all": "Show all checks",
+            "show_problems": "Only issues",
+            "status": {
+                "ok": "All good",
+                "warning": "Needs attention",
+                "error": "Problem"
+            }
         }
     },
     "enums": {
@@ -466,7 +483,9 @@
         "reoptimize_short": "Again",
         "reoptimize_text": "Choose other settings for this photo. The new version replaces the current one when it is ready.",
         "reoptimize_submit": "Re-optimise",
-        "open": "View {{name}}"
+        "open": "View {{name}}",
+        "reoptimize_left_one": "{{count}} more time possible for this photo",
+        "reoptimize_left_other": "{{count}} more times possible for this photo"
     },
     "logo": {
         "title": "Company logo",

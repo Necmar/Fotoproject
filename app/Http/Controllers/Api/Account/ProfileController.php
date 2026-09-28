@@ -11,6 +11,7 @@ use App\Services\ActivityLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ProfileController extends Controller
 {
@@ -25,7 +26,7 @@ class ProfileController extends Controller
     public function update(UpdateProfileRequest $request): JsonResponse
     {
         $user = $request->user();
-        $user->fill($request->validated());
+        $user->fill($request->safe()->only(['name', 'email', 'locale']));
 
         $emailChanged = $user->isDirty('email');
 
@@ -47,7 +48,8 @@ class ProfileController extends Controller
     public function updatePassword(UpdatePasswordRequest $request): JsonResponse
     {
         $user = $request->user();
-        $user->forceFill(['password' => $request->string('password')->toString()])->save();
+        // New remember token: "ingelogd blijven" cookies on other devices stop working.
+        $user->forceFill(['password' => $request->string('password')->toString(), 'remember_token' => Str::random(60)])->save();
 
         // Invalidate other sessions of this user; keep the current one.
         $request->session()->regenerate();

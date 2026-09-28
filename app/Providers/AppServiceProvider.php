@@ -7,6 +7,7 @@ use App\Support\FrontendUrl;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -21,6 +22,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $proxies = (string) config('bora.trusted_proxies', '*');
+        TrustProxies::at($proxies === '*' ? '*' : array_map('trim', explode(',', $proxies)));
+
         Model::shouldBeStrict(! $this->app->isProduction());
 
         Password::defaults(fn () => Password::min(10)->letters()->numbers()->max(255));
@@ -39,6 +43,9 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api', fn (Request $request) => Limit::perMinute(180)->by($request->user()?->id ?: $request->ip()));
 
         RateLimiter::for('auth', fn (Request $request) => Limit::perMinute(10)->by($request->ip()));
+
+        // Per IP, across all accounts (the per account+IP lockout lives in the login request).
+        RateLimiter::for('login', fn (Request $request) => [Limit::perMinute(20)->by($request->ip()), Limit::perHour(100)->by($request->ip())]);
 
         // A batch is max 30 files, uploaded one per request; allow retries.
         RateLimiter::for('uploads', fn (Request $request) => Limit::perMinute(120)->by($request->user()?->id ?: $request->ip()));

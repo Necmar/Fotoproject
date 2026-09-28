@@ -1,6 +1,6 @@
 # Installatie op Cloud86 / Plesk
 
-> Werkversie na fase 1. Queue-cron, scheduler, OpenAI, upload-limieten en de volledige productiechecklist worden in fase 4, 5, 8 en 10 aangevuld.
+> Volledige handleiding (na fase 10). Na de installatie toont **Super Admin > Overzicht > Systeemcontrole** wat nog ontbreekt, met concreet advies.
 
 ## Vereisten
 
@@ -21,34 +21,20 @@
 
 ## Eerste installatie
 
-1. **Document root** van het domein instellen op de map `public` van het project.
-2. Code plaatsen via Plesk Git (of upload) buiten de document root, bijvoorbeeld `/httpdocs/bora-foto`.
-3. Database en databasegebruiker aanmaken in Plesk.
-4. `.env` aanmaken op basis van `.env.example` en invullen:
-   ```
-   APP_ENV=production
-   APP_DEBUG=false
-   APP_URL=https://jouwdomein.nl
-   DB_CONNECTION=mysql
-   DB_HOST=localhost
-   DB_DATABASE=...
-   DB_USERNAME=...
-   DB_PASSWORD=...
-   SESSION_SECURE_COOKIE=true
-   MAIL_MAILER=smtp
-   MAIL_HOST=... MAIL_PORT=587 MAIL_USERNAME=... MAIL_PASSWORD=... MAIL_FROM_ADDRESS=...
-   ```
-5. Zonder SSH via Plesk "PHP Composer" en een geplande taak met "Nu uitvoeren" (zie hieronder), of via SSH:
-   ```bash
-   composer install --no-dev --optimize-autoloader
-   php artisan key:generate
-   php artisan migrate --force
-   php artisan bora:super-admin --email=beheer@jouwdomein.nl --name="Beheer" --password="..."
-   php artisan config:cache
-   php artisan route:cache
-   php artisan view:cache
-   ```
-6. **React-build:** er draait geen Node.js op de server. Bouw lokaal of in CI met `npm ci && npm run build` en upload `public/build/`. (Alternatief: als de Plesk Node.js-extensie beschikbaar is, kan `npm ci && npm run build` als deploy-actie draaien.)
+Wat er op de server moet staan: de code, `vendor/` (PHP-pakketten) en `public/build/` (de gebouwde React-app). Er draait geen Node.js op de server, dus de React-build maak je op je eigen computer.
+
+1. **Domein:** Plesk > Websites & Domeinen > Hostinginstellingen: zet de **document root** op de map `public` van het project (bijvoorbeeld `httpdocs/bora-foto/public`). Zet **SSL/TLS** aan (Let's Encrypt) en "Doorverwijzen van HTTP naar HTTPS".
+2. **Code:** via Plesk Git (repository `Necmar/Fotoproject`, branch `main`, doelmap `httpdocs/bora-foto`) of door een zip te uploaden via Bestandsbeheer.
+3. **PHP-pakketten:** Plesk > PHP Composer > project kiezen > **Installeren** (gebruikt `composer.lock`, zonder dev-pakketten). Alternatief: op je computer `composer install --no-dev --optimize-autoloader` en de map `vendor/` uploaden.
+4. **React-build:** op je computer in de projectmap `npm ci` en `npm run build`, daarna de map `public/build/` uploaden naar `httpdocs/bora-foto/public/build/` (Bestandsbeheer: zip uploaden en uitpakken).
+5. **Database:** Plesk > Databases > database en gebruiker aanmaken.
+6. **.env:** kopieer `.env.production.example` naar `.env` en vul database, `APP_URL`, mail en `OPENAI_API_KEY` in. `APP_KEY` blijft leeg tot stap 8.
+7. **Geplande taak** voor de cron aanmaken (zie hieronder). Dezelfde taak voert ook de update-stappen uit (migraties en caches, zie "Updates").
+8. **Eenmalige commando's** via een geplande taak "PHP-script uitvoeren" met scriptpad `artisan` en **Nu uitvoeren** (zie "Artisan-commando's zonder SSH"), in deze volgorde:
+   - `key:generate --force`
+   - `migrate --force`
+   - `bora:super-admin --email=beheer@jouwdomein.nl --name=Beheer --password=EenSterkWachtwoord123`
+9. Log in als Super Admin en open **Overzicht > Systeemcontrole**. Los alles op wat rood of oranje is.
 
 ## Cronjob voor de verwerking (zonder SSH)
 
@@ -112,7 +98,7 @@ OPENAI_EDIT_POLICY=auto
 OPENAI_VERIFY_EDITS=true
 ```
 
-Controle: Super Admin > Systeem > kaart "OpenAI" toont of de key is ingesteld en welke modellen gebruikt worden. Na het wijzigen van `.env`: `php artisan config:cache` (via een geplande taak "Nu uitvoeren").
+Controle: Super Admin > Systeem > kaart "OpenAI" toont of de key is ingesteld en welke modellen gebruikt worden. Wijzigingen in `.env` werken direct: de configuratie wordt bewust niet gecachet. (Heb je ooit zelf `config:cache` uitgevoerd, voer dan eenmalig `optimize:clear` uit.)
 
 Uitgaande HTTPS-verbindingen naar `api.openai.com` moeten zijn toegestaan (standaard bij Cloud86).
 
@@ -122,16 +108,32 @@ Maak in Plesk een geplande taak van het type "PHP-script uitvoeren" met scriptpa
 
 - `migrate --force` (na een update)
 - `bora:super-admin --email=beheer@jouwdomein.nl --name=Beheer --password=...`
-- `optimize` (config, routes en views cachen)
+- `bora:doctor` (installatiecontrole, met de PHP-instellingen van de cron)
+- `bora:deploy --force` (update-stappen opnieuw uitvoeren)
 
 Composer: gebruik de Plesk-extensie **PHP Composer** (Websites & Domeinen > PHP Composer > Installeren).
 
 ## Updates
 
-```bash
-git pull   # of Plesk Git "Deploy"
-composer install --no-dev --optimize-autoloader
-php artisan migrate --force
-php artisan optimize
-```
-Upload daarna de nieuwe `public/build/`.
+1. Nieuwe code op de server zetten: Plesk Git > **Pull/Deploy**, of uploaden.
+2. Gewijzigd `composer.lock`? Plesk > PHP Composer > **Update/Installeren**.
+3. Gewijzigde frontend? Lokaal `npm run build` en `public/build/` opnieuw uploaden (de oude map eerst leegmaken).
+4. Klaar. Binnen een minuut ziet de cronjob dat de code veranderd is en voert `bora:deploy` automatisch uit: database-migraties, caches legen, routes/views/events opnieuw cachen. Resultaat: Systeemcontrole > "Laatste update". Mislukt er iets, dan staat de fout in `storage/logs/laravel-*.log`.
+
+Open browsertabbladen met een oude versie laden zichzelf één keer opnieuw als ze een verdwenen bestand van de oude build nodig hebben.
+
+## Beveiliging (productie)
+
+- `.env`: `APP_ENV=production`, `APP_DEBUG=false`, `SESSION_SECURE_COOKIE=true`, `SESSION_ENCRYPT=true` (zie `.env.production.example`). Met debug uit zien gebruikers nooit technische foutdetails; die staan in `storage/logs`.
+- Alleen `public/` is bereikbaar via het web. `.env`, `storage/` en alle foto's staan erbuiten; foto's worden alleen via de app geleverd, na een eigenaarscontrole.
+- Iedere response krijgt beveiligingsheaders: geen framing (clickjacking), `nosniff`, een strikte Referrer-Policy, HSTS op HTTPS en een Content Security Policy. Blokkeert de CSP onverwacht iets, zet dan tijdelijk `BORA_CSP=false` en meld het.
+- Rate limits: inloggen (per account en per IP), wachtwoord vergeten, uploads, downloads, ZIP, cron-URL. "Opnieuw optimaliseren" kost een betaalde AI-bewerking en is begrensd: `BORA_REOPTIMIZE_PER_IMAGE` (standaard 5 per foto) en `BORA_REOPTIMIZE_PER_DAY` (standaard 300 per bedrijf per dag).
+- Een nieuw wachtwoord (zelf of door de Super Admin) beëindigt de sessies en "ingelogd blijven" op andere apparaten. Een ander inlog-e-mailadres vraagt om het huidige wachtwoord.
+- Achter de Plesk-proxy: `TRUSTED_PROXIES=*` is correct zolang Apache alleen via nginx bereikbaar is (standaard bij Plesk).
+- Mail voor "wachtwoord vergeten" gaat via de wachtrij (zelfde cronjob): kan tot een minuut duren.
+
+## Systeemcontrole
+
+Super Admin > Overzicht > **Systeemcontrole** controleert: PHP-versie en extensies, `memory_limit`, uploadlimieten, uitvoertijd, applicatiesleutel, debugmodus, omgeving, HTTPS, veilige cookies, schrijfrechten, vrije schijfruimte, of de cronjob draait, e-mailinstelling, OpenAI-key, React-build en de laatste update. Alleen aandachtspunten worden getoond, met advies.
+
+De website en de cron kunnen verschillende PHP-instellingen hebben. De kaart toont die van de website; `bora:doctor` via een geplande taak toont die van de cron.

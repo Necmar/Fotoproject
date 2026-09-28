@@ -10,6 +10,7 @@ use App\Services\Images\ImagePreparer;
 use App\Services\Storage\LocalFiles;
 use App\Services\Storage\StorageAccounting;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 
 /**
  * "Opnieuw optimaliseren" for one photo with new strength/background/people
@@ -31,12 +32,23 @@ class ReoptimizeService
     {
         $image->loadMissing('batch');
 
+        $daily = (int) config('bora.limits.reoptimize_per_company_per_day');
+        $dailyKey = 'reoptimize:company:'.$image->batch->company_id;
+        if ($daily > 0 && RateLimiter::tooManyAttempts($dailyKey, $daily)) {
+            throw new DomainRuleException('reoptimize_daily_limit', status: 429);
+        }
+
         DB::transaction(function () use ($image, $choices) {
             /** @var Image $locked */
             $locked = Image::query()->whereKey($image->getKey())->lockForUpdate()->firstOrFail();
 
             if (! $locked->status->isFinished()) {
                 throw new DomainRuleException('image_busy');
+            }
+
+            $max = (int) config('bora.limits.reoptimize_per_image');
+            if ($max > 0 && $locked->reoptimize_count >= $max) {
+                throw new DomainRuleException('reoptimize_limit', ['max' => $max]);
             }
 
             $oldAi = $locked->ai_path;
@@ -50,6 +62,7 @@ class ReoptimizeService
                 'status' => ImageStatus::Queued,
                 'ai_path' => null,
                 'attempts' => 0,
+                'reoptimize_count' => $locked->reoptimize_count + 1,
                 'error_code' => null,
                 'error_message' => null,
                 'processing_started_at' => null,
@@ -65,6 +78,10 @@ class ReoptimizeService
 
             $image->setRawAttributes($locked->getAttributes(), true);
         });
+
+        if ($daily > 0) {
+            RateLimiter::hit($dailyKey, 86400);
+        }
 
         $this->progress->refresh($image->batch);
         ProcessImage::dispatch($image->id);

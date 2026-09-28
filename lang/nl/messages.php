@@ -38,6 +38,8 @@ return [
         'too_many_images' => 'Je kunt maximaal :max foto\'s per batch uploaden.',
         'batch_locked' => 'Deze batch wordt al verwerkt en kan niet meer worden gewijzigd.',
         'image_busy' => 'Deze foto wordt nog verwerkt. Wacht tot hij klaar is.',
+        'reoptimize_limit' => 'Deze foto is al :max keer opnieuw geoptimaliseerd. Dat is het maximum.',
+        'reoptimize_daily_limit' => 'Het maximum aantal keer opnieuw optimaliseren voor vandaag is bereikt. Probeer het morgen opnieuw.',
         'nothing_to_download' => 'Er zijn nog geen klaar-foto\'s om te downloaden.',
         'logo_invalid' => 'Upload een PNG- of JPG-bestand als logo (bij voorkeur een PNG met transparante achtergrond).',
         'batch_empty' => 'Voeg eerst minimaal één foto toe.',

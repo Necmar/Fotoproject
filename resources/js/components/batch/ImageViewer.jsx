@@ -123,9 +123,14 @@ export default function ImageViewer({ image, onClose, onReoptimized, startWithFo
                     {finished && (
                         <section className="rounded-2xl bg-white p-4 ring-1 ring-stone-200/80">
                             {!showForm ? (
-                                <Button variant="secondary" icon={RefreshCw} className="w-full" onClick={() => setShowForm(true)}>
-                                    {t('viewer.reoptimize')}
-                                </Button>
+                                <>
+                                    <Button variant="secondary" icon={RefreshCw} className="w-full" disabled={image.reoptimize_left === 0} onClick={() => setShowForm(true)}>
+                                        {t('viewer.reoptimize')}
+                                    </Button>
+                                    {image.reoptimize_left != null && (
+                                        <p className="mt-2 text-center text-xs text-stone-500">{t('viewer.reoptimize_left', { count: image.reoptimize_left })}</p>
+                                    )}
+                                </>
                             ) : (
                                 <div className="space-y-5">
                                     <div>

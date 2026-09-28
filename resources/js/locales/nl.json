@@ -16,7 +16,11 @@
         "network": "Geen verbinding met de server. Controleer je internetverbinding.",
         "not_found_title": "Pagina niet gevonden",
         "not_found_text": "Deze pagina bestaat niet (meer).",
-        "back_home": "Terug naar start"
+        "back_home": "Terug naar start",
+        "crash_title": "Er ging iets mis",
+        "crash_text": "Deze pagina kon niet worden weergegeven. Laad de pagina opnieuw; je foto's en batches blijven bewaard.",
+        "reload": "Pagina opnieuw laden",
+        "home": "Naar het dashboard"
     },
     "nav": {
         "main": "Hoofdmenu",
@@ -96,7 +100,8 @@
             "subtitle": "Maak een account aan voor je bedrijf.",
             "submit": "Account aanmaken",
             "link": "Registreren"
-        }
+        },
+        "session_expired": "Je sessie is verlopen. Log opnieuw in."
     },
     "account": {
         "title": "Mijn account",
@@ -105,7 +110,8 @@
         "password": "Wachtwoord",
         "change_password": "Wachtwoord wijzigen",
         "email_hint": "Na een wijziging moet je het nieuwe adres opnieuw bevestigen.",
-        "email_changed": "Opgeslagen. We hebben een bevestigingslink naar je nieuwe e-mailadres gestuurd."
+        "email_changed": "Opgeslagen. We hebben een bevestigingslink naar je nieuwe e-mailadres gestuurd.",
+        "email_password_hint": "Nodig om je inlogadres te wijzigen."
     },
     "dashboard": {
         "hero_title": "Foto's optimaliseren",
@@ -271,6 +277,17 @@
             "last_run": "Laatste verwerking",
             "never": "Nog nooit",
             "failed_24h": "Mislukte taken (24 uur)"
+        },
+        "health": {
+            "title": "Systeemcontrole",
+            "all_ok": "Alle {{count}} controles zijn in orde.",
+            "show_all": "Alle controles tonen",
+            "show_problems": "Alleen aandachtspunten",
+            "status": {
+                "ok": "In orde",
+                "warning": "Aandacht nodig",
+                "error": "Probleem"
+            }
         }
     },
     "enums": {
@@ -466,7 +483,9 @@
         "reoptimize_short": "Opnieuw",
         "reoptimize_text": "Kies andere instellingen voor deze foto. De nieuwe versie vervangt de huidige zodra hij klaar is.",
         "reoptimize_submit": "Opnieuw optimaliseren",
-        "open": "{{name}} bekijken"
+        "open": "{{name}} bekijken",
+        "reoptimize_left_one": "Nog {{count}} keer mogelijk voor deze foto",
+        "reoptimize_left_other": "Nog {{count}} keer mogelijk voor deze foto"
     },
     "logo": {
         "title": "Bedrijfslogo",

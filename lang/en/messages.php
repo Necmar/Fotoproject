@@ -38,6 +38,8 @@ return [
         'too_many_images' => 'You can upload at most :max photos per batch.',
         'batch_locked' => 'This batch is already being processed and can no longer be changed.',
         'image_busy' => 'This photo is still being processed. Please wait until it is done.',
+        'reoptimize_limit' => 'This photo has already been re-optimised :max times. That is the maximum.',
+        'reoptimize_daily_limit' => 'The maximum number of re-optimisations for today has been reached. Please try again tomorrow.',
         'nothing_to_download' => 'There are no finished photos to download yet.',
         'logo_invalid' => 'Upload a PNG or JPG file as logo (preferably a PNG with a transparent background).',
         'batch_empty' => 'Please add at least one photo first.',

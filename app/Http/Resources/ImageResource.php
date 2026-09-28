@@ -41,6 +41,8 @@ class ImageResource extends JsonResource
             'apply_watermark' => $this->apply_watermark,
             'settings' => $this->relationLoaded('batch') ? $this->effectiveSettings() : null,
             'reoptimized' => $this->settings_override !== null,
+            // null = no limit configured.
+            'reoptimize_left' => ($max = (int) config('bora.limits.reoptimize_per_image')) > 0 ? max(0, $max - (int) $this->reoptimize_count) : null,
             'urls' => [
                 'original' => $originalUrl,
                 // Thumbnails are made at upload; the original is only a fallback for older records.

@@ -9,8 +9,9 @@ Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 've
     ->whereNumber('id')
     ->name('verification.verify');
 
-// Named for Laravel's auth redirects; the React router renders the page.
+// Named for Laravel's auth redirects; the React router renders the pages.
 Route::view('/login', 'app')->name('login');
+Route::view('/verify-email', 'app')->name('verification.notice');
 
 // Everything else is handled by the React router.
 Route::view('/{path?}', 'app')

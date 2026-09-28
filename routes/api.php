@@ -30,7 +30,7 @@ Route::get('meta', MetaController::class)->name('api.meta');
 
 // Guests
 Route::middleware('guest')->group(function () {
-    Route::post('auth/login', [SessionController::class, 'store'])->name('api.login');
+    Route::post('auth/login', [SessionController::class, 'store'])->middleware('throttle:login')->name('api.login');
     Route::post('auth/register', [RegisterController::class, 'store'])->middleware('throttle:auth')->name('api.register');
     Route::post('auth/forgot-password', [PasswordResetController::class, 'sendLink'])->middleware('throttle:password-reset')->name('api.password.email');
     Route::post('auth/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:password-reset')->name('api.password.store');
@@ -81,6 +81,7 @@ Route::middleware(['auth', 'account.active', 'throttle:api'])->group(function ()
     // Super Admin area
     Route::middleware('super_admin')->prefix('admin')->name('api.admin.')->group(function () {
         Route::get('dashboard', [AdminSystemController::class, 'dashboard'])->name('dashboard');
+        Route::get('health', [AdminSystemController::class, 'health'])->middleware('throttle:20,1')->name('health');
         Route::get('settings', [AdminSystemController::class, 'showSettings'])->name('settings.show');
         Route::put('settings', [AdminSystemController::class, 'updateSettings'])->name('settings.update');
         Route::get('activity', [AdminSystemController::class, 'activity'])->name('activity');

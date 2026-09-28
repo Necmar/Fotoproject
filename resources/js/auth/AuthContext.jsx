@@ -43,6 +43,8 @@ export function AuthProvider({ children }) {
         const onSignedOut = (event) => {
             setSignedOutReason(event.detail?.code ?? null);
             setUser(null);
+            // After an expired session the old XSRF cookie is useless: fetch a fresh one for the next login.
+            if (event.detail?.code === 'session_expired') api.get('/meta').catch(() => {});
         };
         window.addEventListener('auth:signed-out', onSignedOut);
         return () => window.removeEventListener('auth:signed-out', onSignedOut);
