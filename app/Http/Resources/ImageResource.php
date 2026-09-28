@@ -39,12 +39,15 @@ class ImageResource extends JsonResource
             'duplicate_of' => $this->duplicate_of_id,
             'output_filename' => $this->output_filename,
             'apply_watermark' => $this->apply_watermark,
+            'settings' => $this->relationLoaded('batch') ? $this->effectiveSettings() : null,
+            'reoptimized' => $this->settings_override !== null,
             'urls' => [
                 'original' => $originalUrl,
                 // Thumbnails are made at upload; the original is only a fallback for older records.
                 'thumbnail' => $this->thumbnail_path
                     ? route('api.company.images.file', [$this->id, 'thumbnail'])
                     : ($browserCanShowOriginal ? $originalUrl : null),
+                'before' => $this->working_path ? route('api.company.images.file', [$this->id, 'working']) : ($browserCanShowOriginal ? $originalUrl : null),
                 'optimized' => $this->optimized_path ? route('api.company.images.file', [$this->id, 'optimized']) : null,
             ],
             'processed_at' => $this->processed_at?->toIso8601String(),

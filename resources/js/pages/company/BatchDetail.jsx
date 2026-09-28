@@ -9,6 +9,7 @@ import { formatDate } from '../../lib/format';
 import Stepper from '../../components/batch/Stepper';
 import BatchStatusBadge, { ACTIVE_STATUSES } from '../../components/batch/BatchStatusBadge';
 import { ServerPhotoTile } from '../../components/batch/PhotoTile';
+import ImageViewer from '../../components/batch/ImageViewer';
 import { Alert, Button, Card, Modal, Spinner } from '../../components/ui';
 
 const POLL_MS = 3000;
@@ -23,6 +24,7 @@ export default function BatchDetail() {
     const navigate = useNavigate();
     const { data: batch, loading, error, reload } = useFetch(`/company/batches/${id}`);
     const [confirmDelete, setConfirmDelete] = useState(false);
+    const [viewer, setViewer] = useState(null); // { id, form }
     const [deleteError, setDeleteError] = useState(null);
 
     const active = batch && ACTIVE_STATUSES.includes(batch.status);
@@ -98,9 +100,22 @@ export default function BatchDetail() {
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
                 {batch.images.map((image) => (
-                    <ServerPhotoTile key={image.id} image={image} showStatus />
+                    <ServerPhotoTile key={image.id} image={image} showStatus onOpen={(img, action) => setViewer({ id: img.id, form: action === 'reoptimize' })} />
                 ))}
             </div>
+
+            {viewer && batch.images.some((i) => i.id === viewer.id) && (
+                <ImageViewer
+                    key={viewer.id}
+                    image={batch.images.find((i) => i.id === viewer.id)}
+                    startWithForm={viewer.form}
+                    onClose={() => setViewer(null)}
+                    onReoptimized={() => {
+                        setViewer(null);
+                        reload(); // batch is active again, so polling resumes
+                    }}
+                />
+            )}
 
             <Modal
                 open={confirmDelete}

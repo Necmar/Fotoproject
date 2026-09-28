@@ -8,7 +8,8 @@
         "language": "Taal",
         "previous": "Vorige",
         "next": "Volgende",
-        "page_of": "Pagina {{page}} van {{total}}"
+        "page_of": "Pagina {{page}} van {{total}}",
+        "close": "Sluiten"
     },
     "errors": {
         "generic": "Er ging iets mis. Probeer het later opnieuw.",
@@ -449,5 +450,20 @@
             "empty": "Dit bestand is leeg of beschadigd.",
             "too_many": "Maximaal {{max}} foto's per batch. {{count}} foto's zijn niet toegevoegd."
         }
+    },
+    "viewer": {
+        "before": "Voor",
+        "after": "Na",
+        "slider": "Schuif tussen origineel en geoptimaliseerd",
+        "compare": "Voor/na",
+        "compare_short": "Voor/na",
+        "original": "Origineel",
+        "optimized": "Geoptimaliseerd",
+        "no_preview": "Geen voorbeeld beschikbaar.",
+        "reoptimize": "Opnieuw optimaliseren",
+        "reoptimize_short": "Opnieuw",
+        "reoptimize_text": "Kies andere instellingen voor deze foto. De nieuwe versie vervangt de huidige zodra hij klaar is.",
+        "reoptimize_submit": "Opnieuw optimaliseren",
+        "open": "{{name}} bekijken"
     }
 }

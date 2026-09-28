@@ -287,3 +287,40 @@ Sterk bewogen, veel ruis, lage kwaliteit (alleen als herstel beperkt is), persoo
 7. **Ongeldige key:** zet een foute key; foto's worden toch klaar met "Basiscorrecties (AI niet beschikbaar)".
 8. **AI uitzetten** in Super Admin > Systeem: er gaan geen verzoeken meer naar OpenAI.
 9. Super Admin > Overzicht en bij een bedrijf: AI-verzoeken en geschatte kosten lopen op.
+
+## Fase 6: Voor/na-vergelijking en opnieuw optimaliseren
+
+**Status:** afgerond. `php artisan test`: 93 tests, 606 assertions, alles groen. React-build slaagt.
+
+### Keuzes
+
+- **Voor/na-slider** (`CompareSlider`): een echte range-input over twee lagen, dus slepen met muis of vinger en bedienen met de pijltjestoetsen. Labels "Voor" en "Na". Daarnaast de losse weergaven **Origineel** en **Geoptimaliseerd**.
+- **"Voor" is de werkkopie:** rechtgezet volgens EXIF, zonder metadata, en ook zichtbaar bij HEIC-originelen (die de meeste browsers niet tonen). Nieuwe bestandsvariant `working` via dezelfde beveiligde route.
+- **Foto-viewer** (`ImageViewer`): schermvullend op mobiel, groot venster op desktop. Toont afmetingen, bestandsgrootte, meldingen en de knop "Opnieuw optimaliseren".
+- **Opnieuw optimaliseren** (`POST /api/company/images/{image}/reoptimize`): kies sterkte, achtergrond en personen opnieuw. Werkt voor klare en mislukte foto's; een foto die nog bezig is geeft `image_busy`.
+  - De AI-analyse wordt hergebruikt (geen tweede analyse, geen extra kosten).
+  - Een eerdere AI-bewerking wordt weggegooid, omdat die met andere instellingen is gemaakt.
+  - De huidige versie blijft zichtbaar tot de nieuwe klaar is en wordt dan vervangen; oude varianten worden niet bewaard.
+  - De batch wordt weer actief, dus de pagina pollt vanzelf en de foto verschijnt opnieuw als hij klaar is.
+  - Het verbruik wordt apart geregistreerd als `reoptimize`.
+- Foto-cards tonen bij klare en mislukte foto's de knoppen **Voor/na** en **Opnieuw**; klikken op de thumbnail opent de viewer.
+
+### Toegevoegd
+
+- `app/Services/Processing/ReoptimizeService.php`
+- `app/Http/Requests/Batch/ReoptimizeImageRequest.php`
+- `resources/js/components/batch/{CompareSlider,ImageViewer}.jsx`
+- `tests/Feature/ReoptimizeTest.php`
+
+### Gewijzigd
+
+`app/Http/Controllers/Api/Company/ImageController.php` (actie `reoptimize`, variant `working`), `routes/api.php`, `app/Http/Resources/{ImageResource,BatchResource}.php` (`urls.before`, `settings`, `reoptimized`), `app/Services/Processing/ImagePipeline.php` (type `reoptimize`), `lang/{nl,en}/messages.php`, `resources/js/components/batch/PhotoTile.jsx`, `resources/js/pages/company/BatchDetail.jsx`, `resources/js/locales/{nl,en}.json`, `tests/Feature/OpenAIProcessingTest.php`.
+
+### Handmatig testen
+
+1. Open een klare batch en tik op een foto: de viewer opent met de voor/na-slider. Sleep met je vinger (iPhone/Android) en met de muis; test ook de pijltjestoetsen.
+2. Wissel tussen **Voor/na**, **Origineel** en **Geoptimaliseerd**.
+3. Staande telefoonfoto en HEIC-foto: "Voor" staat rechtop en is zichtbaar.
+4. **Opnieuw optimaliseren** met Sterk en neutrale achtergrond: de foto gaat naar "Wachten", de batch wordt weer actief en de nieuwe versie verschijnt vanzelf. De oude versie is weg.
+5. Een mislukte foto opnieuw proberen via **Opnieuw**.
+6. Met een echte OpenAI-key: in Super Admin zie je voor de nieuwe versie een bewerking en een controle, maar geen tweede analyse.

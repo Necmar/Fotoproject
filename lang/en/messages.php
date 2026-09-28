@@ -37,6 +37,7 @@ return [
         'too_many_pixels' => 'This photo has too high a resolution to process.',
         'too_many_images' => 'You can upload at most :max photos per batch.',
         'batch_locked' => 'This batch is already being processed and can no longer be changed.',
+        'image_busy' => 'This photo is still being processed. Please wait until it is done.',
         'batch_empty' => 'Please add at least one photo first.',
         'watermark_needs_logo' => 'Upload a company logo first to use a watermark.',
     ],

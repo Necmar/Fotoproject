@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api\Company;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Batch\ReoptimizeImageRequest;
 use App\Http\Requests\Batch\UploadImageRequest;
 use App\Http\Resources\ImageResource;
 use App\Models\Batch;
 use App\Models\Image;
 use App\Services\Images\ImageUploadService;
+use App\Services\Processing\ReoptimizeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -31,6 +33,13 @@ class ImageController extends Controller
         return response()->json(['message' => __('messages.batch.image_removed')]);
     }
 
+    public function reoptimize(ReoptimizeImageRequest $request, Image $image, ReoptimizeService $service): JsonResponse
+    {
+        $image = $service->reoptimize($image, $request->validated());
+
+        return ImageResource::make($image->load('batch'))->response()->setStatusCode(202);
+    }
+
     /**
      * Streams a stored file through Laravel after an ownership check. Files
      * live on a private disk and never have a public, predictable URL.
@@ -41,6 +50,8 @@ class ImageController extends Controller
 
         $path = match ($variant) {
             'original' => $image->original_path,
+            // Oriented, metadata-free copy of the original: used for before/after (works for HEIC too).
+            'working' => $image->working_path ?? $image->original_path,
             'thumbnail' => $image->thumbnail_path,
             'optimized' => $image->optimized_path,
         };

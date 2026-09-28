@@ -62,7 +62,9 @@ Route::middleware(['auth', 'account.active', 'throttle:api'])->group(function ()
         Route::delete('batches/{batch}/images/{image}', [ImageController::class, 'destroy'])
             ->scopeBindings()->name('images.destroy');
         Route::get('images/{image}/{variant}', [ImageController::class, 'file'])
-            ->whereIn('variant', ['original', 'thumbnail', 'optimized'])->name('images.file');
+            ->whereIn('variant', ['original', 'working', 'thumbnail', 'optimized'])->name('images.file');
+        Route::post('images/{image}/reoptimize', [ImageController::class, 'reoptimize'])
+            ->middleware('throttle:30,1')->name('images.reoptimize');
     });
 
     // Super Admin area

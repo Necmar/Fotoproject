@@ -8,7 +8,8 @@
         "language": "Language",
         "previous": "Previous",
         "next": "Next",
-        "page_of": "Page {{page}} of {{total}}"
+        "page_of": "Page {{page}} of {{total}}",
+        "close": "Close"
     },
     "errors": {
         "generic": "Something went wrong. Please try again later.",
@@ -449,5 +450,20 @@
             "empty": "This file is empty or damaged.",
             "too_many": "At most {{max}} photos per batch. {{count}} photos were not added."
         }
+    },
+    "viewer": {
+        "before": "Before",
+        "after": "After",
+        "slider": "Slide between original and optimised",
+        "compare": "Before/after",
+        "compare_short": "Before/after",
+        "original": "Original",
+        "optimized": "Optimised",
+        "no_preview": "No preview available.",
+        "reoptimize": "Re-optimise",
+        "reoptimize_short": "Again",
+        "reoptimize_text": "Choose other settings for this photo. The new version replaces the current one when it is ready.",
+        "reoptimize_submit": "Re-optimise",
+        "open": "View {{name}}"
     }
 }

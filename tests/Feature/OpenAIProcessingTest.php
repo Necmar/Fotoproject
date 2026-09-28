@@ -359,4 +359,24 @@ class OpenAIProcessingTest extends TestCase
         $this->actingAs($admin)->getJson('/api/admin/settings')->assertDontSee('sk-test-secret-key');
         $this->getJson('/api/meta')->assertDontSee('sk-test-secret-key');
     }
+
+    public function test_reoptimize_reuses_the_analysis_and_makes_a_new_edit(): void
+    {
+        $this->fakeOpenAI($this->analysis());
+        $batch = $this->batch(['strength' => 'subtle']);
+        $this->artisan('bora:work')->assertSuccessful();
+        $image = $batch->images()->first();
+        $this->assertSame(0, $this->sentTo('/images/edits'));
+
+        $this->postJson("/api/company/images/{$image->id}/reoptimize", ['strength' => 'subtle', 'background' => 'neutral', 'remove_people' => false])
+            ->assertStatus(202);
+        $this->artisan('bora:work')->assertSuccessful();
+
+        $image->refresh();
+        $this->assertSame('edited', $image->ai_status);
+        $this->assertSame(1, $this->sentTo('/images/edits'));
+        // analysis once + verification of the new edit; no second analysis
+        $this->assertSame(2, $this->sentTo('/responses'));
+        $this->assertSame(1, ImageProcessingRecord::query()->where('type', 'reoptimize')->count());
+    }
 }

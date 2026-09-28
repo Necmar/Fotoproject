@@ -69,7 +69,7 @@ class ImagePipeline
                 try {
                     $analysis = $this->ai->analyze($image, $settings);
                     $this->status($image, ImageStatus::Processing);
-                    $plan = $this->ai->optimize($image, $analysis, $settings);
+                    $plan = $this->ai->optimize($image, $analysis, $settings, $image->settings_override ? ProcessingType::Reoptimize : ProcessingType::Edit);
                     $aiStatus = $plan['status'];
                 } catch (OpenAIException $e) {
                     // Temporary problem and attempts left: let the queue retry later.

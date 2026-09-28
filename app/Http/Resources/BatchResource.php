@@ -16,6 +16,11 @@ class BatchResource extends JsonResource
     {
         $images = $this->whenLoaded('images');
 
+        // Lets each image resource show its effective settings without extra queries.
+        if ($this->relationLoaded('images')) {
+            $this->images->each(fn (Image $image) => $image->setRelation('batch', $this->resource));
+        }
+
         return [
             'id' => $this->id,
             'name' => $this->name,

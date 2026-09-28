@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, CheckCircle2, ImageIcon, Loader2, RotateCcw, Trash2, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Columns2, RefreshCw, ImageIcon, Loader2, RotateCcw, Trash2, XCircle } from 'lucide-react';
 import { formatBytes } from '../../lib/format';
 import { Badge, cx } from '../ui';
 
@@ -94,13 +94,19 @@ export function LocalPhotoTile({ item, onRetry, onRemove }) {
 }
 
 /** A photo stored on the server. */
-export function ServerPhotoTile({ image, onRemove, removing, showStatus = false }) {
+export function ServerPhotoTile({ image, onRemove, removing, showStatus = false, onOpen }) {
     const { t, i18n } = useTranslation();
     const warnings = image.warnings ?? [];
 
     return (
         <div className="rounded-2xl bg-white ring-1 ring-stone-200/80">
-            <Thumb src={image.urls.optimized ?? image.urls.thumbnail} alt={image.original_filename} />
+            {onOpen ? (
+                <button type="button" onClick={() => onOpen(image)} className="block w-full" aria-label={t('viewer.open', { name: image.original_filename })}>
+                    <Thumb src={image.urls.optimized ?? image.urls.thumbnail} alt={image.original_filename} />
+                </button>
+            ) : (
+                <Thumb src={image.urls.optimized ?? image.urls.thumbnail} alt={image.original_filename} />
+            )}
             <div className="space-y-1.5 p-3">
                 <div className="flex items-start justify-between gap-2">
                     <p className="truncate text-sm font-medium" title={image.original_filename}>
@@ -138,6 +144,18 @@ export function ServerPhotoTile({ image, onRemove, removing, showStatus = false 
                         {w.message ?? w}
                     </p>
                 ))}
+                {onOpen && ['completed', 'failed'].includes(image.status) && (
+                    <div className="flex gap-1 pt-1">
+                        {image.urls.optimized && (
+                            <button type="button" onClick={() => onOpen(image)} className="inline-flex h-9 items-center gap-1 rounded-lg px-2 text-xs font-medium text-stone-700 hover:bg-stone-100">
+                                <Columns2 className="size-3.5" aria-hidden /> {t('viewer.compare_short')}
+                            </button>
+                        )}
+                        <button type="button" onClick={() => onOpen(image, 'reoptimize')} className="inline-flex h-9 items-center gap-1 rounded-lg px-2 text-xs font-medium text-stone-700 hover:bg-stone-100">
+                            <RefreshCw className="size-3.5" aria-hidden /> {t('viewer.reoptimize_short')}
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );
