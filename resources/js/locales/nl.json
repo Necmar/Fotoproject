@@ -238,6 +238,20 @@
             "registration_text": "Bedrijven kunnen zelf een account aanmaken.",
             "maintenance_message": "Melding voor gebruikers",
             "maintenance_hint": "Wordt bovenaan iedere pagina getoond. Laat leeg om te verbergen."
+        },
+        "queue": {
+            "title": "Wachtrij",
+            "status": {
+                "stale": "Wacht op cronjob",
+                "working": "Bezig",
+                "idle": "Rustig"
+            },
+            "stale": "Er staan foto's klaar, maar de verwerking is de afgelopen minuten niet gestart. Controleer de geplande taak in Plesk (zie docs/PLESK.md).",
+            "pending": "Wachtende taken",
+            "oldest": "Oudste taak",
+            "last_run": "Laatste verwerking",
+            "never": "Nog nooit",
+            "failed_24h": "Mislukte taken (24 uur)"
         }
     },
     "enums": {

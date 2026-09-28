@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useFetch } from '../../lib/useFetch';
 import { formatBytes, formatDate, formatNumber, formatUsd } from '../../lib/format';
-import { Alert, Card, PageHeader, Spinner, StatCard } from '../../components/ui';
+import { Alert, Badge, Card, PageHeader, Spinner, StatCard } from '../../components/ui';
 
 export default function AdminDashboard() {
     const { t, i18n } = useTranslation();
@@ -17,6 +17,8 @@ export default function AdminDashboard() {
     return (
         <div>
             <PageHeader title={t('admin.dashboard.title')} description={t('admin.dashboard.subtitle')} />
+
+            <QueueCard queue={data.queue} />
 
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                 <StatCard label={t('admin.stats.companies')} value={formatNumber(s.companies, l)} hint={t('admin.stats.blocked', { count: s.companies_blocked })} />
@@ -50,5 +52,45 @@ export default function AdminDashboard() {
                 )}
             </Card>
         </div>
+    );
+}
+
+/** Shows whether the cron-driven queue runs; a missing cronjob is the usual setup mistake. */
+function QueueCard({ queue }) {
+    const { t, i18n } = useTranslation();
+    if (!queue) return null;
+
+    const tone = { stale: 'red', working: 'brand', idle: 'green' }[queue.status] ?? 'grey';
+
+    return (
+        <Card className="mb-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="font-semibold">{t('admin.queue.title')}</h2>
+                <Badge tone={tone}>{t(`admin.queue.status.${queue.status}`)}</Badge>
+            </div>
+            {queue.status === 'stale' && (
+                <Alert type="error" className="mt-4">
+                    {t('admin.queue.stale')}
+                </Alert>
+            )}
+            <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+                <div>
+                    <dt className="text-stone-500">{t('admin.queue.pending')}</dt>
+                    <dd className="font-medium">{queue.pending_jobs ?? '-'}</dd>
+                </div>
+                <div>
+                    <dt className="text-stone-500">{t('admin.queue.oldest')}</dt>
+                    <dd className="font-medium">{queue.oldest_pending_at ? formatDate(queue.oldest_pending_at, i18n.language) : '-'}</dd>
+                </div>
+                <div>
+                    <dt className="text-stone-500">{t('admin.queue.last_run')}</dt>
+                    <dd className="font-medium">{queue.last_worker_run_at ? formatDate(queue.last_worker_run_at, i18n.language) : t('admin.queue.never')}</dd>
+                </div>
+                <div>
+                    <dt className="text-stone-500">{t('admin.queue.failed_24h')}</dt>
+                    <dd className={queue.failed_jobs_24h ? 'font-medium text-red-600' : 'font-medium'}>{queue.failed_jobs_24h ?? '-'}</dd>
+                </div>
+            </dl>
+        </Card>
     );
 }

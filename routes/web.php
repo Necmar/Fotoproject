@@ -14,5 +14,5 @@ Route::view('/login', 'app')->name('login');
 
 // Everything else is handled by the React router.
 Route::view('/{path?}', 'app')
-    ->where('path', '^(?!api/|build/|storage/|up$).*$')
+    ->where('path', '^(?!api/|build/|storage/|cron/|up$).*$')
     ->name('spa');

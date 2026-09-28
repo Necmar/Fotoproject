@@ -238,6 +238,20 @@
             "registration_text": "Companies can create an account themselves.",
             "maintenance_message": "Notice for users",
             "maintenance_hint": "Shown at the top of every page. Leave empty to hide."
+        },
+        "queue": {
+            "title": "Queue",
+            "status": {
+                "stale": "Waiting for cronjob",
+                "working": "Working",
+                "idle": "Idle"
+            },
+            "stale": "Photos are waiting, but processing has not started in the last few minutes. Check the scheduled task in Plesk (see docs/PLESK.md).",
+            "pending": "Pending jobs",
+            "oldest": "Oldest job",
+            "last_run": "Last run",
+            "never": "Never",
+            "failed_24h": "Failed jobs (24 hours)"
         }
     },
     "enums": {

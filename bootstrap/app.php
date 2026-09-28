@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CronController;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureCompanyOwner;
 use App\Http\Middleware\EnsureSuperAdmin;
@@ -24,6 +25,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // catch-all in routes/web.php excludes /api/*, so order does not matter.
         then: function () {
             Route::middleware('web')->prefix('api')->group(base_path('routes/api.php'));
+
+            // Cron via URL (no session/cookies needed): see CronController.
+            Route::get('cron/{token}', CronController::class)
+                ->middleware('throttle:cron')
+                ->where('token', '[A-Za-z0-9_\-]+')
+                ->name('cron');
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {

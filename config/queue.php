@@ -40,8 +40,10 @@ return [
             'connection' => env('DB_QUEUE_CONNECTION'),
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => env('DB_QUEUE', 'default'),
-            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 90),
-            'after_commit' => false,
+            // Must be longer than the longest job (image jobs: 150 s timeout),
+            // otherwise a slow job would be handed out twice.
+            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 210),
+            'after_commit' => true,
         ],
 
         'beanstalkd' => [

@@ -10,6 +10,7 @@ use App\Models\ActivityLog;
 use App\Models\ImageProcessingRecord;
 use App\Services\ActivityLogger;
 use App\Services\CompanyStatsService;
+use App\Services\Processing\QueueHealth;
 use App\Services\SystemSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,11 +24,13 @@ class SystemController extends Controller
         private readonly ActivityLogger $activity,
     ) {}
 
-    public function dashboard(CompanyStatsService $stats): JsonResponse
+    public function dashboard(CompanyStatsService $stats, QueueHealth $queue): JsonResponse
     {
         $recentFailures = ImageProcessingRecord::query()
             ->with('company:id,name')
             ->where('status', ImageProcessingRecord::STATUS_FAILED)
+            // Attempts that will be retried are not failures (yet).
+            ->where(fn ($q) => $q->whereNull('error_code')->orWhere('error_code', '!=', 'retrying'))
             ->latest()
             ->limit(10)
             ->get()
@@ -44,6 +47,7 @@ class SystemController extends Controller
         return response()->json([
             'data' => [
                 'totals' => $stats->platform(),
+                'queue' => $queue->snapshot(),
                 'recent_failures' => $recentFailures,
             ],
         ]);

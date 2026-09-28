@@ -7,6 +7,7 @@ use App\Enums\BatchStatus;
 use App\Enums\ImageStatus;
 use App\Enums\WatermarkMode;
 use App\Exceptions\DomainRuleException;
+use App\Jobs\ProcessImage;
 use App\Models\Batch;
 use App\Models\Company;
 use App\Models\User;
@@ -81,7 +82,7 @@ class BatchService
      */
     public function start(Batch $batch): Batch
     {
-        return DB::transaction(function () use ($batch) {
+        $started = DB::transaction(function () use ($batch) {
             /** @var Batch $locked */
             $locked = Batch::query()->whereKey($batch->getKey())->lockForUpdate()->firstOrFail();
             $this->ensureDraft($locked);
@@ -110,10 +111,16 @@ class BatchService
             // Identical and near-identical photos get a warning; nothing is removed.
             $this->duplicates->markBatch($locked);
 
-            // Phase 4 dispatches one ProcessImage job per image here.
-
             return $locked;
         });
+
+        // One small job per image, dispatched after the commit so a worker never
+        // sees a half-started batch. Processed by the cron-started worker.
+        foreach ($started->images()->pluck('id') as $imageId) {
+            ProcessImage::dispatch($imageId);
+        }
+
+        return $started->refresh();
     }
 
     private function ensureDraft(Batch $batch): void

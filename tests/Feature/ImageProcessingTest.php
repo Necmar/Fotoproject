@@ -28,6 +28,8 @@ class ImageProcessingTest extends TestCase
     {
         parent::setUp();
         Storage::fake('local');
+        // Jobs wait in the database queue; tests process them explicitly.
+        config(['queue.default' => 'database']);
         $this->user = User::factory()->create();
         $this->batchId = $this->actingAs($this->user)->postJson('/api/company/batches', ['name' => 'BMW 320i'])->json('data.id');
     }

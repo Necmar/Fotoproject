@@ -174,6 +174,8 @@ class BatchUploadTest extends TestCase
 
     public function test_remove_image_from_draft_and_start_renumbers(): void
     {
+        config(['queue.default' => 'database']);
+
         $user = User::factory()->create();
         $id = $this->draft($user);
 

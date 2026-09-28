@@ -39,7 +39,12 @@ class ImagePipeline
         private readonly ActivityLogger $activity,
     ) {}
 
-    public function process(Image $image): Image
+    /**
+     * @param  bool  $finalAttempt  false while the queue may still retry: unexpected
+     *                              (possibly temporary) errors are then re-thrown so the job is retried
+     *                              with backoff. Rule violations (DomainRuleException) never retry.
+     */
+    public function process(Image $image, bool $finalAttempt = true): Image
     {
         $started = microtime(true);
         $image->loadMissing('batch');
@@ -72,12 +77,43 @@ class ImagePipeline
             Company::query()->whereKey($image->company_id)->increment('images_processed_total');
             $this->activity->log(ActivityAction::ImageProcessed, $image, ['position' => $image->position], company: $image->company_id);
         } catch (Throwable $e) {
+            if (! $finalAttempt && ! $e instanceof DomainRuleException) {
+                $this->scheduleRetry($image, $e, $started, $settings);
+
+                throw $e;
+            }
+
             $this->fail($image, $e, $started, $settings);
         } finally {
             $this->progress->refresh($image->batch);
         }
 
         return $image;
+    }
+
+    /** Called by the queue when all attempts are used up (e.g. timeouts). */
+    public function failPermanently(Image $image, ?Throwable $e = null): void
+    {
+        $image->loadMissing('batch');
+
+        if ($image->status->isFinished()) {
+            return;
+        }
+
+        $this->fail($image, $e ?? new \RuntimeException('Job failed'), microtime(true), BatchSettings::fromArray($image->effectiveSettings()));
+        $this->progress->refresh($image->batch);
+    }
+
+    private function scheduleRetry(Image $image, Throwable $e, float $started, BatchSettings $settings): void
+    {
+        Log::warning('Image processing attempt failed, will retry', ['image' => $image->id, 'attempt' => $image->attempts + 1, 'error' => $e->getMessage()]);
+
+        $this->record($image, ProcessingType::Local, ImageProcessingRecord::STATUS_FAILED, $started, $settings, 'retrying', $e->getMessage());
+
+        $image->forceFill([
+            'status' => ImageStatus::Queued,
+            'attempts' => $image->attempts + 1,
+        ])->save();
     }
 
     private function fail(Image $image, Throwable $e, float $started, BatchSettings $settings): void

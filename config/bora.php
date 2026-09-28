@@ -60,6 +60,25 @@ return [
 
     'locales' => ['nl', 'en'],
 
+    /*
+    | Queue on shared hosting: a cronjob starts `bora:work` every minute. It
+    | processes jobs for at most `max_time` seconds and then stops, so no
+    | permanent worker is needed. On a VPS: QUEUE_CONNECTION=redis and a
+    | supervisor-managed `php artisan queue:work --queue=images,default`.
+    */
+    'queue' => [
+        'images' => env('BORA_QUEUE_IMAGES', 'images'),
+        'max_time' => (int) env('BORA_WORKER_MAX_TIME', 50),
+        'job_timeout' => (int) env('BORA_JOB_TIMEOUT', 150),
+        'tries' => (int) env('BORA_JOB_TRIES', 3),
+        // Seconds between retries (exponential).
+        'backoff' => [30, 120, 300],
+        // Secret for the "fetch a URL" cron alternative (/cron/{token}); empty = disabled.
+        'cron_token' => env('BORA_CRON_TOKEN'),
+        // Images without progress for this many minutes are handed out again.
+        'stuck_after_minutes' => 20,
+    ],
+
     'processing' => [
         // Internal working copy: orientation fixed, metadata stripped, JPEG.
         // Large enough for the 2560 px output and as AI input.

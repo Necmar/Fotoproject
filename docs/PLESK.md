@@ -38,7 +38,7 @@
    MAIL_MAILER=smtp
    MAIL_HOST=... MAIL_PORT=587 MAIL_USERNAME=... MAIL_PASSWORD=... MAIL_FROM_ADDRESS=...
    ```
-5. Via SSH (of Plesk "PHP Composer" + "Scheduled Tasks > Run a command"):
+5. Zonder SSH via Plesk "PHP Composer" en een geplande taak met "Nu uitvoeren" (zie hieronder), of via SSH:
    ```bash
    composer install --no-dev --optimize-autoloader
    php artisan key:generate
@@ -49,6 +49,45 @@
    php artisan view:cache
    ```
 6. **React-build:** er draait geen Node.js op de server. Bouw lokaal of in CI met `npm ci && npm run build` en upload `public/build/`. (Alternatief: als de Plesk Node.js-extensie beschikbaar is, kan `npm ci && npm run build` als deploy-actie draaien.)
+
+## Cronjob voor de verwerking (zonder SSH)
+
+Er draait geen permanente worker. Eén geplande taak in Plesk start iedere minuut de Laravel-scheduler; die verwerkt ongeveer 50 seconden foto's en stopt dan.
+
+**Optie A (aanbevolen): PHP-script laten draaien**
+
+Plesk > Websites & Domeinen > Geplande taken > Taak toevoegen:
+
+| Veld | Waarde |
+|---|---|
+| Taaktype | PHP-script uitvoeren |
+| Scriptpad | `httpdocs/bora-foto/artisan` (het `artisan`-bestand van het project) |
+| Argumenten | `schedule:run` |
+| PHP-versie | dezelfde als de website (8.3 of 8.4) |
+| Uitvoeren | Cron-stijl `* * * * *` (iedere minuut) |
+| Meldingen | Alleen bij fouten |
+
+**Optie B: URL ophalen** (als "PHP-script uitvoeren" niet beschikbaar is)
+
+1. Zet in `.env` een lange willekeurige sleutel (minimaal 24 tekens, alleen letters, cijfers, `-` en `_`):
+   `BORA_CRON_TOKEN=...`
+2. Geplande taak: Taaktype "URL ophalen", URL `https://jouwdomein.nl/cron/<sleutel>`, iedere minuut.
+
+Zonder sleutel staat deze URL uit (404).
+
+**Mag het niet iedere minuut?** Kies dan de kortste interval die kan (bijvoorbeeld iedere 5 minuten); verwerking duurt dan langer. Verhoog eventueel `BORA_WORKER_MAX_TIME` (seconden per run) tot maximaal de `max_execution_time` van PHP.
+
+**Controle:** Super Admin > Overzicht > kaart "Wachtrij". Staat daar "Wacht op cronjob" terwijl er foto's klaarstaan, dan draait de geplande taak niet.
+
+## Artisan-commando's zonder SSH
+
+Maak in Plesk een geplande taak van het type "PHP-script uitvoeren" met scriptpad `artisan` en het commando als argument, en klik op **Nu uitvoeren**. Bijvoorbeeld:
+
+- `migrate --force` (na een update)
+- `bora:super-admin --email=beheer@jouwdomein.nl --name=Beheer --password=...`
+- `optimize` (config, routes en views cachen)
+
+Composer: gebruik de Plesk-extensie **PHP Composer** (Websites & Domeinen > PHP Composer > Installeren).
 
 ## Updates
 

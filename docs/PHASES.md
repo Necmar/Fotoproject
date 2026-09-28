@@ -192,3 +192,39 @@ Foutcodes (`422`, veld `code`): `invalid_type`, `corrupt_file`, `file_too_large`
 ### Plesk
 
 Geen nieuwe verplichtingen: GD volstaat. Optioneel voor extra HEIC-zekerheid: Imagick met HEIC-ondersteuning, of pad naar `heif-convert` via `BORA_HEIC_BINARIES`.
+
+## Fase 4: Queues en batchverwerking
+
+**Status:** afgerond. `php artisan test`: 71 tests, 439 assertions, alles groen. React-build slaagt. End-to-end getest: 3 foto's uploaden, starten, cron-URL aanroepen, batch klaar met `foto-01.jpg` tot en met `foto-03.jpg`.
+
+### Keuzes
+
+- **Eén job per foto** (`ProcessImage`) op de queue `images`, verstuurd na het committen van de batchstart. Uniek per foto, dus nooit dubbel tegelijk.
+- **Geen permanente worker:** `bora:work` verwerkt maximaal ~50 seconden (`--stop-when-empty`, `--max-time`) en stopt. Een cache-lock zorgt dat er nooit twee workers tegelijk draaien, ook als cronruns overlappen. Eén foto tegelijk: veilig voor shared hosting.
+- **Eén cronjob** start `schedule:run`; de scheduler start `bora:work` (iedere minuut), de watchdog (iedere 10 minuten) en het opschonen van oude mislukte jobs (dagelijks). In fase 8 komt de dagelijkse cleanup erbij.
+- **Zonder SSH:** Plesk "PHP-script uitvoeren" (`artisan schedule:run`) of, als dat niet kan, "URL ophalen" op `/cron/{BORA_CRON_TOKEN}`. De URL staat uit zonder sleutel, vergelijkt de sleutel veilig en heeft rate limiting.
+- **Retries:** 3 pogingen met oplopende wachttijd (30 s, 2 min, 5 min) bij onverwachte, mogelijk tijdelijke fouten. Regelovertredingen (kapot bestand, conversie mislukt) worden niet herhaald. Na de laatste poging wordt alleen die foto "Mislukt", met een begrijpelijke melding; de rest van de batch gaat door.
+- **Vastgelopen jobs:** een worker die halverwege stopt, geeft zijn job na `retry_after` (210 s) automatisch terug. De watchdog `bora:recover-stuck` zet foto's zonder voortgang (20 minuten) opnieuw in de wachtrij of markeert ze als mislukt als alle pogingen op zijn.
+- **Gezondheid in beeld:** Super Admin > Overzicht toont de wachtrij (wachtende taken, oudste taak, laatste verwerking, mislukte taken) en waarschuwt als er foto's wachten maar de cronjob niet draait.
+- **Later naar een VPS:** `QUEUE_CONNECTION=redis` en een permanente `queue:work --queue=images,default` onder supervisor; de code hoeft niet te veranderen.
+
+### Toegevoegd
+
+- `app/Jobs/ProcessImage.php`
+- `app/Console/Commands/{Work,RecoverStuckImages}.php` (`bora:work`, `bora:recover-stuck`)
+- `app/Services/Processing/QueueHealth.php`
+- `app/Http/Controllers/CronController.php` (`GET /cron/{token}`)
+- `tests/Feature/QueueProcessingTest.php`
+
+### Gewijzigd
+
+`app/Services/BatchService.php` (jobs na start), `app/Services/Processing/ImagePipeline.php` (retry-logica, `failPermanently`), `routes/console.php` (scheduler), `bootstrap/app.php` (cron-route), `routes/web.php`, `app/Providers/AppServiceProvider.php` (rate limiter `cron`), `app/Http/Controllers/Api/Admin/SystemController.php` (wachtrijstatus), `config/queue.php` (`retry_after` 210, `after_commit`), `config/bora.php` (sectie `queue`), `.env.example`, `resources/js/pages/admin/AdminDashboard.jsx`, `resources/js/locales/{nl,en}.json`, `tests/Feature/{BatchUploadTest,ImageProcessingTest}.php`, `docs/PLESK.md`.
+
+### Handmatig testen
+
+1. **Lokaal:** start een batch en draai `php artisan schedule:run` (of `php artisan bora:work`). De batchpagina toont de foto's één voor één als klaar, met "x van N klaar" en percentage.
+2. **Cron-URL lokaal:** zet `BORA_CRON_TOKEN` in `.env` en open `http://localhost:8000/cron/<token>`: antwoord `OK` en de batch wordt verwerkt. Een verkeerde sleutel geeft 404.
+3. **Op Plesk:** maak de geplande taak (optie A of B in `docs/PLESK.md`), start een batch met 10 foto's en laat het tabblad open: afgeronde foto's verschijnen zonder te verversen.
+4. **Super Admin > Overzicht:** de kaart "Wachtrij" toont "Bezig" tijdens verwerking en daarna "Rustig". Zet de geplande taak uit en start een batch: na een paar minuten verschijnt "Wacht op cronjob".
+5. **Weggaan tijdens verwerking:** sluit de browser, kom na een paar minuten terug: de batch is verder of klaar.
+6. **Batch verwijderen tijdens verwerking:** de resterende jobs worden stil overgeslagen, zonder mislukte taken.
