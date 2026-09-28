@@ -3,6 +3,8 @@ import { AlertTriangle, CheckCircle2, Columns2, Download, RefreshCw, ImageIcon, 
 import { formatBytes } from '../../lib/format';
 import { Badge, cx } from '../ui';
 
+const ACTION = 'flex h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[11px] leading-tight font-medium text-stone-700 hover:bg-stone-100';
+
 const STATUS_TONE = {
     uploaded: 'grey',
     queued: 'grey',
@@ -42,7 +44,7 @@ export function LocalPhotoTile({ item, onRetry, onRemove }) {
     const uploading = item.status === 'uploading';
 
     return (
-        <div className={cx('rounded-2xl bg-white ring-1', item.status === 'error' ? 'ring-red-200' : 'ring-stone-200/80')}>
+        <div className={cx('min-w-0 rounded-2xl bg-white ring-1', item.status === 'error' ? 'ring-red-200' : 'ring-stone-200/80')}>
             <Thumb
                 src={item.previewUrl}
                 alt={item.name}
@@ -69,15 +71,15 @@ export function LocalPhotoTile({ item, onRetry, onRemove }) {
                             <Loader2 className="size-3.5 animate-spin" aria-hidden />
                             {item.status === 'pending'
                                 ? t('upload.status.pending')
-                                : item.status === 'converting'
-                                  ? t('upload.status.converting')
+                                : ['converting', 'preparing'].includes(item.status)
+                                  ? t(`upload.status.${item.status}`)
                                   : `${item.progress}%`}
                         </span>
                     )}
                 </div>
                 {item.error && <p className="text-xs text-red-600">{item.error}</p>}
                 {item.status === 'error' && (
-                    <div className="flex gap-1 pt-1">
+                    <div className="-mx-1 flex flex-wrap gap-x-0.5 pt-1">
                         {item.retryable && (
                             <button type="button" onClick={() => onRetry(item.id)} className="inline-flex h-9 items-center gap-1 rounded-lg px-2 text-xs font-medium text-stone-700 hover:bg-stone-100">
                                 <RotateCcw className="size-3.5" aria-hidden /> {t('upload.retry')}
@@ -99,7 +101,7 @@ export function ServerPhotoTile({ image, onRemove, removing, showStatus = false,
     const warnings = image.warnings ?? [];
 
     return (
-        <div className="rounded-2xl bg-white ring-1 ring-stone-200/80">
+        <div className="min-w-0 rounded-2xl bg-white ring-1 ring-stone-200/80">
             {onOpen ? (
                 <button type="button" onClick={() => onOpen(image)} className="block w-full" aria-label={t('viewer.open', { name: image.original_filename })}>
                     <Thumb src={image.urls.optimized ?? image.urls.thumbnail} alt={image.original_filename} />
@@ -145,18 +147,19 @@ export function ServerPhotoTile({ image, onRemove, removing, showStatus = false,
                     </p>
                 ))}
                 {onOpen && ['completed', 'failed'].includes(image.status) && (
-                    <div className="flex gap-1 pt-1">
+                    // Icon above a short label: three equal touch targets that fit a two-column phone grid.
+                    <div className="-mx-1 grid auto-cols-fr grid-flow-col gap-1 pt-1">
                         {image.urls.optimized && (
-                            <button type="button" onClick={() => onOpen(image)} className="inline-flex h-9 items-center gap-1 rounded-lg px-2 text-xs font-medium text-stone-700 hover:bg-stone-100">
-                                <Columns2 className="size-3.5" aria-hidden /> {t('viewer.compare_short')}
+                            <button type="button" onClick={() => onOpen(image)} className={ACTION}>
+                                <Columns2 className="size-4" aria-hidden /> {t('viewer.compare_short')}
                             </button>
                         )}
-                        <button type="button" onClick={() => onOpen(image, 'reoptimize')} className="inline-flex h-9 items-center gap-1 rounded-lg px-2 text-xs font-medium text-stone-700 hover:bg-stone-100">
-                            <RefreshCw className="size-3.5" aria-hidden /> {t('viewer.reoptimize_short')}
+                        <button type="button" onClick={() => onOpen(image, 'reoptimize')} className={ACTION}>
+                            <RefreshCw className="size-4" aria-hidden /> {t('viewer.reoptimize_short')}
                         </button>
                         {image.urls.download && (
-                            <a href={image.urls.download} className="inline-flex h-9 items-center gap-1 rounded-lg px-2 text-xs font-medium text-stone-700 hover:bg-stone-100" aria-label={t('download.single', { name: image.output_filename })}>
-                                <Download className="size-3.5" aria-hidden />
+                            <a href={image.urls.download} className={ACTION} aria-label={t('download.single', { name: image.output_filename })}>
+                                <Download className="size-4" aria-hidden /> {t('download.short')}
                             </a>
                         )}
                     </div>

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ArrowRight, Sparkles, Trash2 } from 'lucide-react';
 import api, { errorMessage, fieldErrors } from '../../lib/api';
 import { useFetch } from '../../lib/useFetch';
+import { useWakeLock } from '../../lib/useWakeLock';
 import { useUploadQueue } from '../../lib/useUploadQueue';
 import { formatBytes } from '../../lib/format';
 import { useAuth } from '../../auth/AuthContext';
@@ -51,7 +52,8 @@ function Wizard({ initial }) {
     const remaining = Math.max(0, maxFiles - images.length - inQueue);
     const totalBytes = useMemo(() => images.reduce((sum, i) => sum + (i.original_size ?? 0), 0), [images]);
 
-    // Warn before leaving while uploads are still running.
+    // Keep the screen on and warn before leaving while uploads are still running.
+    useWakeLock(queue.busy);
     useEffect(() => {
         if (!queue.busy) return undefined;
         const handler = (e) => {
@@ -197,7 +199,7 @@ function Wizard({ initial }) {
 /** Primary actions stay reachable at the bottom of the screen on phones. */
 function StickyActions({ children }) {
     return (
-        <div className="sticky bottom-0 z-10 -mx-4 mt-8 border-t border-stone-200/70 bg-stone-50/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+        <div className="sticky bottom-0 z-10 -mx-4 mt-8 border-t border-stone-200/70 bg-stone-50/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pt-0 sm:pb-0">
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">{children}</div>
         </div>
     );

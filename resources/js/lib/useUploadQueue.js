@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import api, { errorMessage } from './api';
 import i18n from './i18n';
 import { convertHeicToJpeg } from './heic';
+import { downscaleIfNeeded, PREPARE_MIN_BYTES } from './downscale';
 
 const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'heic', 'heif'];
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence'];
@@ -28,7 +29,7 @@ export function isHeif(file) {
  * 3. Uploads one file per request, two at a time, with progress per file.
  *
  * Item: { id, file, name, size, previewUrl, status, progress, error, needsConversion, retryable }
- * status: 'pending' | 'converting' | 'uploading' | 'error'
+ * status: 'pending' | 'converting' (HEIC) | 'preparing' (scaling down) | 'uploading' | 'error'
  * Uploaded files leave the queue and are passed to onUploaded(image).
  */
 export function useUploadQueue({ batchId, maxFiles, maxMb, existingCount, onUploaded }) {
@@ -46,21 +47,20 @@ export function useUploadQueue({ batchId, maxFiles, maxMb, existingCount, onUplo
     const kick = () => setItems((list) => [...list]);
 
     const convert = useCallback(async (item) => {
+        const heif = isHeif(item.file);
         converting.current = item.id;
-        update(item.id, { status: 'converting' });
+        update(item.id, { status: heif ? 'converting' : 'preparing' });
+
+        const tooLarge = (file) => (file.size > maxMb * 1024 * 1024 ? { status: 'error', error: i18n.t('upload.errors.too_large', { max: maxMb }) } : { status: 'pending', error: null });
 
         try {
-            const jpeg = await convertHeicToJpeg(item.file);
-            if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
-            update(item.id, {
-                file: jpeg,
-                name: jpeg.name,
-                size: jpeg.size,
-                previewUrl: URL.createObjectURL(jpeg),
-                needsConversion: false,
-                status: jpeg.size > maxMb * 1024 * 1024 ? 'error' : 'pending',
-                error: jpeg.size > maxMb * 1024 * 1024 ? i18n.t('upload.errors.too_large', { max: maxMb }) : null,
-            });
+            const file = heif ? await convertHeicToJpeg(item.file) : await downscaleIfNeeded(item.file);
+            if (file === item.file) {
+                update(item.id, { needsConversion: false, ...tooLarge(file) });
+            } else {
+                if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+                update(item.id, { file, name: file.name, size: file.size, previewUrl: URL.createObjectURL(file), needsConversion: false, ...tooLarge(file) });
+            }
         } catch {
             // Let the server try (Imagick/CLI). Its answer decides.
             update(item.id, { needsConversion: false, status: 'pending' });
@@ -101,7 +101,7 @@ export function useUploadQueue({ batchId, maxFiles, maxMb, existingCount, onUplo
         [batchId],
     );
 
-    // Scheduler: one conversion at a time, two uploads at a time.
+    // Scheduler: one conversion/scaling at a time (memory on phones), two uploads at a time.
     useEffect(() => {
         if (!batchId) return;
 
@@ -134,8 +134,7 @@ export function useUploadQueue({ batchId, maxFiles, maxMb, existingCount, onUplo
                 let error = null;
 
                 if (!typeOk) error = i18n.t('upload.errors.invalid_type');
-                // HEIC is checked after conversion (the JPEG is usually larger).
-                else if (!heif && file.size > maxMb * 1024 * 1024) error = i18n.t('upload.errors.too_large', { max: maxMb });
+                // Large photos are checked after conversion / scaling down (see convert()).
                 else if (file.size === 0) error = i18n.t('upload.errors.empty');
 
                 if (!error) {
@@ -154,7 +153,8 @@ export function useUploadQueue({ batchId, maxFiles, maxMb, existingCount, onUplo
                     // Only Safari can show HEIC; others get a placeholder until converted.
                     previewUrl: !error && !heif ? URL.createObjectURL(file) : null,
                     status: error ? 'error' : 'pending',
-                    needsConversion: !error && heif,
+                    // HEIC is converted, large JPG/PNG scaled down (one at a time) before upload.
+                    needsConversion: !error && (heif || file.size >= PREPARE_MIN_BYTES),
                     progress: 0,
                     error,
                     retryable: false,
@@ -178,7 +178,7 @@ export function useUploadQueue({ batchId, maxFiles, maxMb, existingCount, onUplo
 
     useEffect(() => () => itemsRef.current.forEach((i) => i.previewUrl && URL.revokeObjectURL(i.previewUrl)), []);
 
-    const busy = items.some((i) => ['pending', 'converting', 'uploading'].includes(i.status));
+    const busy = items.some((i) => ['pending', 'converting', 'preparing', 'uploading'].includes(i.status));
 
     return { items, add, retry, remove, busy, notice, clearNotice: () => setNotice(null) };
 }

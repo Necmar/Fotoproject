@@ -396,3 +396,37 @@ Sterk bewogen, veel ruis, lage kwaliteit (alleen als herstel beperkt is), persoo
 3. "Opnieuw optimaliseren" op een foto in die batch: geen tweede mail.
 4. Super Admin > Systeem: zet de bewaartermijn op 1 dag; de datum "beschikbaar tot" van batches verschuift direct.
 5. `php artisan bora:cleanup --dry-run` toont wat er weg zou gaan; zonder `--dry-run` verdwijnen verlopen batches en hun bestanden, en daalt het opslaggebruik. Het aantal verwerkte foto's in Super Admin blijft gelijk.
+
+## Fase 9: Mobiele optimalisatie
+
+**Status:** afgerond. `php artisan test`: 108 tests, 756 assertions, alles groen. React-build slaagt. Alle schermen (bedrijf en Super Admin, 18 in totaal) zijn nagelopen op 390 × 844 px (iPhone-formaat), met een automatische controle op horizontaal scrollen: nergens meer.
+
+### Keuzes
+
+- **Horizontaal scrollen opgelost** op de batchpagina na afronding: de actieknoppen onder een foto duwden de pagina 28 px te breed (en daarmee ook de fotoviewer). Foto-cards krimpen nu mee, en de acties zijn drie even brede touch-knoppen van 48 px hoog met icoon boven een kort label: Voor/na, Opnieuw, Download.
+- **Voor/na-slider werkt overal op aanraking:** tikken of slepen op elk punt van de foto (pointer events). Voorheen reageerde iOS alleen op het onzichtbare schuifje zelf. De pijltjestoetsen blijven werken via de toegankelijke schuifregelaar.
+- **Grote foto's worden in de browser verkleind** tot maximaal 4096 px aan de langste zijde (JPG, PNG en omgezette HEIC; ruim genoeg voor de grootste output van 2560 px). Minder uploadtijd over mobiel internet, minder schijfruimte en minder PHP-geheugen op shared hosting. Foto's kleiner dan 2,5 MB worden niet aangeraakt. EXIF-rotatie wordt daarbij toegepast en metadata (ook GPS) valt weg. Status bij de foto: "Verkleinen…". Lukt het de browser niet, dan gaat het origineel naar de server.
+- **HEIC op iPhone:** de terugvaloptie via Safari tekent nu direct op het doelformaat. Een canvas van een 48 MP-foto is groter dan iOS toestaat en mislukte daardoor.
+- **Scherm blijft aan tijdens het uploaden** (Screen Wake Lock, waar de browser het ondersteunt). Een vergrendelde telefoon pauzeert anders de uploads.
+- **iPhone-randen:** kop, fotoviewer en de vaste knoppenbalk onderaan houden rekening met de notch en de home-balk (safe areas). De pagina achter een geopende viewer scrollt niet meer mee.
+- **Kleiner:** de tabbladen in de viewer passen op smalle schermen, en de zoekplaceholder bij Bedrijven is ingekort.
+
+Al aanwezig uit eerdere fases en gecontroleerd: grote uploadknoppen, knoppen voor fotobibliotheek en camera, meerdere foto's tegelijk selecteren, invoervelden met 16 px tekst (geen automatische zoom op iOS), cards in plaats van tabellen, polling die pauzeert als de app op de achtergrond staat.
+
+### Toegevoegd
+
+- `resources/js/lib/downscale.js` (verkleinen vóór upload)
+- `resources/js/lib/useWakeLock.js`
+
+### Gewijzigd
+
+`resources/css/app.css` (safe areas, scroll-lock), `resources/js/components/batch/{PhotoTile,CompareSlider,ImageViewer}.jsx`, `resources/js/lib/{heic,useUploadQueue}.js`, `resources/js/layouts/AppLayout.jsx`, `resources/js/pages/company/BatchEdit.jsx`, `resources/js/locales/{nl,en}.json`.
+
+### Handmatig testen (op een echte telefoon)
+
+1. iPhone, Safari: kies 20 tot 30 foto's uit de fotobibliotheek (ook HEIC en een foto van 48 MP als je die hebt). Tegels tonen "HEIC omzetten…" of "Verkleinen…" en daarna de uploadvoortgang. Het scherm gaat niet uit tijdens het uploaden.
+2. Knop Camera: maak een foto, die komt direct in de lijst.
+3. Na de verwerking: geen horizontaal scrollen; de knoppen Voor/na, Opnieuw en Download zijn goed te raken met je duim.
+4. Voor/na: tik ergens op de foto en sleep; de scheidslijn volgt je vinger. De pagina erachter scrollt niet mee.
+5. iPhone met notch, liggend: de inhoud valt niet onder de notch; de knop "Verder naar instellingen" staat vrij van de home-balk.
+6. Android (Chrome): dezelfde stappen 1 tot 4.

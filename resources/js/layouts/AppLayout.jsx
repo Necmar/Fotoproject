@@ -33,7 +33,7 @@ export default function AppLayout({ nav, badge }) {
 
     return (
         <div className="min-h-dvh">
-            <header className="sticky top-0 z-20 border-b border-stone-200/70 bg-stone-50/90 backdrop-blur">
+            <header className="sticky top-0 z-20 border-b pt-[env(safe-area-inset-top)] border-stone-200/70 bg-stone-50/90 backdrop-blur">
                 <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
                     <NavLink to={nav[0].to} className="shrink-0">
                         <Logo />

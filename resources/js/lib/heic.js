@@ -5,7 +5,10 @@
  * 1. heic-to (libheif compiled to WebAssembly), loaded only when needed.
  * 2. Fallback: the browser's own decoder (Safari on iOS/macOS), via canvas.
  * Throws when neither works; the caller then uploads the original.
+ * The result is limited to MAX_SIDE (see downscale.js).
  */
+
+import { downscaleIfNeeded, encodeBitmap } from './downscale';
 
 const QUALITY = 0.92;
 const TIMEOUT_MS = 90_000;
@@ -24,14 +27,8 @@ async function viaLibheif(file) {
 }
 
 async function viaBrowser(file) {
-    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
-    const canvas = document.createElement('canvas');
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
-    canvas.getContext('2d').drawImage(bitmap, 0, 0);
-    bitmap.close?.();
-
-    return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('encode'))), 'image/jpeg', QUALITY));
+    // Drawn straight at MAX_SIDE: a full-size canvas of a 48 MP photo fails on iOS.
+    return encodeBitmap(await createImageBitmap(file, { imageOrientation: 'from-image' }), 'image/jpeg');
 }
 
 export async function convertHeicToJpeg(file) {
@@ -44,5 +41,5 @@ export async function convertHeicToJpeg(file) {
 
     if (!blob || blob.size === 0) throw new Error('empty');
 
-    return new File([blob], jpegName(file.name), { type: 'image/jpeg', lastModified: file.lastModified });
+    return downscaleIfNeeded(new File([blob], jpegName(file.name), { type: 'image/jpeg', lastModified: file.lastModified }));
 }

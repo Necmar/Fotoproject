@@ -168,7 +168,7 @@
             "create": "Create company",
             "created": "The company has been created and the owner received an e-mail.",
             "created_at": "Created on {{date}}",
-            "search": "Search by company, name or e-mail",
+            "search": "Search company or e-mail",
             "all_statuses": "All statuses",
             "empty": "No companies found",
             "last_login": "Last signed in {{date}}",
@@ -443,7 +443,8 @@
             "pending": "Waiting",
             "uploaded": "Uploaded",
             "error": "Failed",
-            "converting": "Converting HEIC…"
+            "converting": "Converting HEIC…",
+            "preparing": "Resizing…"
         },
         "errors": {
             "invalid_type": "Invalid file. Use JPG, PNG, HEIC or HEIF.",
@@ -483,7 +484,8 @@
         "single": "Download {{name}}",
         "logo_on_photo": "Logo on this photo",
         "select_hint": "Tick the photos below that should get the logo.",
-        "watermark_note": "The logo is only added when downloading; the stored photo stays without logo."
+        "watermark_note": "The logo is only added when downloading; the stored photo stays without logo.",
+        "short": "Download"
     },
     "history": {
         "title": "My batches",

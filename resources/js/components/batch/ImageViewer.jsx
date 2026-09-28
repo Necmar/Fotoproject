@@ -60,7 +60,7 @@ export default function ImageViewer({ image, onClose, onReoptimized, startWithFo
             className="m-0 h-dvh max-h-none w-full max-w-none bg-stone-50 p-0 backdrop:bg-stone-900/60 sm:m-auto sm:h-auto sm:max-h-[95dvh] sm:max-w-4xl sm:rounded-2xl"
         >
             <div className="flex h-full flex-col">
-                <header className="flex items-center justify-between gap-3 border-b border-stone-200 bg-white px-4 py-3">
+                <header className="flex items-center justify-between gap-3 border-b border-stone-200 bg-white px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 sm:pt-3">
                     <div className="min-w-0">
                         <p className="truncate font-medium">
                             <span className="text-stone-400">{image.position}.</span> {image.output_filename ?? image.original_filename}
@@ -77,7 +77,7 @@ export default function ImageViewer({ image, onClose, onReoptimized, startWithFo
                     </div>
                 </header>
 
-                <div className="flex-1 space-y-4 overflow-y-auto p-4">
+                <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
                     {views.length > 1 && (
                         <div className="grid grid-cols-3 gap-1 rounded-xl bg-stone-200/70 p-1" role="tablist">
                             {views.map(([key, label]) => (
@@ -87,7 +87,7 @@ export default function ImageViewer({ image, onClose, onReoptimized, startWithFo
                                     role="tab"
                                     aria-selected={mode === key}
                                     onClick={() => setMode(key)}
-                                    className={cx('h-10 rounded-lg text-sm font-medium', mode === key ? 'bg-white shadow-sm' : 'text-stone-600')}
+                                    className={cx('h-10 truncate rounded-lg px-1 text-xs font-medium sm:text-sm', mode === key ? 'bg-white shadow-sm' : 'text-stone-600')}
                                 >
                                     {label}
                                 </button>

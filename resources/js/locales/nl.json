@@ -168,7 +168,7 @@
             "create": "Bedrijf aanmaken",
             "created": "Het bedrijf is aangemaakt en de eigenaar heeft een e-mail ontvangen.",
             "created_at": "Aangemaakt op {{date}}",
-            "search": "Zoek op bedrijf, naam of e-mailadres",
+            "search": "Zoek op bedrijf of e-mail",
             "all_statuses": "Alle statussen",
             "empty": "Geen bedrijven gevonden",
             "last_login": "Laatst ingelogd {{date}}",
@@ -443,7 +443,8 @@
             "pending": "Wachten",
             "uploaded": "Geüpload",
             "error": "Mislukt",
-            "converting": "HEIC omzetten…"
+            "converting": "HEIC omzetten…",
+            "preparing": "Verkleinen…"
         },
         "errors": {
             "invalid_type": "Ongeldig bestand. Gebruik JPG, PNG, HEIC of HEIF.",
@@ -483,7 +484,8 @@
         "single": "{{name}} downloaden",
         "logo_on_photo": "Logo op deze foto",
         "select_hint": "Vink bij de foto's hieronder aan waar het logo op moet.",
-        "watermark_note": "Het logo wordt alleen bij het downloaden toegevoegd; de opgeslagen foto blijft zonder logo."
+        "watermark_note": "Het logo wordt alleen bij het downloaden toegevoegd; de opgeslagen foto blijft zonder logo.",
+        "short": "Download"
     },
     "history": {
         "title": "Mijn verwerkingen",
