@@ -128,6 +128,9 @@ export function ServerPhotoTile({ image, onRemove, removing, showStatus = false 
                         </span>
                     )}
                 </div>
+                {image.status === 'completed' && image.ai_status && (
+                    <p className="text-xs text-stone-400">{t(`batch.ai_status.${image.ai_status}`)}</p>
+                )}
                 {image.error && <p className="text-xs text-red-600">{image.error}</p>}
                 {warnings.map((w, i) => (
                     <p key={i} className="flex items-start gap-1 text-xs text-amber-800">

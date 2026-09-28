@@ -41,6 +41,13 @@ return [
         'watermark_needs_logo' => 'Upload eerst een bedrijfslogo om een watermark te gebruiken.',
     ],
     'warnings' => [
+        'motion_blur' => 'Deze foto is sterk bewogen. Verbetering is beperkt mogelijk.',
+        'noisy' => 'Deze foto heeft veel ruis. Verbetering is beperkt mogelijk.',
+        'low_quality' => 'Deze foto heeft een lage kwaliteit. Verbetering is beperkt mogelijk.',
+        'person_overlaps_product' => 'Een persoon staat deels voor het product. Dat deel is niet betrouwbaar te herstellen en is zo veel mogelijk origineel gelaten.',
+        'people_not_removed' => 'Niet alle personen konden betrouwbaar worden verwijderd.',
+        'ai_edit_rejected' => 'De AI-bewerking veranderde het product en is daarom afgekeurd. Alleen veilige basiscorrecties zijn toegepast.',
+        'ai_unavailable' => 'AI-verwerking was niet beschikbaar. Alleen basiscorrecties zijn toegepast.',
         'too_dark' => 'Deze foto is erg donker. Verbetering is beperkt mogelijk.',
         'too_bright' => 'Deze foto is sterk overbelicht. Uitgebeten delen zijn niet te herstellen.',
         'low_contrast' => 'Deze foto heeft weinig contrast.',

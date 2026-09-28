@@ -41,6 +41,13 @@ return [
         'watermark_needs_logo' => 'Upload a company logo first to use a watermark.',
     ],
     'warnings' => [
+        'motion_blur' => 'This photo is heavily shaken. Improvement is limited.',
+        'noisy' => 'This photo has a lot of noise. Improvement is limited.',
+        'low_quality' => 'This photo is of low quality. Improvement is limited.',
+        'person_overlaps_product' => 'A person partly covers the product. That area cannot be restored reliably and has been kept as original as possible.',
+        'people_not_removed' => 'Not all people could be removed reliably.',
+        'ai_edit_rejected' => 'The AI edit changed the product and was rejected. Only safe basic corrections were applied.',
+        'ai_unavailable' => 'AI processing was not available. Only basic corrections were applied.',
         'too_dark' => 'This photo is very dark. Improvement is limited.',
         'too_bright' => 'This photo is heavily overexposed. Blown-out areas cannot be recovered.',
         'low_contrast' => 'This photo has little contrast.',

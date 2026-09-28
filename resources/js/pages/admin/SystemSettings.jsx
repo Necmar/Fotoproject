@@ -101,6 +101,30 @@ export default function SystemSettings() {
                     </div>
                 </Card>
 
+                <Card>
+                    <h2 className="font-semibold">{t('admin.settings.openai')}</h2>
+                    {!meta.openai.configured && (
+                        <Alert type="warning" className="mt-4">
+                            {t('admin.settings.openai_missing')}
+                        </Alert>
+                    )}
+                    <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                        {[
+                            ['openai_key', meta.openai.configured ? t('admin.settings.set') : t('admin.settings.not_set')],
+                            ['analysis_model', meta.openai.analysis_model],
+                            ['image_model', meta.openai.image_model],
+                            ['edit_policy', t(`admin.settings.policy.${meta.openai.edit_policy}`)],
+                            ['verify_edits', meta.openai.verify_edits ? t('admin.settings.on') : t('admin.settings.off')],
+                        ].map(([key, value]) => (
+                            <div key={key}>
+                                <dt className="text-stone-500">{t(`admin.settings.${key}`)}</dt>
+                                <dd className="font-medium">{value}</dd>
+                            </div>
+                        ))}
+                    </dl>
+                    <p className="mt-4 text-xs text-stone-400">{t('admin.settings.openai_env_hint')}</p>
+                </Card>
+
                 <Card className="space-y-5">
                     <h2 className="font-semibold">{t('admin.settings.access')}</h2>
                     <Toggle

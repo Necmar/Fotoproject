@@ -43,6 +43,10 @@ class OutputRenderer
         try {
             $editor = ImageEditor::open($local);
 
+            if (($adjustments['rotate'] ?? 0) != 0) {
+                $editor->straighten((float) $adjustments['rotate']);
+            }
+
             if ($settings->aspectRatio !== AspectRatio::Original) {
                 $editor->cropToRatio($settings->aspectRatio->ratio(), $focus);
             }

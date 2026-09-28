@@ -42,12 +42,12 @@ class CompanyStatsService
             'batches_current' => Batch::query()->forCompany($company->id)->count(),
             'batches_active' => Batch::query()->forCompany($company->id)->active()->count(),
             'batches_total' => $company->batches_total,
-            // One succeeded non-analysis record is written per finished image (see phase 4),
-            // so this keeps counting after the 7-day cleanup nulls image_id.
+            // Exactly one succeeded "local" (final render) record is written per finished
+            // image, so this keeps counting after the 7-day cleanup nulls image_id.
             'images_last_30_days' => ImageProcessingRecord::query()
                 ->where('company_id', $company->id)
                 ->where('status', ImageProcessingRecord::STATUS_SUCCEEDED)
-                ->where('type', '!=', ProcessingType::Analysis->value)
+                ->where('type', ProcessingType::Local->value)
                 ->where('created_at', '>=', $since)
                 ->count(),
             'images_processed_total' => $company->images_processed_total,

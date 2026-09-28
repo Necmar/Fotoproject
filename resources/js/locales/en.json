@@ -237,7 +237,24 @@
             "registration": "Public registration",
             "registration_text": "Companies can create an account themselves.",
             "maintenance_message": "Notice for users",
-            "maintenance_hint": "Shown at the top of every page. Leave empty to hide."
+            "maintenance_hint": "Shown at the top of every page. Leave empty to hide.",
+            "openai": "OpenAI",
+            "openai_missing": "No OpenAI API key is set. Photos only get local basic corrections.",
+            "openai_key": "API key",
+            "analysis_model": "Analysis model",
+            "image_model": "Editing model",
+            "edit_policy": "Edit policy",
+            "verify_edits": "Check after editing",
+            "set": "Set",
+            "not_set": "Not set",
+            "on": "On",
+            "off": "Off",
+            "openai_env_hint": "These values live in .env on the server (OPENAI_API_KEY, OPENAI_ANALYSIS_MODEL, OPENAI_IMAGE_MODEL, OPENAI_EDIT_POLICY, OPENAI_VERIFY_EDITS).",
+            "policy": {
+                "auto": "Automatic (edit only when needed)",
+                "never": "Never edit (analysis only)",
+                "always": "Always edit"
+            }
         },
         "queue": {
             "title": "Queue",
@@ -398,6 +415,13 @@
                     "strong": "More correction of light, background and presentation."
                 }
             }
+        },
+        "ai_status": {
+            "skipped": "Improved locally",
+            "analyzed": "AI analysis, safe corrections",
+            "edited": "AI edited and checked",
+            "edit_rejected": "AI edit rejected, basic corrections",
+            "fallback": "Basic corrections (AI unavailable)"
         }
     },
     "upload": {

@@ -204,7 +204,7 @@ Geen nieuwe verplichtingen: GD volstaat. Optioneel voor extra HEIC-zekerheid: Im
 - **Eén cronjob** start `schedule:run`; de scheduler start `bora:work` (iedere minuut), de watchdog (iedere 10 minuten) en het opschonen van oude mislukte jobs (dagelijks). In fase 8 komt de dagelijkse cleanup erbij.
 - **Zonder SSH:** Plesk "PHP-script uitvoeren" (`artisan schedule:run`) of, als dat niet kan, "URL ophalen" op `/cron/{BORA_CRON_TOKEN}`. De URL staat uit zonder sleutel, vergelijkt de sleutel veilig en heeft rate limiting.
 - **Retries:** 3 pogingen met oplopende wachttijd (30 s, 2 min, 5 min) bij onverwachte, mogelijk tijdelijke fouten. Regelovertredingen (kapot bestand, conversie mislukt) worden niet herhaald. Na de laatste poging wordt alleen die foto "Mislukt", met een begrijpelijke melding; de rest van de batch gaat door.
-- **Vastgelopen jobs:** een worker die halverwege stopt, geeft zijn job na `retry_after` (210 s) automatisch terug. De watchdog `bora:recover-stuck` zet foto's zonder voortgang (20 minuten) opnieuw in de wachtrij of markeert ze als mislukt als alle pogingen op zijn.
+- **Vastgelopen jobs:** een worker die halverwege stopt, geeft zijn job na `retry_after` (300 s) automatisch terug. De watchdog `bora:recover-stuck` zet foto's zonder voortgang (20 minuten) opnieuw in de wachtrij of markeert ze als mislukt als alle pogingen op zijn.
 - **Gezondheid in beeld:** Super Admin > Overzicht toont de wachtrij (wachtende taken, oudste taak, laatste verwerking, mislukte taken) en waarschuwt als er foto's wachten maar de cronjob niet draait.
 - **Later naar een VPS:** `QUEUE_CONNECTION=redis` en een permanente `queue:work --queue=images,default` onder supervisor; de code hoeft niet te veranderen.
 
@@ -218,7 +218,7 @@ Geen nieuwe verplichtingen: GD volstaat. Optioneel voor extra HEIC-zekerheid: Im
 
 ### Gewijzigd
 
-`app/Services/BatchService.php` (jobs na start), `app/Services/Processing/ImagePipeline.php` (retry-logica, `failPermanently`), `routes/console.php` (scheduler), `bootstrap/app.php` (cron-route), `routes/web.php`, `app/Providers/AppServiceProvider.php` (rate limiter `cron`), `app/Http/Controllers/Api/Admin/SystemController.php` (wachtrijstatus), `config/queue.php` (`retry_after` 210, `after_commit`), `config/bora.php` (sectie `queue`), `.env.example`, `resources/js/pages/admin/AdminDashboard.jsx`, `resources/js/locales/{nl,en}.json`, `tests/Feature/{BatchUploadTest,ImageProcessingTest}.php`, `docs/PLESK.md`.
+`app/Services/BatchService.php` (jobs na start), `app/Services/Processing/ImagePipeline.php` (retry-logica, `failPermanently`), `routes/console.php` (scheduler), `bootstrap/app.php` (cron-route), `routes/web.php`, `app/Providers/AppServiceProvider.php` (rate limiter `cron`), `app/Http/Controllers/Api/Admin/SystemController.php` (wachtrijstatus), `config/queue.php` (`retry_after`, `after_commit`), `config/bora.php` (sectie `queue`), `.env.example`, `resources/js/pages/admin/AdminDashboard.jsx`, `resources/js/locales/{nl,en}.json`, `tests/Feature/{BatchUploadTest,ImageProcessingTest}.php`, `docs/PLESK.md`.
 
 ### Handmatig testen
 
@@ -228,3 +228,62 @@ Geen nieuwe verplichtingen: GD volstaat. Optioneel voor extra HEIC-zekerheid: Im
 4. **Super Admin > Overzicht:** de kaart "Wachtrij" toont "Bezig" tijdens verwerking en daarna "Rustig". Zet de geplande taak uit en start een batch: na een paar minuten verschijnt "Wacht op cronjob".
 5. **Weggaan tijdens verwerking:** sluit de browser, kom na een paar minuten terug: de batch is verder of klaar.
 6. **Batch verwijderen tijdens verwerking:** de resterende jobs worden stil overgeslagen, zonder mislukte taken.
+
+## Fase 5: OpenAI-analyse en fotobewerking
+
+**Status:** afgerond. `php artisan test`: 86 tests, 548 assertions, alles groen (OpenAI gesimuleerd met `Http::fake`). React-build slaagt.
+
+### Modellen (in te stellen via `.env`)
+
+- **Analyse en controle:** `gpt-5.4-mini` via de Responses API, met beeldinvoer en Structured Outputs (strikt JSON-schema).
+- **Bewerking:** `gpt-image-2` via `/v1/images/edits`.
+- Wisselen kan zonder codewijziging: `OPENAI_ANALYSIS_MODEL`, `OPENAI_IMAGE_MODEL`. Nieuwere modellen zoals `gpt-image-2.5-flare` of `gpt-image-2.5-sunburst` werken met dezelfde code; de kostenschatting staat in `config/services.php`.
+
+### Hoe een foto wordt verwerkt
+
+1. **Analyseren** (één keer per foto, opgeslagen en hergebruikt bij retries en opnieuw optimaliseren): productomschrijving, productkader (voor slim bijsnijden), problemen (donker, licht, onscherp, bewogen, ruis, witbalans, contrast, lage kwaliteit, scheef, storende achtergrond, harde schaduwen), herstelbaar ja/nee, personen (en of ze voor het product staan), zichtbare kentekens/teksten/beschadigingen, voorgestelde correcties en of een generatieve bewerking nodig is.
+2. **Beslissen** (`OPENAI_EDIT_POLICY=auto`): een generatieve bewerking alleen als die echt nodig is:
+   - altijd bij een achtergrondoptie of "personen verwijderen" (als er personen zijn);
+   - bij **Sterk** altijd, bij **Normaal** alleen als de analyse het aanraadt, bij **Subtiel** nooit;
+   - nooit bij een foto die niet betrouwbaar te herstellen is (anders zou de AI details kunnen verzinnen).
+
+   Zonder bewerking worden de correcties van de AI lokaal toegepast (belichting, contrast, witbalans, ruis, verscherping, lichte rechtzetting): geen risico voor het product en veel goedkoper.
+3. **Bewerken:** de prompt (`EditInstructionBuilder`) begint altijd met de vaste productintegriteitsregels (product exact behouden, beschadigingen zichtbaar, kleur, tekst, logo's, kenteken, niets toevoegen of verwijderen, niets reconstrueren zonder informatie, alleen presentatie en beeldkwaliteit), daarna de specifieke punten uit de analyse (bijvoorbeeld "kras op achterbumper moet blijven") en de gekozen achtergrond- en personenopties. Het formaat volgt de verhouding van de foto (veelvoud van 16, max 2048 px).
+4. **Controleren** (`OPENAI_VERIFY_EDITS=true`): een tweede analyse vergelijkt origineel en resultaat. Is het product veranderd (vorm, onderdelen, kleur, beschadiging, tekst, logo's, kenteken, kunstmatig uiterlijk), dan wordt de bewerking **afgekeurd** en krijgt de foto de veilige lokale correcties, met een melding.
+5. **Afronden:** bijsnijden met het productkader, resolutie, formaat, zonder metadata (fase 3).
+
+### Fouten en kosten
+
+- **Binnen één job:** 429 en 5xx en time-outs worden 2 keer opnieuw geprobeerd (2 s en 6 s).
+- **Daarna de queue:** tot 3 pogingen met oplopende wachttijd.
+- **Blijft OpenAI onbereikbaar, geen tegoed, of weigert het model:** de foto krijgt toch lokale basiscorrecties en de melding "AI-verwerking was niet beschikbaar". Een foto blijft nooit hangen op OpenAI.
+- Iedere OpenAI-aanroep wordt vastgelegd met model, tokens, duur en geschatte kosten (zichtbaar voor de Super Admin per bedrijf en platformbreed).
+- De API-key staat alleen in `.env`, wordt alleen als `Authorization`-header meegestuurd en wordt nooit gelogd; foto's en prompts worden ook niet gelogd.
+- Een geslaagde bewerking wordt bewaard (`images.ai_path`), zodat een herhaalde job niet opnieuw betaalt.
+
+### Nieuwe meldingen bij foto's
+
+Sterk bewogen, veel ruis, lage kwaliteit (alleen als herstel beperkt is), persoon staat deels voor het product, niet alle personen verwijderd, AI-bewerking afgekeurd, AI niet beschikbaar. Op iedere klaar-foto staat hoe hij verwerkt is (bijvoorbeeld "AI-bewerkt en gecontroleerd").
+
+### Toegevoegd
+
+- `app/Services/OpenAI/{OpenAIClient,OpenAIException,ImageInput,Usage,ImageAnalyzer,EditInstructionBuilder,ImageEditService,EditVerifier,AiImageProcessor}.php`
+- `app/Enums/AiStatus.php`
+- `database/migrations/2026_09_28_000400_add_ai_path_to_images_table.php`
+- `tests/Feature/OpenAIProcessingTest.php`
+
+### Gewijzigd
+
+`app/Services/Processing/ImagePipeline.php` (AI-stappen, terugval), `app/Services/Images/ImageEditor.php` (ruisonderdrukking, rechtzetten), `app/Services/Images/OutputRenderer.php`, `app/Services/CompanyStatsService.php` (telling per afgeronde foto), `app/Http/Resources/ImageResource.php` (`ai_status`), `app/Http/Controllers/Api/Admin/SystemController.php` (OpenAI-info zonder key), `config/services.php` (sectie `openai`), `config/bora.php` en `config/queue.php` (langere job-timeout voor AI), `lang/{nl,en}/messages.php`, `resources/js/pages/admin/SystemSettings.jsx`, `resources/js/components/batch/PhotoTile.jsx`, `resources/js/locales/{nl,en}.json`, `.env.example`, `docs/PLESK.md`.
+
+### Handmatig testen (met een echte key)
+
+1. Zet `OPENAI_API_KEY` in `.env`, `php artisan config:clear`. Super Admin > Systeem toont "API-key: Ingesteld".
+2. **Subtiel, achtergrond behouden:** batch met 3 foto's. Resultaat: "AI-analyse, veilige correcties", en in Super Admin 3 AI-verzoeken.
+3. **Sterk:** auto met zichtbare kras en kenteken. Controleer in het resultaat: kras nog zichtbaar, kenteken identiek, kleur gelijk.
+4. **Neutrale achtergrond** en **achtergrond verwijderen** (met PNG: transparant; met JPG: wit).
+5. **Personen verwijderen:** foto met voorbijganger op de achtergrond; en een foto waar iemand deels voor het product staat (melding).
+6. **Bewogen of heel donkere foto:** melding "Verbetering is beperkt mogelijk" en geen generatieve bewerking.
+7. **Ongeldige key:** zet een foute key; foto's worden toch klaar met "Basiscorrecties (AI niet beschikbaar)".
+8. **AI uitzetten** in Super Admin > Systeem: er gaan geen verzoeken meer naar OpenAI.
+9. Super Admin > Overzicht en bij een bedrijf: AI-verzoeken en geschatte kosten lopen op.

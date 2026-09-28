@@ -10,6 +10,7 @@ use App\Models\ActivityLog;
 use App\Models\ImageProcessingRecord;
 use App\Services\ActivityLogger;
 use App\Services\CompanyStatsService;
+use App\Services\OpenAI\OpenAIClient;
 use App\Services\Processing\QueueHealth;
 use App\Services\SystemSettings;
 use Illuminate\Http\JsonResponse;
@@ -57,7 +58,17 @@ class SystemController extends Controller
     {
         return response()->json([
             'data' => $this->settings->all(),
-            'meta' => ['limits' => config('bora.limits')],
+            'meta' => [
+                'limits' => config('bora.limits'),
+                // Read-only; configured in .env. Never includes the key itself.
+                'openai' => [
+                    'configured' => app(OpenAIClient::class)->isConfigured(),
+                    'analysis_model' => config('services.openai.analysis_model'),
+                    'image_model' => config('services.openai.image_model'),
+                    'edit_policy' => config('services.openai.edit_policy'),
+                    'verify_edits' => (bool) config('services.openai.verify_edits'),
+                ],
+            ],
         ]);
     }
 

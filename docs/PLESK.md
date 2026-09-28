@@ -79,6 +79,22 @@ Zonder sleutel staat deze URL uit (404).
 
 **Controle:** Super Admin > Overzicht > kaart "Wachtrij". Staat daar "Wacht op cronjob" terwijl er foto's klaarstaan, dan draait de geplande taak niet.
 
+## OpenAI
+
+Zet in `.env` op de server (nooit in de code of de frontend):
+
+```
+OPENAI_API_KEY=sk-...
+OPENAI_ANALYSIS_MODEL=gpt-5.4-mini
+OPENAI_IMAGE_MODEL=gpt-image-2
+OPENAI_EDIT_POLICY=auto
+OPENAI_VERIFY_EDITS=true
+```
+
+Controle: Super Admin > Systeem > kaart "OpenAI" toont of de key is ingesteld en welke modellen gebruikt worden. Na het wijzigen van `.env`: `php artisan config:cache` (via een geplande taak "Nu uitvoeren").
+
+Uitgaande HTTPS-verbindingen naar `api.openai.com` moeten zijn toegestaan (standaard bij Cloud86).
+
 ## Artisan-commando's zonder SSH
 
 Maak in Plesk een geplande taak van het type "PHP-script uitvoeren" met scriptpad `artisan` en het commando als argument, en klik op **Nu uitvoeren**. Bijvoorbeeld:

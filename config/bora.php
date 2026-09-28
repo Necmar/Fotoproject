@@ -69,7 +69,7 @@ return [
     'queue' => [
         'images' => env('BORA_QUEUE_IMAGES', 'images'),
         'max_time' => (int) env('BORA_WORKER_MAX_TIME', 50),
-        'job_timeout' => (int) env('BORA_JOB_TIMEOUT', 150),
+        'job_timeout' => (int) env('BORA_JOB_TIMEOUT', 240),
         'tries' => (int) env('BORA_JOB_TRIES', 3),
         // Seconds between retries (exponential).
         'backoff' => [30, 120, 300],

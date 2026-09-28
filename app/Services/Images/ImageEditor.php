@@ -215,11 +215,42 @@ class ImageEditor
             imagefilter($this->gd, IMG_FILTER_COLORIZE, $a['red'] ?? 0, $a['green'] ?? 0, $a['blue'] ?? 0, 0);
         }
 
+        if (($a['denoise'] ?? 0.0) > 0.05) {
+            // Mild smoothing; lower weight = stronger. Kept gentle to preserve detail.
+            imagefilter($this->gd, IMG_FILTER_SMOOTH, (int) round(40 - 25 * min(1, (float) $a['denoise'])));
+        }
+
         if (($a['sharpen'] ?? 0.0) > 0) {
             $this->sharpen((float) $a['sharpen']);
         }
 
         return $this;
+    }
+
+    /**
+     * Straighten a slightly crooked photo and crop away the empty corners.
+     * Only small angles (max 5 degrees) are allowed.
+     */
+    public function straighten(float $degrees): self
+    {
+        $degrees = max(-5.0, min(5.0, $degrees));
+        if (abs($degrees) < 0.3) {
+            return $this;
+        }
+
+        $w = $this->width();
+        $h = $this->height();
+        $rotated = imagerotate($this->gd, -$degrees, imagecolorallocatealpha($this->gd, 0, 0, 0, 127));
+
+        // Largest axis-aligned rectangle with the original ratio inside the rotated image.
+        $a = deg2rad(abs($degrees));
+        $scale = 1 / (cos($a) + max($w / $h, $h / $w) * sin($a));
+        $cw = (int) floor($w * $scale);
+        $ch = (int) floor($h * $scale);
+
+        $this->gd = $rotated;
+
+        return $this->crop((int) floor((imagesx($rotated) - $cw) / 2), (int) floor((imagesy($rotated) - $ch) / 2), $cw, $ch);
     }
 
     /** Light unsharp-style convolution; amount 0.1 (subtle) to 0.5 (strong). */

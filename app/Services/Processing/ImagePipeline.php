@@ -3,6 +3,7 @@
 namespace App\Services\Processing;
 
 use App\Enums\ActivityAction;
+use App\Enums\AiStatus;
 use App\Enums\ImageStatus;
 use App\Enums\ProcessingType;
 use App\Exceptions\DomainRuleException;
@@ -14,6 +15,8 @@ use App\Services\Images\ImageEditor;
 use App\Services\Images\ImagePreparer;
 use App\Services\Images\LocalEnhancer;
 use App\Services\Images\OutputRenderer;
+use App\Services\OpenAI\AiImageProcessor;
+use App\Services\OpenAI\OpenAIException;
 use App\Services\Storage\LocalFiles;
 use App\Support\BatchSettings;
 use Illuminate\Support\Facades\Log;
@@ -24,8 +27,9 @@ use Throwable;
  * or synchronously by `php artisan bora:process-local`.
  *
  * Steps: prepare (if needed) -> analyse -> optimise -> finalise.
- * Phase 5 plugs the OpenAI analysis/edit into the analyse/optimise steps;
- * without AI the local enhancer is used.
+ * With AI: OpenAI analysis, then a generative edit only when needed (verified
+ * for product integrity), otherwise AI-guided local corrections. Without AI,
+ * or when OpenAI is unavailable after all retries: local corrections.
  * A failure never touches other images of the batch.
  */
 class ImagePipeline
@@ -37,6 +41,7 @@ class ImagePipeline
         private readonly LocalFiles $files,
         private readonly BatchProgress $progress,
         private readonly ActivityLogger $activity,
+        private readonly AiImageProcessor $ai,
     ) {}
 
     /**
@@ -57,17 +62,44 @@ class ImagePipeline
                 $this->preparer->prepare($image);
             }
 
-            $metrics = $image->analysis['local'] ?? $this->analyzeWorking($image);
+            $plan = null;
+            $aiStatus = AiStatus::Skipped;
 
-            $this->status($image, ImageStatus::Processing);
-            // Phase 5: OpenAI analysis + edit replace/extend these local corrections.
-            $adjustments = $this->enhancer->adjustments($metrics, $settings->strength);
+            if ($this->ai->isActive()) {
+                try {
+                    $analysis = $this->ai->analyze($image, $settings);
+                    $this->status($image, ImageStatus::Processing);
+                    $plan = $this->ai->optimize($image, $analysis, $settings);
+                    $aiStatus = $plan['status'];
+                } catch (OpenAIException $e) {
+                    // Temporary problem and attempts left: let the queue retry later.
+                    if ($e->retryable && ! $finalAttempt) {
+                        throw $e;
+                    }
+
+                    // Otherwise the photo still gets local corrections (never stuck on AI).
+                    $aiStatus = AiStatus::Fallback;
+                    $image->forceFill(['warnings' => $this->preparer->mergeWarnings($image->warnings ?? [], 'ai_edit', [['code' => 'ai_unavailable']])])->save();
+                }
+            }
+
+            if ($plan === null) {
+                $this->status($image, ImageStatus::Processing);
+                $plan = [
+                    'source' => null,
+                    'adjustments' => isset($analysis)
+                        ? $this->ai->adjustmentsFrom($analysis, $settings->strength)
+                        : $this->enhancer->adjustments($image->analysis['local'] ?? $this->analyzeWorking($image), $settings->strength),
+                    'focus' => $analysis['product_box'] ?? null,
+                ];
+            }
 
             $this->status($image, ImageStatus::Finalizing);
-            $this->renderer->render($image, $settings, adjustments: $adjustments);
+            $this->renderer->render($image, $settings, $plan['source'], $plan['adjustments'], $plan['focus']);
 
             $image->forceFill([
                 'status' => ImageStatus::Completed,
+                'ai_status' => $aiStatus->value,
                 'error_code' => null,
                 'error_message' => null,
                 'processed_at' => now(),

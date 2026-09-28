@@ -237,7 +237,24 @@
             "registration": "Openbare registratie",
             "registration_text": "Bedrijven kunnen zelf een account aanmaken.",
             "maintenance_message": "Melding voor gebruikers",
-            "maintenance_hint": "Wordt bovenaan iedere pagina getoond. Laat leeg om te verbergen."
+            "maintenance_hint": "Wordt bovenaan iedere pagina getoond. Laat leeg om te verbergen.",
+            "openai": "OpenAI",
+            "openai_missing": "Er is geen OpenAI API-key ingesteld. Foto's krijgen alleen lokale basiscorrecties.",
+            "openai_key": "API-key",
+            "analysis_model": "Analysemodel",
+            "image_model": "Bewerkingsmodel",
+            "edit_policy": "Bewerkingsbeleid",
+            "verify_edits": "Controle na bewerking",
+            "set": "Ingesteld",
+            "not_set": "Niet ingesteld",
+            "on": "Aan",
+            "off": "Uit",
+            "openai_env_hint": "Deze waarden staan in .env op de server (OPENAI_API_KEY, OPENAI_ANALYSIS_MODEL, OPENAI_IMAGE_MODEL, OPENAI_EDIT_POLICY, OPENAI_VERIFY_EDITS).",
+            "policy": {
+                "auto": "Automatisch (alleen bewerken als het nodig is)",
+                "never": "Nooit bewerken (alleen analyse)",
+                "always": "Altijd bewerken"
+            }
         },
         "queue": {
             "title": "Wachtrij",
@@ -398,6 +415,13 @@
                     "strong": "Meer correctie van licht, achtergrond en presentatie."
                 }
             }
+        },
+        "ai_status": {
+            "skipped": "Lokaal verbeterd",
+            "analyzed": "AI-analyse, veilige correcties",
+            "edited": "AI-bewerkt en gecontroleerd",
+            "edit_rejected": "AI-bewerking afgekeurd, basiscorrecties",
+            "fallback": "Basiscorrecties (AI niet beschikbaar)"
         }
     },
     "upload": {

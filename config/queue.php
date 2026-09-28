@@ -40,9 +40,9 @@ return [
             'connection' => env('DB_QUEUE_CONNECTION'),
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => env('DB_QUEUE', 'default'),
-            // Must be longer than the longest job (image jobs: 150 s timeout),
+            // Must be longer than the longest job (image jobs: 240 s timeout, AI edits can be slow),
             // otherwise a slow job would be handed out twice.
-            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 210),
+            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 300),
             'after_commit' => true,
         ],
 

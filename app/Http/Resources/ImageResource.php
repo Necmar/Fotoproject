@@ -28,6 +28,7 @@ class ImageResource extends JsonResource
             'output_size' => $this->output_size,
             'height' => $this->height,
             'status' => $this->status->value,
+            'ai_status' => $this->ai_status,
             'warnings' => array_map(fn (array $w) => [
                 'code' => $w['code'],
                 'source' => $w['source'] ?? null,
