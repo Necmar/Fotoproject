@@ -1,0 +1,283 @@
+{
+    "common": {
+        "save": "Opslaan",
+        "saved": "Wijzigingen opgeslagen.",
+        "cancel": "Annuleren",
+        "delete": "Verwijderen",
+        "search": "Zoeken",
+        "language": "Taal",
+        "previous": "Vorige",
+        "next": "Volgende",
+        "page_of": "Pagina {{page}} van {{total}}"
+    },
+    "errors": {
+        "generic": "Er ging iets mis. Probeer het later opnieuw.",
+        "network": "Geen verbinding met de server. Controleer je internetverbinding.",
+        "not_found_title": "Pagina niet gevonden",
+        "not_found_text": "Deze pagina bestaat niet (meer).",
+        "back_home": "Terug naar start"
+    },
+    "nav": {
+        "main": "Hoofdmenu",
+        "menu": "Menu",
+        "dashboard": "Dashboard",
+        "settings": "Instellingen",
+        "account": "Mijn account",
+        "logout": "Uitloggen",
+        "overview": "Overzicht",
+        "companies": "Bedrijven",
+        "batches": "Batches",
+        "activity": "Activiteit",
+        "system": "Systeem"
+    },
+    "fields": {
+        "name": "Naam",
+        "email": "E-mailadres",
+        "password": "Wachtwoord",
+        "new_password": "Nieuw wachtwoord",
+        "current_password": "Huidig wachtwoord",
+        "password_confirmation": "Herhaal wachtwoord",
+        "password_hint": "Minimaal 10 tekens, met letters en cijfers.",
+        "company_name": "Bedrijfsnaam",
+        "owner_name": "Naam eigenaar",
+        "filename_prefix": "Bestandsnaam-prefix",
+        "output_format": "Outputformaat",
+        "resolution": "Resolutie",
+        "aspect_ratio": "Beeldverhouding",
+        "strength": "Optimalisatiesterkte",
+        "background": "Achtergrond",
+        "watermark_mode": "Watermark",
+        "watermark_position": "Positie",
+        "watermark_opacity": "Zichtbaarheid",
+        "status": "Status"
+    },
+    "auth": {
+        "footer": "Productfoto's automatisch klaar voor advertenties en webshops.",
+        "back_to_login": "Terug naar inloggen",
+        "blocked": "Je account is geblokkeerd. Neem contact op met de beheerder.",
+        "login": {
+            "title": "Inloggen",
+            "subtitle": "Welkom terug. Log in met je e-mailadres.",
+            "remember": "Ingelogd blijven",
+            "forgot": "Wachtwoord vergeten?",
+            "submit": "Inloggen",
+            "no_account": "Nog geen account?"
+        },
+        "forgot": {
+            "title": "Wachtwoord vergeten",
+            "subtitle": "Vul je e-mailadres in. We sturen je een link om een nieuw wachtwoord te kiezen.",
+            "submit": "Stuur resetlink"
+        },
+        "reset": {
+            "title": "Nieuw wachtwoord",
+            "subtitle": "Kies een nieuw wachtwoord voor je account.",
+            "submit": "Wachtwoord opslaan",
+            "done": "Je wachtwoord is gewijzigd. Je kunt nu inloggen."
+        },
+        "welcome": {
+            "title": "Welkom",
+            "subtitle": "Kies een wachtwoord om je account te activeren.",
+            "submit": "Account activeren",
+            "done": "Je account is geactiveerd. Je kunt nu inloggen."
+        },
+        "verify": {
+            "title": "Bevestig je e-mailadres",
+            "subtitle": "We hebben een link gestuurd naar {{email}}. Klik op de link in die e-mail om verder te gaan.",
+            "check": "Ik heb mijn e-mailadres bevestigd",
+            "resend": "Stuur de e-mail opnieuw",
+            "not_yet": "Je e-mailadres is nog niet bevestigd. Controleer ook je spammap.",
+            "done": "Je e-mailadres is bevestigd.",
+            "invalid": "Deze verificatielink is ongeldig of verlopen."
+        },
+        "register": {
+            "title": "Account aanmaken",
+            "subtitle": "Maak een account aan voor je bedrijf.",
+            "submit": "Account aanmaken",
+            "link": "Registreren"
+        }
+    },
+    "account": {
+        "title": "Mijn account",
+        "subtitle": "Je persoonlijke gegevens en wachtwoord.",
+        "profile": "Profiel",
+        "password": "Wachtwoord",
+        "change_password": "Wachtwoord wijzigen",
+        "email_hint": "Na een wijziging moet je het nieuwe adres opnieuw bevestigen.",
+        "email_changed": "Opgeslagen. We hebben een bevestigingslink naar je nieuwe e-mailadres gestuurd."
+    },
+    "dashboard": {
+        "hero_title": "Foto's optimaliseren",
+        "hero_text": "Upload tot {{max}} productfoto's tegelijk. Iedere foto wordt afzonderlijk geanalyseerd en verbeterd, zonder het product te veranderen.",
+        "optimize": "Foto's optimaliseren",
+        "coming_soon": "De uploadflow wordt toegevoegd in de volgende fase.",
+        "recent": "Recente verwerkingen",
+        "no_batches": "Nog geen verwerkingen",
+        "no_batches_text": "Je recente batches verschijnen hier.",
+        "settings_title": "Standaardinstellingen",
+        "settings_text": "Bepaal het outputformaat, de resolutie, de watermark en de bestandsnamen voor nieuwe batches.",
+        "days": "{{count}} dagen",
+        "days_one": "{{count}} dag",
+        "days_other": "{{count}} dagen",
+        "stats": {
+            "images_30": "Foto's, laatste 30 dagen",
+            "active_batches": "Actieve batches",
+            "storage": "Opslaggebruik",
+            "retention": "Bewaartermijn"
+        }
+    },
+    "settings": {
+        "title": "Instellingen",
+        "subtitle": "Standaardwaarden voor nieuwe batches. Je kunt ze per batch aanpassen.",
+        "company": "Bedrijf",
+        "prefix_hint": "Zonder batchnaam worden bestanden {{prefix}}-01.jpg, {{prefix}}-02.jpg, enzovoort.",
+        "defaults": "Standaard verwerking",
+        "defaults_text": "Deze keuzes staan klaar bij iedere nieuwe batch.",
+        "watermark": "Watermark"
+    },
+    "admin": {
+        "dashboard": {
+            "title": "Overzicht",
+            "subtitle": "Status van het platform.",
+            "failures": "Recente mislukte verwerkingen",
+            "no_failures": "Geen mislukte verwerkingen."
+        },
+        "stats": {
+            "companies": "Bedrijven",
+            "blocked": "{{count}} geblokkeerd",
+            "active_batches": "Actieve batches",
+            "batches": "Batches (actueel)",
+            "batches_current": "{{count}} batches bewaard",
+            "batches_total": "{{count}} in totaal",
+            "images_processed": "Verwerkte foto's",
+            "failed_current": "{{count}} mislukt (actueel)",
+            "failed_total": "{{count}} mislukt in totaal",
+            "storage": "Opslag",
+            "ai_requests": "AI-verzoeken",
+            "ai_requests_count": "{{count}} AI-verzoeken",
+            "ai_cost": "Geschatte AI-kosten",
+            "ai_cost_total": "Geschatte AI-kosten (totaal)",
+            "last_30": "Laatste 30 dagen",
+            "estimate_30": "Schatting, laatste 30 dagen"
+        },
+        "companies": {
+            "title": "Bedrijven",
+            "subtitle": "Alle bedrijfsaccounts op het platform.",
+            "new": "Nieuw bedrijf",
+            "new_text": "Maak een bedrijf met een eigenaar-account aan.",
+            "create": "Bedrijf aanmaken",
+            "created": "Het bedrijf is aangemaakt en de eigenaar heeft een e-mail ontvangen.",
+            "created_at": "Aangemaakt op {{date}}",
+            "search": "Zoek op bedrijf, naam of e-mailadres",
+            "all_statuses": "Alle statussen",
+            "empty": "Geen bedrijven gevonden",
+            "last_login": "Laatst ingelogd {{date}}",
+            "last_login_label": "Laatste login",
+            "never_logged_in": "Nog nooit ingelogd",
+            "images": "{{formatted}} foto's",
+            "images_one": "{{formatted}} foto",
+            "images_other": "{{formatted}} foto's",
+            "set_password": "Wachtwoord zelf instellen",
+            "set_password_off": "Uit: de eigenaar ontvangt een uitnodiging om zelf een wachtwoord te kiezen.",
+            "set_password_on": "Aan: geef het wachtwoord zelf door aan de eigenaar.",
+            "mark_verified": "E-mailadres als bevestigd markeren",
+            "mark_verified_text": "Sla de e-mailverificatie over voor dit account.",
+            "details": "Gegevens",
+            "account": "Account",
+            "email_status": "E-mailadres",
+            "verified": "Bevestigd",
+            "not_verified": "Nog niet bevestigd",
+            "email_change_hint": "Een nieuw adres moet opnieuw bevestigd worden.",
+            "new_password": "Nieuw wachtwoord (optioneel)",
+            "new_password_hint": "Laat leeg om het wachtwoord niet te wijzigen.",
+            "actions": "Acties",
+            "send_reset": "Wachtwoordreset versturen",
+            "block": "Bedrijf blokkeren",
+            "block_text": "De eigenaar wordt direct uitgelogd en kan niet meer inloggen. Bestanden blijven bewaard tot de bewaartermijn verloopt.",
+            "block_reason": "Reden (optioneel, alleen intern)",
+            "blocked": "Het bedrijf is geblokkeerd.",
+            "blocked_since": "Geblokkeerd sinds {{date}}",
+            "unblock": "Blokkade opheffen",
+            "unblocked": "De blokkade is opgeheven.",
+            "purge": "Opslag verwijderen",
+            "purge_text": "Alle batches, originele en geoptimaliseerde foto's van dit bedrijf worden definitief verwijderd. Het account en de statistieken blijven bestaan.",
+            "purge_confirm": "Opslag verwijderen",
+            "delete": "Bedrijf verwijderen",
+            "delete_text": "Dit verwijdert {{name}}, het eigenaar-account en alle bestanden definitief. Dit kan niet ongedaan worden gemaakt.",
+            "type_name": "Typ de bedrijfsnaam ter bevestiging",
+            "delete_confirm": "Definitief verwijderen"
+        },
+        "batches": {
+            "title": "Batches",
+            "subtitle": "Alle batches van alle bedrijven.",
+            "empty": "Nog geen batches",
+            "empty_text": "Batches verschijnen hier zodra bedrijven foto's uploaden.",
+            "unnamed": "Naamloze batch",
+            "images": "{{done}} van {{total}} klaar",
+            "delete_title": "Batch verwijderen",
+            "delete_text": "De batch en alle bijbehorende bestanden worden definitief verwijderd."
+        },
+        "activity": {
+            "title": "Activiteit",
+            "subtitle": "Belangrijke acties op het platform.",
+            "empty": "Nog geen activiteit"
+        },
+        "settings": {
+            "title": "Systeeminstellingen",
+            "subtitle": "Instellingen die voor alle bedrijven gelden.",
+            "storage": "Opslag",
+            "retention_days": "Bewaartermijn (dagen)",
+            "between": "Tussen {{min}} en {{max}}.",
+            "processing": "Verwerking",
+            "jpg_quality": "JPG-kwaliteit (%)",
+            "max_images": "Maximum aantal foto's per batch",
+            "max_upload_mb": "Maximale bestandsgrootte (MB)",
+            "max_upload_hint": "Maximaal {{max}} MB. Controleer ook upload_max_filesize in PHP.",
+            "ai_enabled": "AI-verwerking actief",
+            "ai_enabled_text": "Uitschakelen stopt nieuwe OpenAI-verzoeken; alleen lokale beeldbewerking wordt gebruikt.",
+            "access": "Toegang",
+            "registration": "Openbare registratie",
+            "registration_text": "Bedrijven kunnen zelf een account aanmaken.",
+            "maintenance_message": "Melding voor gebruikers",
+            "maintenance_hint": "Wordt bovenaan iedere pagina getoond. Laat leeg om te verbergen."
+        }
+    },
+    "enums": {
+        "company_status": { "active": "Actief", "blocked": "Geblokkeerd" },
+        "batch_status": {
+            "draft": "Concept", "uploading": "Uploaden", "queued": "Wachten", "processing": "Bezig",
+            "completed": "Klaar", "completed_with_errors": "Klaar met fouten", "failed": "Mislukt"
+        },
+        "image_status": {
+            "uploading": "Uploaden", "uploaded": "Geüpload", "queued": "Wachten", "analyzing": "Analyseren",
+            "processing": "Optimaliseren", "finalizing": "Afronden", "completed": "Klaar", "failed": "Mislukt"
+        },
+        "output_format": { "jpg": "JPG", "png": "PNG" },
+        "resolution": { "1600": "1600 px, compact", "2000": "2000 px, standaard", "2560": "2560 px, hoge kwaliteit" },
+        "aspect_ratio": { "original": "Origineel", "1:1": "1:1", "4:3": "4:3", "3:2": "3:2", "16:9": "16:9" },
+        "optimization_strength": { "subtle": "Subtiel", "normal": "Normaal", "strong": "Sterk" },
+        "background_option": {
+            "keep": "Originele achtergrond behouden en verbeteren",
+            "clean_subtle": "Achtergrond subtiel opschonen",
+            "remove_distractions": "Storende elementen verminderen of verwijderen",
+            "blur_light": "Achtergrond licht vervagen",
+            "remove": "Achtergrond verwijderen",
+            "neutral": "Neutrale achtergrond gebruiken"
+        },
+        "watermark_mode": { "none": "Geen watermark", "all": "Logo op alle foto's", "selected": "Logo op geselecteerde foto's" },
+        "watermark_position": {
+            "top_left": "Linksboven", "top_right": "Rechtsboven", "bottom_left": "Linksonder", "bottom_right": "Rechtsonder", "center": "Midden"
+        },
+        "activity_action": {
+            "login": "Ingelogd", "login_failed": "Mislukte inlogpoging", "logout": "Uitgelogd",
+            "password_changed": "Wachtwoord gewijzigd", "password_reset": "Wachtwoord gereset",
+            "profile_updated": "Profiel gewijzigd", "email_verified": "E-mailadres geverifieerd",
+            "company_registered": "Bedrijf geregistreerd", "company_settings_updated": "Bedrijfsinstellingen gewijzigd",
+            "logo_changed": "Logo gewijzigd", "batch_created": "Batch aangemaakt", "batch_deleted": "Batch verwijderd",
+            "image_processed": "Foto verwerkt", "image_failed": "Foto mislukt",
+            "admin_company_created": "Bedrijf aangemaakt (admin)", "admin_company_updated": "Bedrijf gewijzigd (admin)",
+            "admin_company_blocked": "Bedrijf geblokkeerd", "admin_company_unblocked": "Bedrijf gedeblokkeerd",
+            "admin_company_deleted": "Bedrijf verwijderd", "admin_password_reset_sent": "Wachtwoordreset verstuurd (admin)",
+            "admin_storage_deleted": "Opslag verwijderd (admin)", "admin_settings_updated": "Systeeminstellingen gewijzigd"
+        }
+    }
+}

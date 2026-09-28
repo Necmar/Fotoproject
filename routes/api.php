@@ -1,0 +1,70 @@
+<?php
+
+use App\Http\Controllers\Api\Account\ProfileController;
+use App\Http\Controllers\Api\Admin\BatchController as AdminBatchController;
+use App\Http\Controllers\Api\Admin\CompanyController as AdminCompanyController;
+use App\Http\Controllers\Api\Admin\SystemController as AdminSystemController;
+use App\Http\Controllers\Api\Auth\EmailVerificationController;
+use App\Http\Controllers\Api\Auth\PasswordResetController;
+use App\Http\Controllers\Api\Auth\RegisterController;
+use App\Http\Controllers\Api\Auth\SessionController;
+use App\Http\Controllers\Api\Company\SettingsController as CompanySettingsController;
+use App\Http\Controllers\Api\MetaController;
+use Illuminate\Support\Facades\Route;
+
+/*
+|--------------------------------------------------------------------------
+| JSON API for the React app
+|--------------------------------------------------------------------------
+|
+| Loaded with the "web" middleware group and the /api prefix (bootstrap/app.php),
+| so it uses cookie sessions + CSRF protection (X-XSRF-TOKEN header).
+|
+*/
+
+Route::get('meta', MetaController::class)->name('api.meta');
+
+// Guests
+Route::middleware('guest')->group(function () {
+    Route::post('auth/login', [SessionController::class, 'store'])->name('api.login');
+    Route::post('auth/register', [RegisterController::class, 'store'])->middleware('throttle:auth')->name('api.register');
+    Route::post('auth/forgot-password', [PasswordResetController::class, 'sendLink'])->middleware('throttle:password-reset')->name('api.password.email');
+    Route::post('auth/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:password-reset')->name('api.password.store');
+});
+
+// Signed-in users (company owners and Super Admin)
+Route::middleware(['auth', 'account.active', 'throttle:api'])->group(function () {
+    Route::post('auth/logout', [SessionController::class, 'destroy'])->name('api.logout');
+    Route::get('auth/me', [ProfileController::class, 'show'])->name('api.me');
+    Route::post('auth/email/verification-notification', [EmailVerificationController::class, 'resend'])
+        ->middleware('throttle:6,1')->name('api.verification.send');
+
+    Route::put('account/profile', [ProfileController::class, 'update'])->name('api.profile.update');
+    Route::put('account/password', [ProfileController::class, 'updatePassword'])->name('api.password.update');
+
+    // Company owner area. The Super Admin is not a company account.
+    Route::middleware(['company', 'verified'])->prefix('company')->name('api.company.')->group(function () {
+        Route::get('settings', [CompanySettingsController::class, 'show'])->name('settings.show');
+        Route::put('settings', [CompanySettingsController::class, 'update'])->name('settings.update');
+        Route::get('stats', [CompanySettingsController::class, 'stats'])->name('stats');
+    });
+
+    // Super Admin area
+    Route::middleware('super_admin')->prefix('admin')->name('api.admin.')->group(function () {
+        Route::get('dashboard', [AdminSystemController::class, 'dashboard'])->name('dashboard');
+        Route::get('settings', [AdminSystemController::class, 'showSettings'])->name('settings.show');
+        Route::put('settings', [AdminSystemController::class, 'updateSettings'])->name('settings.update');
+        Route::get('activity', [AdminSystemController::class, 'activity'])->name('activity');
+
+        Route::apiResource('companies', AdminCompanyController::class);
+        Route::post('companies/{company}/block', [AdminCompanyController::class, 'block'])->name('companies.block');
+        Route::post('companies/{company}/unblock', [AdminCompanyController::class, 'unblock'])->name('companies.unblock');
+        Route::post('companies/{company}/password-reset', [AdminCompanyController::class, 'sendPasswordReset'])->name('companies.password-reset');
+        Route::delete('companies/{company}/storage', [AdminCompanyController::class, 'purgeStorage'])->name('companies.storage.destroy');
+
+        Route::get('batches', [AdminBatchController::class, 'index'])->name('batches.index');
+        Route::delete('batches/{batch}', [AdminBatchController::class, 'destroy'])->name('batches.destroy');
+    });
+});
+
+Route::fallback(fn () => response()->json(['message' => __('messages.errors.not_found')], 404));
