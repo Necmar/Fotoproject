@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateSystemSettingsRequest;
 use App\Http\Resources\Admin\ActivityLogResource;
 use App\Models\ActivityLog;
+use App\Models\Batch;
 use App\Models\ImageProcessingRecord;
 use App\Services\ActivityLogger;
 use App\Services\CompanyStatsService;
@@ -75,7 +76,17 @@ class SystemController extends Controller
     public function updateSettings(UpdateSystemSettingsRequest $request): JsonResponse
     {
         $data = $request->validated();
+        $oldRetention = $this->settings->retentionDays();
         $this->settings->update($data);
+
+        // Keep the "available until" dates shown to users in line with the new retention period.
+        if (isset($data['retention_days']) && (int) $data['retention_days'] !== $oldRetention) {
+            Batch::query()->select(['id', 'created_at', 'started_at'])->chunkById(200, function ($batches) use ($data) {
+                foreach ($batches as $batch) {
+                    Batch::query()->whereKey($batch->id)->update(['expires_at' => ($batch->started_at ?? $batch->created_at)->copy()->addDays((int) $data['retention_days'])]);
+                }
+            });
+        }
         $this->activity->log(ActivityAction::AdminSettingsUpdated, properties: $data);
 
         return $this->showSettings();

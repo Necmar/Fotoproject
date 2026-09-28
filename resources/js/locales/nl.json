@@ -29,7 +29,8 @@
         "companies": "Bedrijven",
         "batches": "Batches",
         "activity": "Activiteit",
-        "system": "Systeem"
+        "system": "Systeem",
+        "history": "Mijn verwerkingen"
     },
     "fields": {
         "name": "Naam",
@@ -483,5 +484,12 @@
         "logo_on_photo": "Logo op deze foto",
         "select_hint": "Vink bij de foto's hieronder aan waar het logo op moet.",
         "watermark_note": "Het logo wordt alleen bij het downloaden toegevoegd; de opgeslagen foto blijft zonder logo."
+    },
+    "history": {
+        "title": "Mijn verwerkingen",
+        "subtitle": "Batches van de afgelopen {{days}} dagen. Daarna worden foto's en bestanden automatisch verwijderd.",
+        "empty": "Hier verschijnen je batches van de afgelopen dagen.",
+        "open": "Openen",
+        "all": "Alles bekijken"
     }
 }

@@ -31,6 +31,8 @@ class BatchController extends Controller
         $batches = Batch::query()
             ->forCompany($request->user()->company_id)
             ->with('cover')
+            // Past the retention period = about to be cleaned up; never shown.
+            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
             // Drafts without photos are abandoned "new batch" screens; don't list them.
             ->where(fn ($q) => $q->where('status', '!=', BatchStatus::Draft)->orWhere('images_count', '>', 0))
             ->when($request->input('status') === 'draft', fn ($q) => $q->where('status', BatchStatus::Draft))

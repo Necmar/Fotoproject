@@ -79,6 +79,27 @@ Zonder sleutel staat deze URL uit (404).
 
 **Controle:** Super Admin > Overzicht > kaart "Wachtrij". Staat daar "Wacht op cronjob" terwijl er foto's klaarstaan, dan draait de geplande taak niet.
 
+## E-mail
+
+Nodig voor uitnodigingen, wachtwoordreset, e-mailverificatie en de melding "Je foto's zijn verwerkt". Gebruik een mailbox van het domein (Plesk > Mail):
+
+```
+MAIL_MAILER=smtp
+MAIL_HOST=mail.jouwdomein.nl
+MAIL_PORT=587
+MAIL_SCHEME=null
+MAIL_USERNAME=noreply@jouwdomein.nl
+MAIL_PASSWORD=...
+MAIL_FROM_ADDRESS=noreply@jouwdomein.nl
+MAIL_FROM_NAME="Bora Foto"
+```
+
+De verwerkt-melding wordt via de wachtrij verstuurd (dezelfde cronjob). Stel SPF en DKIM in voor het domein (Plesk > Mail-instellingen) om spam-filters te voorkomen.
+
+## Cleanup en bewaartermijn
+
+Dezelfde cronjob (`schedule:run`) draait dagelijks om 03:15 `bora:cleanup`: batches voorbij de bewaartermijn (standaard 7 dagen, instelbaar in Super Admin > Systeem) worden met alle bestanden verwijderd, net als lege concepten en achtergebleven tijdelijke bestanden. Statistieken blijven bewaard. Handmatig testen: `bora:cleanup --dry-run` via een geplande taak met "Nu uitvoeren".
+
 ## OpenAI
 
 Zet in `.env` op de server (nooit in de code of de frontend):

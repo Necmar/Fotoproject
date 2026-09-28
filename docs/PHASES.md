@@ -366,3 +366,33 @@ Sterk bewogen, veel ruis, lage kwaliteit (alleen als herstel beperkt is), persoo
 6. Download op iPhone (Safari) en Android: losse foto opent/bewaart, ZIP wordt gedownload.
 7. Controleer een gedownloade foto met `exiftool`: geen EXIF of GPS.
 8. Als ander bedrijf de download-URL openen: 403.
+
+## Fase 8: Geschiedenis, cleanup en e-mail
+
+**Status:** afgerond. `php artisan test`: 108 tests, 756 assertions, alles groen. React-build slaagt.
+
+### Keuzes
+
+- **Mijn verwerkingen** (`/history`, in het menu): cards in plaats van een tabel (mobielvriendelijk) met thumbnail, naam, datum, aantal foto's, status, verwerkingsinstellingen, "beschikbaar tot", en de knoppen Openen, ZIP en Verwijderen. Pagina's van 12; ververst zichzelf zolang er een batch bezig is. Het dashboard linkt ernaar.
+- **Bewaartermijn:** iedere batch krijgt `expires_at` = start + bewaartermijn. Past de Super Admin de termijn aan, dan worden de datums van bestaande batches meteen herberekend. Verlopen batches zijn direct onzichtbaar, ook als de cleanup nog niet gedraaid heeft.
+- **Dagelijkse cleanup** (`php artisan bora:cleanup`, 03:15 via de scheduler, ook `--dry-run`): verwijdert per verlopen batch het origineel, de werkkopie, AI-resultaten, geoptimaliseerde foto's, thumbnails, ZIP en de database-rijen; daarnaast lege concepten ouder dan een dag, tijdelijke bestanden ouder dan een dag en activiteitenlogs ouder dan een jaar. Een batch die nog bezig is, wordt pas een dag later verwijderd. Statistieken (`image_processing_records`, tellers per bedrijf) blijven bewaard, zonder koppeling naar foto's. Verlopen reset-tokens worden dagelijks opgeruimd (`auth:clear-resets`).
+- **E-mail als de batch klaar is** (`BatchCompleted`): onderwerp met batchnaam, "Aantal succesvol", "Aantal met fout", knop "Bekijk resultaten", en tot wanneer de foto's beschikbaar zijn. Geen bijlagen. In de taal van de gebruiker. Precies één keer per batch (ook na "opnieuw optimaliseren" geen tweede mail); via de wachtrij, en een mailfout breekt de verwerking nooit.
+
+### Toegevoegd
+
+- `app/Console/Commands/Cleanup.php` (`bora:cleanup`)
+- `app/Notifications/BatchCompleted.php`, `app/Services/Processing/BatchCompletionNotifier.php`
+- `resources/js/pages/company/History.jsx`
+- `tests/Feature/HistoryCleanupMailTest.php`
+
+### Gewijzigd
+
+`app/Services/Processing/BatchProgress.php` (mail bij afronden), `app/Http/Controllers/Api/Company/BatchController.php` (verlopen batches verbergen), `app/Http/Controllers/Api/Admin/SystemController.php` (datums herberekenen), `routes/console.php` (cleanup en reset-tokens), `lang/{nl,en}/mail.php`, `resources/js/App.jsx`, `resources/js/pages/company/Dashboard.jsx`, `resources/js/locales/{nl,en}.json`, `docs/PLESK.md` (mail en cleanup).
+
+### Handmatig testen
+
+1. Menu "Mijn verwerkingen": je batches staan er als cards, met ZIP-knop bij klare batches; verwijderen vraagt om bevestiging.
+2. Verwerk een batch met `MAIL_MAILER=log`: in `storage/logs/laravel-*.log` staat één mail met de aantallen en de knop. Op Plesk met SMTP: controleer de mail in je inbox (ook spam).
+3. "Opnieuw optimaliseren" op een foto in die batch: geen tweede mail.
+4. Super Admin > Systeem: zet de bewaartermijn op 1 dag; de datum "beschikbaar tot" van batches verschuift direct.
+5. `php artisan bora:cleanup --dry-run` toont wat er weg zou gaan; zonder `--dry-run` verdwijnen verlopen batches en hun bestanden, en daalt het opslaggebruik. Het aantal verwerkte foto's in Super Admin blijft gelijk.

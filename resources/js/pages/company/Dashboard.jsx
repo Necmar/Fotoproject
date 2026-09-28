@@ -40,8 +40,11 @@ export default function Dashboard() {
 
             <section className="grid gap-4 md:grid-cols-3">
                 <Card className="md:col-span-2" padded={false}>
-                    <div className="border-b border-stone-100 px-6 py-4">
+                    <div className="flex items-center justify-between border-b border-stone-100 px-6 py-4">
                         <h2 className="font-semibold">{t('dashboard.recent')}</h2>
+                        <Link to="/history" className="text-sm font-medium text-brand-700">
+                            {t('history.all')}
+                        </Link>
                     </div>
                     {!batches?.length ? (
                         <EmptyState icon={Images} title={t('dashboard.no_batches')} description={t('dashboard.no_batches_text')} />

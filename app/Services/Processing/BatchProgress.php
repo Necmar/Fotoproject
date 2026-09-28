@@ -13,10 +13,12 @@ use Illuminate\Support\Facades\DB;
  */
 class BatchProgress
 {
+    public function __construct(private readonly BatchCompletionNotifier $notifier) {}
+
     /** @return bool true when the batch just became finished */
     public function refresh(Batch $batch): bool
     {
-        return DB::transaction(function () use ($batch) {
+        $justFinished = DB::transaction(function () use ($batch) {
             /** @var Batch $locked */
             $locked = Batch::query()->whereKey($batch->getKey())->lockForUpdate()->firstOrFail();
 
@@ -55,6 +57,12 @@ class BatchProgress
 
             return $status->isFinished() && ! $wasFinished;
         });
+
+        if ($justFinished) {
+            $this->notifier->notifyOnce($batch);
+        }
+
+        return $justFinished;
     }
 
     private function anyBusy($counts): bool

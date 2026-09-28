@@ -29,7 +29,8 @@
         "companies": "Companies",
         "batches": "Batches",
         "activity": "Activity",
-        "system": "System"
+        "system": "System",
+        "history": "My batches"
     },
     "fields": {
         "name": "Name",
@@ -483,5 +484,12 @@
         "logo_on_photo": "Logo on this photo",
         "select_hint": "Tick the photos below that should get the logo.",
         "watermark_note": "The logo is only added when downloading; the stored photo stays without logo."
+    },
+    "history": {
+        "title": "My batches",
+        "subtitle": "Batches of the last {{days}} days. After that, photos and files are deleted automatically.",
+        "empty": "Your batches of the last days appear here.",
+        "open": "Open",
+        "all": "View all"
     }
 }

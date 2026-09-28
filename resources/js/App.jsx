@@ -15,6 +15,7 @@ import CompanySettings from './pages/company/Settings';
 import BatchNew from './pages/company/BatchNew';
 import BatchEdit from './pages/company/BatchEdit';
 import BatchDetail from './pages/company/BatchDetail';
+import History from './pages/company/History';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import Companies from './pages/admin/Companies';
 import CompanyCreate from './pages/admin/CompanyCreate';
@@ -31,6 +32,7 @@ function CompanyShell() {
         <AppLayout
             nav={[
                 { to: '/', label: t('nav.dashboard'), end: true },
+                { to: '/history', label: t('nav.history') },
                 { to: '/settings', label: t('nav.settings') },
             ]}
         />
@@ -99,6 +101,7 @@ const router = createBrowserRouter([
                         children: [
                             { path: '/', element: <Dashboard /> },
                             { path: '/settings', element: <CompanySettings /> },
+                            { path: '/history', element: <History /> },
                             { path: '/batches/new', element: <BatchNew /> },
                             { path: '/batches/:id/edit', element: <BatchEdit /> },
                             { path: '/batches/:id', element: <BatchDetail /> },

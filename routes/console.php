@@ -21,3 +21,9 @@ Schedule::command('bora:recover-stuck')->everyTenMinutes()->withoutOverlapping()
 
 // Keep the failed_jobs table small.
 Schedule::command('queue:prune-failed', ['--hours' => 24 * 14])->daily();
+
+// Delete batches past the retention period (default 7 days), empty drafts and temp files.
+Schedule::command('bora:cleanup')->dailyAt('03:15')->timezone('Europe/Amsterdam')->withoutOverlapping();
+
+// Expired password reset / invitation tokens.
+Schedule::command('auth:clear-resets')->daily();
