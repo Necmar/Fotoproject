@@ -465,5 +465,23 @@
         "reoptimize_text": "Choose other settings for this photo. The new version replaces the current one when it is ready.",
         "reoptimize_submit": "Re-optimise",
         "open": "View {{name}}"
+    },
+    "logo": {
+        "title": "Company logo",
+        "text": "Used as watermark. Preferably use a PNG with a transparent background.",
+        "none": "No logo yet",
+        "none_dashboard": "No logo for watermarks yet",
+        "upload": "Upload logo",
+        "replace": "Replace logo",
+        "remove": "Remove"
+    },
+    "download": {
+        "title": "Download",
+        "text": "{{count}} photos ready to download.",
+        "zip": "Download all (ZIP)",
+        "single": "Download {{name}}",
+        "logo_on_photo": "Logo on this photo",
+        "select_hint": "Tick the photos below that should get the logo.",
+        "watermark_note": "The logo is only added when downloading; the stored photo stays without logo."
     }
 }

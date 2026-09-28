@@ -9,7 +9,9 @@ use App\Http\Controllers\Api\Auth\PasswordResetController;
 use App\Http\Controllers\Api\Auth\RegisterController;
 use App\Http\Controllers\Api\Auth\SessionController;
 use App\Http\Controllers\Api\Company\BatchController;
+use App\Http\Controllers\Api\Company\DownloadController;
 use App\Http\Controllers\Api\Company\ImageController;
+use App\Http\Controllers\Api\Company\LogoController;
 use App\Http\Controllers\Api\Company\SettingsController as CompanySettingsController;
 use App\Http\Controllers\Api\MetaController;
 use Illuminate\Support\Facades\Route;
@@ -63,6 +65,15 @@ Route::middleware(['auth', 'account.active', 'throttle:api'])->group(function ()
             ->scopeBindings()->name('images.destroy');
         Route::get('images/{image}/{variant}', [ImageController::class, 'file'])
             ->whereIn('variant', ['original', 'working', 'thumbnail', 'optimized'])->name('images.file');
+        Route::get('logo', [LogoController::class, 'show'])->name('logo.show');
+        Route::post('logo', [LogoController::class, 'store'])->middleware('throttle:10,1')->name('logo.store');
+        Route::delete('logo', [LogoController::class, 'destroy'])->name('logo.destroy');
+
+        Route::put('batches/{batch}/watermark', [DownloadController::class, 'watermark'])->name('batches.watermark');
+        Route::patch('images/{image}/watermark', [DownloadController::class, 'toggle'])->name('images.watermark');
+        Route::get('images/{image}/download', [DownloadController::class, 'image'])->middleware('throttle:120,1')->name('images.download');
+        Route::get('batches/{batch}/download', [DownloadController::class, 'batch'])->middleware('throttle:20,1')->name('batches.download');
+
         Route::post('images/{image}/reoptimize', [ImageController::class, 'reoptimize'])
             ->middleware('throttle:30,1')->name('images.reoptimize');
     });

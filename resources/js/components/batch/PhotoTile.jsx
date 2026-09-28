@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, CheckCircle2, Columns2, RefreshCw, ImageIcon, Loader2, RotateCcw, Trash2, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Columns2, Download, RefreshCw, ImageIcon, Loader2, RotateCcw, Trash2, XCircle } from 'lucide-react';
 import { formatBytes } from '../../lib/format';
 import { Badge, cx } from '../ui';
 
@@ -94,7 +94,7 @@ export function LocalPhotoTile({ item, onRetry, onRemove }) {
 }
 
 /** A photo stored on the server. */
-export function ServerPhotoTile({ image, onRemove, removing, showStatus = false, onOpen }) {
+export function ServerPhotoTile({ image, onRemove, removing, showStatus = false, onOpen, watermarkSelectable = false, onToggleWatermark }) {
     const { t, i18n } = useTranslation();
     const warnings = image.warnings ?? [];
 
@@ -154,7 +154,18 @@ export function ServerPhotoTile({ image, onRemove, removing, showStatus = false,
                         <button type="button" onClick={() => onOpen(image, 'reoptimize')} className="inline-flex h-9 items-center gap-1 rounded-lg px-2 text-xs font-medium text-stone-700 hover:bg-stone-100">
                             <RefreshCw className="size-3.5" aria-hidden /> {t('viewer.reoptimize_short')}
                         </button>
+                        {image.urls.download && (
+                            <a href={image.urls.download} className="inline-flex h-9 items-center gap-1 rounded-lg px-2 text-xs font-medium text-stone-700 hover:bg-stone-100" aria-label={t('download.single', { name: image.output_filename })}>
+                                <Download className="size-3.5" aria-hidden />
+                            </a>
+                        )}
                     </div>
+                )}
+                {watermarkSelectable && image.status === 'completed' && (
+                    <label className="flex cursor-pointer items-center gap-2 pt-1 text-xs text-stone-700">
+                        <input type="checkbox" className="size-4 rounded border-stone-300 text-brand-600" checked={!!image.apply_watermark} onChange={(e) => onToggleWatermark(image, e.target.checked)} />
+                        {t('download.logo_on_photo')}
+                    </label>
                 )}
             </div>
         </div>

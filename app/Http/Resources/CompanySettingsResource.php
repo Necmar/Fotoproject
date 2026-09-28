@@ -17,6 +17,7 @@ class CompanySettingsResource extends JsonResource
         return [
             'company_name' => $this->name,
             'has_logo' => $this->logo_path !== null,
+            'logo_url' => $this->logo_path ? route('api.company.logo.show', ['v' => substr(md5($this->logo_path), 0, 8)]) : null,
             'default_output_format' => $s->default_output_format->value,
             'default_resolution' => $s->default_resolution->value,
             'default_aspect_ratio' => $s->default_aspect_ratio->value,

@@ -4,6 +4,7 @@ import api, { errorMessage, fieldErrors } from '../../lib/api';
 import { useAuth } from '../../auth/AuthContext';
 import { useFetch } from '../../lib/useFetch';
 import { Alert, Button, Card, Input, PageHeader, Select, Spinner } from '../../components/ui';
+import LogoCard from '../../components/company/LogoCard';
 
 /** Company defaults that pre-fill every new batch. Logo upload follows in phase 7. */
 export default function CompanySettings() {
@@ -51,6 +52,9 @@ export default function CompanySettings() {
     return (
         <div className="mx-auto max-w-3xl">
             <PageHeader title={t('settings.title')} description={t('settings.subtitle')} />
+            <div className="mb-6">
+                <LogoCard logoUrl={form.logo_url} onChange={(data) => setForm({ ...form, has_logo: data.has_logo, logo_url: data.logo_url })} />
+            </div>
             <form onSubmit={submit} className="space-y-6">
                 {status && <Alert type={status.type}>{status.text}</Alert>}
 

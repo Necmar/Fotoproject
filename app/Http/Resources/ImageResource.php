@@ -48,6 +48,7 @@ class ImageResource extends JsonResource
                     ? route('api.company.images.file', [$this->id, 'thumbnail'])
                     : ($browserCanShowOriginal ? $originalUrl : null),
                 'before' => $this->working_path ? route('api.company.images.file', [$this->id, 'working']) : ($browserCanShowOriginal ? $originalUrl : null),
+                'download' => $this->optimized_path ? route('api.company.images.download', $this->id) : null,
                 'optimized' => $this->optimized_path ? route('api.company.images.file', [$this->id, 'optimized']) : null,
             ],
             'processed_at' => $this->processed_at?->toIso8601String(),

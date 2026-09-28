@@ -29,6 +29,7 @@ class UserResource extends JsonResource
                     'name' => $this->company->name,
                     'status' => $this->company->status->value,
                     'has_logo' => $this->company->logo_path !== null,
+                    'logo_url' => $this->company->logo_path ? route('api.company.logo.show', ['v' => substr(md5($this->company->logo_path), 0, 8)]) : null,
                 ],
             ),
         ];

@@ -78,6 +78,13 @@ export default function Dashboard() {
                 <Card>
                     <h2 className="font-semibold">{t('dashboard.settings_title')}</h2>
                     <p className="mt-1 text-sm text-stone-500">{t('dashboard.settings_text')}</p>
+                    <div className="mt-4 flex items-center gap-3 rounded-xl bg-stone-50 p-3">
+                        {user.company?.logo_url ? (
+                            <img src={user.company.logo_url} alt={t('logo.title')} className="h-10 max-w-32 object-contain" />
+                        ) : (
+                            <span className="text-sm text-stone-500">{t('logo.none_dashboard')}</span>
+                        )}
+                    </div>
                     <Button variant="secondary" icon={Settings} className="mt-5 w-full" to="/settings">
                         {t('nav.settings')}
                     </Button>

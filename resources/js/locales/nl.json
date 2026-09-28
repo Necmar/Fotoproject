@@ -465,5 +465,23 @@
         "reoptimize_text": "Kies andere instellingen voor deze foto. De nieuwe versie vervangt de huidige zodra hij klaar is.",
         "reoptimize_submit": "Opnieuw optimaliseren",
         "open": "{{name}} bekijken"
+    },
+    "logo": {
+        "title": "Bedrijfslogo",
+        "text": "Wordt gebruikt als watermark. Gebruik bij voorkeur een PNG met transparante achtergrond.",
+        "none": "Nog geen logo",
+        "none_dashboard": "Nog geen logo voor watermarks",
+        "upload": "Logo uploaden",
+        "replace": "Logo vervangen",
+        "remove": "Verwijderen"
+    },
+    "download": {
+        "title": "Downloaden",
+        "text": "{{count}} foto's klaar om te downloaden.",
+        "zip": "Alles downloaden (ZIP)",
+        "single": "{{name}} downloaden",
+        "logo_on_photo": "Logo op deze foto",
+        "select_hint": "Vink bij de foto's hieronder aan waar het logo op moet.",
+        "watermark_note": "Het logo wordt alleen bij het downloaden toegevoegd; de opgeslagen foto blijft zonder logo."
     }
 }

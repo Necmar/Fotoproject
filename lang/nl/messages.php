@@ -38,6 +38,8 @@ return [
         'too_many_images' => 'Je kunt maximaal :max foto\'s per batch uploaden.',
         'batch_locked' => 'Deze batch wordt al verwerkt en kan niet meer worden gewijzigd.',
         'image_busy' => 'Deze foto wordt nog verwerkt. Wacht tot hij klaar is.',
+        'nothing_to_download' => 'Er zijn nog geen klaar-foto\'s om te downloaden.',
+        'logo_invalid' => 'Upload een PNG- of JPG-bestand als logo (bij voorkeur een PNG met transparante achtergrond).',
         'batch_empty' => 'Voeg eerst minimaal één foto toe.',
         'watermark_needs_logo' => 'Upload eerst een bedrijfslogo om een watermark te gebruiken.',
     ],

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, RefreshCw, X } from 'lucide-react';
+import { AlertTriangle, Download, RefreshCw, X } from 'lucide-react';
 import api, { errorMessage } from '../../lib/api';
 import { useAuth } from '../../auth/AuthContext';
 import { formatBytes } from '../../lib/format';
@@ -113,6 +113,12 @@ export default function ImageViewer({ image, onClose, onReoptimized, startWithFo
                             <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden /> {w.message}
                         </p>
                     ))}
+
+                    {image.urls.download && (
+                        <a href={image.urls.download} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 text-sm font-medium text-white hover:bg-brand-700">
+                            <Download className="size-4" aria-hidden /> {t('download.single', { name: image.output_filename })}
+                        </a>
+                    )}
 
                     {finished && (
                         <section className="rounded-2xl bg-white p-4 ring-1 ring-stone-200/80">

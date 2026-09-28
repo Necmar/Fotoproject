@@ -10,6 +10,8 @@ import Stepper from '../../components/batch/Stepper';
 import BatchStatusBadge, { ACTIVE_STATUSES } from '../../components/batch/BatchStatusBadge';
 import { ServerPhotoTile } from '../../components/batch/PhotoTile';
 import ImageViewer from '../../components/batch/ImageViewer';
+import DownloadPanel from '../../components/batch/DownloadPanel';
+import { useAuth } from '../../auth/AuthContext';
 import { Alert, Button, Card, Modal, Spinner } from '../../components/ui';
 
 const POLL_MS = 3000;
@@ -22,7 +24,8 @@ export default function BatchDetail() {
     const { t, i18n } = useTranslation();
     const { id } = useParams();
     const navigate = useNavigate();
-    const { data: batch, loading, error, reload } = useFetch(`/company/batches/${id}`);
+    const { data: batch, loading, error, reload, setBody } = useFetch(`/company/batches/${id}`);
+    const { user } = useAuth();
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [viewer, setViewer] = useState(null); // { id, form }
     const [deleteError, setDeleteError] = useState(null);
@@ -98,9 +101,21 @@ export default function BatchDetail() {
                 {active && <p className="mt-2 text-xs text-stone-400">{t('batch.progress.stay')}</p>}
             </Card>
 
+            {p.completed > 0 && <DownloadPanel batch={batch} onBatchChange={(data) => setBody({ data })} />}
+
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
                 {batch.images.map((image) => (
-                    <ServerPhotoTile key={image.id} image={image} showStatus onOpen={(img, action) => setViewer({ id: img.id, form: action === 'reoptimize' })} />
+                    <ServerPhotoTile
+                        key={image.id}
+                        image={image}
+                        showStatus
+                        onOpen={(img, action) => setViewer({ id: img.id, form: action === 'reoptimize' })}
+                        watermarkSelectable={batch.settings.watermark_mode === 'selected' && !!user.company?.has_logo}
+                        onToggleWatermark={async (img, apply) => {
+                            await api.patch(`/company/images/${img.id}/watermark`, { apply }).catch(() => null);
+                            reload();
+                        }}
+                    />
                 ))}
             </div>
 

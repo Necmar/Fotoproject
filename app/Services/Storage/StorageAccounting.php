@@ -22,6 +22,14 @@ class StorageAccounting
         });
     }
 
+    /** Company-level files (logo): positive adds, negative subtracts (never below zero). */
+    public function addToCompany(int $companyId, int $bytes): void
+    {
+        if ($bytes !== 0) {
+            Company::query()->whereKey($companyId)->update(['storage_bytes' => $this->expression($bytes)]);
+        }
+    }
+
     /** Portable (MySQL/MariaDB/SQLite) and safe for unsigned columns. */
     private function expression(int $bytes)
     {

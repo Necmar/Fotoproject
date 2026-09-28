@@ -324,3 +324,45 @@ Sterk bewogen, veel ruis, lage kwaliteit (alleen als herstel beperkt is), persoo
 4. **Opnieuw optimaliseren** met Sterk en neutrale achtergrond: de foto gaat naar "Wachten", de batch wordt weer actief en de nieuwe versie verschijnt vanzelf. De oude versie is weg.
 5. Een mislukte foto opnieuw proberen via **Opnieuw**.
 6. Met een echte OpenAI-key: in Super Admin zie je voor de nieuwe versie een bewerking en een controle, maar geen tweede analyse.
+
+## Fase 7: Watermark, logo's en downloads
+
+**Status:** afgerond. `php artisan test`: 102 tests, 686 assertions, alles groen. React-build slaagt.
+
+### Keuzes
+
+- **Bedrijfslogo** (Instellingen > Bedrijfslogo): uploaden, vervangen, verwijderen. PNG of JPG (op inhoud gecontroleerd), maximaal 5 MB; opgeslagen als PNG met transparantie, maximaal 1200 px, zonder metadata, op de private disk. Alleen het eigen bedrijf kan het ophalen (`GET /api/company/logo`, zonder bedrijfs-id in de URL). Wijzigingen worden gelogd (`logo_changed`) en tellen mee in het opslaggebruik. Het dashboard toont het logo.
+- **Watermark alleen bij downloaden** (`WatermarkRenderer`): het opgeslagen resultaat blijft altijd zonder logo. Daardoor kun je de watermark op ieder moment aan- of uitzetten, verplaatsen of doorzichtiger maken, zonder opnieuw te verwerken.
+  - Keuzes: geen, alle foto's, of geselecteerde foto's (vinkje "Logo op deze foto" per foto).
+  - Posities: linksboven, rechtsboven, linksonder, rechtsonder, midden. Transparantie 10 tot 100 %.
+  - Logo op 18 % van de fotobreedte (max 25 % van de hoogte), marge 3 %, transparantie van het logo blijft behouden.
+- **Downloads** via beveiligde routes (Policy `download`, alleen eigen bedrijf):
+  - Los: `GET /api/company/images/{image}/download`, met de bestandsnaam `bmw-320i-01.jpg` en zonder EXIF/GPS.
+  - ZIP: `GET /api/company/batches/{batch}/download` als `bmw-320i.zip`. Wordt pas gemaakt als iemand erom vraagt, zonder hercompressie (snel), en hergebruikt tot een foto of de watermark verandert; dan wordt de oude ZIP vervangen.
+- **Stap 5 op de batchpagina** (`DownloadPanel`): "Alles downloaden (ZIP)" en de watermarkinstellingen. Per foto een downloadknop op de card en in de viewer.
+
+### API (nieuw)
+
+`GET/POST/DELETE /api/company/logo`, `PUT /api/company/batches/{batch}/watermark`, `PATCH /api/company/images/{image}/watermark`, `GET /api/company/images/{image}/download`, `GET /api/company/batches/{batch}/download`. Nieuwe foutcodes: `logo_invalid`, `nothing_to_download`.
+
+### Toegevoegd
+
+- `app/Services/{LogoService,DownloadService}.php`, `app/Services/Images/WatermarkRenderer.php`
+- `app/Http/Controllers/Api/Company/{LogoController,DownloadController}.php`
+- `resources/js/components/company/LogoCard.jsx`, `resources/js/components/batch/DownloadPanel.jsx`
+- `tests/Feature/DownloadAndWatermarkTest.php`
+
+### Gewijzigd
+
+`app/Services/Storage/StorageAccounting.php` (opslag op bedrijfsniveau), `app/Http/Resources/{UserResource,CompanySettingsResource,ImageResource,BatchResource}.php` (logo- en download-URL's), `routes/api.php`, `lang/{nl,en}/messages.php`, `resources/js/components/batch/{PhotoTile,ImageViewer}.jsx`, `resources/js/pages/company/{BatchDetail,Settings,Dashboard}.jsx`, `resources/js/locales/{nl,en}.json`.
+
+### Handmatig testen
+
+1. Instellingen: upload een PNG met transparante achtergrond; vervang het door een JPG; verwijder het. Het dashboard toont het logo.
+2. Een ongeldig bestand (bijv. GIF of PDF hernoemd naar .png) geeft een duidelijke melding.
+3. Batchpagina van een klare batch: kies "Logo op alle foto's", rechtsonder, 70 %. Download één foto: logo zichtbaar. Open de foto in de viewer: het resultaat daar is zonder logo.
+4. Kies "Logo op geselecteerde foto's", vink twee foto's aan en download de ZIP: alleen die twee hebben het logo.
+5. ZIP: bestandsnamen `batchnaam-01.jpg` enzovoort; tweede keer downloaden is direct klaar; na een watermarkwijziging wordt een nieuwe ZIP gemaakt.
+6. Download op iPhone (Safari) en Android: losse foto opent/bewaart, ZIP wordt gedownload.
+7. Controleer een gedownloade foto met `exiftool`: geen EXIF of GPS.
+8. Als ander bedrijf de download-URL openen: 403.

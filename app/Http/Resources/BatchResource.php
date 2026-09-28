@@ -32,6 +32,7 @@ class BatchResource extends JsonResource
             'cover_url' => $this->whenLoaded('cover', fn () => $this->cover ? ImageResource::make($this->cover)->toArray($request)['urls']['thumbnail'] : null),
             'images' => ImageResource::collection($images),
             'storage_bytes' => $this->storage_bytes,
+            'download_url' => $this->completed_count > 0 ? route('api.company.batches.download', $this->id) : null,
             'created_at' => $this->created_at?->toIso8601String(),
             'started_at' => $this->started_at?->toIso8601String(),
             'completed_at' => $this->completed_at?->toIso8601String(),
