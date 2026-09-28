@@ -12,6 +12,9 @@ import Register from './pages/auth/Register';
 import Account from './pages/account/Account';
 import Dashboard from './pages/company/Dashboard';
 import CompanySettings from './pages/company/Settings';
+import BatchNew from './pages/company/BatchNew';
+import BatchEdit from './pages/company/BatchEdit';
+import BatchDetail from './pages/company/BatchDetail';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import Companies from './pages/admin/Companies';
 import CompanyCreate from './pages/admin/CompanyCreate';
@@ -96,6 +99,9 @@ const router = createBrowserRouter([
                         children: [
                             { path: '/', element: <Dashboard /> },
                             { path: '/settings', element: <CompanySettings /> },
+                            { path: '/batches/new', element: <BatchNew /> },
+                            { path: '/batches/:id/edit', element: <BatchEdit /> },
+                            { path: '/batches/:id', element: <BatchDetail /> },
                         ],
                     },
                 ],

@@ -40,6 +40,9 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('auth', fn (Request $request) => Limit::perMinute(10)->by($request->ip()));
 
+        // A batch is max 30 files, uploaded one per request; allow retries.
+        RateLimiter::for('uploads', fn (Request $request) => Limit::perMinute(120)->by($request->user()?->id ?: $request->ip()));
+
         RateLimiter::for('password-reset', fn (Request $request) => [
             Limit::perMinute(5)->by($request->ip()),
             Limit::perHour(10)->by(mb_strtolower((string) $request->input('email'))),

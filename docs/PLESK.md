@@ -9,6 +9,16 @@
 - Optioneel: `imagick` (betere HEIC-ondersteuning; zonder imagick converteert de browser HEIC naar JPEG)
 - MySQL 8 of MariaDB 10.6+
 
+## PHP-instellingen (Plesk > PHP-instellingen)
+
+| Instelling | Waarde | Waarom |
+|---|---|---|
+| `upload_max_filesize` | `32M` | Eén foto per request; hoger dan "Maximale bestandsgrootte" in Systeeminstellingen (standaard 25 MB) |
+| `post_max_size` | `34M` | Iets hoger dan `upload_max_filesize` |
+| `max_file_uploads` | `20` (standaard is prima) | De app stuurt één bestand per request |
+| `memory_limit` | `512M` | Beeldbewerking met GD van grote foto's (fase 3) |
+| `max_execution_time` | `120` | Upload van grote bestanden op trage verbindingen |
+
 ## Eerste installatie
 
 1. **Document root** van het domein instellen op de map `public` van het project.

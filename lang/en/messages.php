@@ -27,4 +27,20 @@ return [
         'storage_deleted' => ':count batch(es) and their files have been deleted.',
         'batch_deleted' => 'The batch and its files have been deleted.',
     ],
+    'domain' => [
+        'upload_failed' => 'The upload failed. Please try again.',
+        'upload_failed_server_limit' => 'The file is larger than the server allows.',
+        'file_too_large' => 'This file is too large. At most :max MB per photo.',
+        'invalid_type' => 'This file type is not supported. Use JPG, PNG, HEIC or HEIF.',
+        'corrupt_file' => 'This file is damaged or not a valid image.',
+        'too_many_pixels' => 'This photo has too high a resolution to process.',
+        'too_many_images' => 'You can upload at most :max photos per batch.',
+        'batch_locked' => 'This batch is already being processed and can no longer be changed.',
+        'batch_empty' => 'Please add at least one photo first.',
+        'watermark_needs_logo' => 'Upload a company logo first to use a watermark.',
+    ],
+    'batch' => [
+        'deleted' => 'The batch and all its files have been deleted.',
+        'image_removed' => 'The photo has been removed.',
+    ],
 ];

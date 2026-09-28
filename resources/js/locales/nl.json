@@ -109,7 +109,6 @@
         "hero_title": "Foto's optimaliseren",
         "hero_text": "Upload tot {{max}} productfoto's tegelijk. Iedere foto wordt afzonderlijk geanalyseerd en verbeterd, zonder het product te veranderen.",
         "optimize": "Foto's optimaliseren",
-        "coming_soon": "De uploadflow wordt toegevoegd in de volgende fase.",
         "recent": "Recente verwerkingen",
         "no_batches": "Nog geen verwerkingen",
         "no_batches_text": "Je recente batches verschijnen hier.",
@@ -242,19 +241,50 @@
         }
     },
     "enums": {
-        "company_status": { "active": "Actief", "blocked": "Geblokkeerd" },
+        "company_status": {
+            "active": "Actief",
+            "blocked": "Geblokkeerd"
+        },
         "batch_status": {
-            "draft": "Concept", "uploading": "Uploaden", "queued": "Wachten", "processing": "Bezig",
-            "completed": "Klaar", "completed_with_errors": "Klaar met fouten", "failed": "Mislukt"
+            "draft": "Concept",
+            "uploading": "Uploaden",
+            "queued": "Wachten",
+            "processing": "Bezig",
+            "completed": "Klaar",
+            "completed_with_errors": "Klaar met fouten",
+            "failed": "Mislukt"
         },
         "image_status": {
-            "uploading": "Uploaden", "uploaded": "Geüpload", "queued": "Wachten", "analyzing": "Analyseren",
-            "processing": "Optimaliseren", "finalizing": "Afronden", "completed": "Klaar", "failed": "Mislukt"
+            "uploading": "Uploaden",
+            "uploaded": "Geüpload",
+            "queued": "Wachten",
+            "analyzing": "Analyseren",
+            "processing": "Optimaliseren",
+            "finalizing": "Afronden",
+            "completed": "Klaar",
+            "failed": "Mislukt"
         },
-        "output_format": { "jpg": "JPG", "png": "PNG" },
-        "resolution": { "1600": "1600 px, compact", "2000": "2000 px, standaard", "2560": "2560 px, hoge kwaliteit" },
-        "aspect_ratio": { "original": "Origineel", "1:1": "1:1", "4:3": "4:3", "3:2": "3:2", "16:9": "16:9" },
-        "optimization_strength": { "subtle": "Subtiel", "normal": "Normaal", "strong": "Sterk" },
+        "output_format": {
+            "jpg": "JPG",
+            "png": "PNG"
+        },
+        "resolution": {
+            "1600": "1600 px, compact",
+            "2000": "2000 px, standaard",
+            "2560": "2560 px, hoge kwaliteit"
+        },
+        "aspect_ratio": {
+            "original": "Origineel",
+            "1:1": "1:1",
+            "4:3": "4:3",
+            "3:2": "3:2",
+            "16:9": "16:9"
+        },
+        "optimization_strength": {
+            "subtle": "Subtiel",
+            "normal": "Normaal",
+            "strong": "Sterk"
+        },
         "background_option": {
             "keep": "Originele achtergrond behouden en verbeteren",
             "clean_subtle": "Achtergrond subtiel opschonen",
@@ -263,21 +293,122 @@
             "remove": "Achtergrond verwijderen",
             "neutral": "Neutrale achtergrond gebruiken"
         },
-        "watermark_mode": { "none": "Geen watermark", "all": "Logo op alle foto's", "selected": "Logo op geselecteerde foto's" },
+        "watermark_mode": {
+            "none": "Geen watermark",
+            "all": "Logo op alle foto's",
+            "selected": "Logo op geselecteerde foto's"
+        },
         "watermark_position": {
-            "top_left": "Linksboven", "top_right": "Rechtsboven", "bottom_left": "Linksonder", "bottom_right": "Rechtsonder", "center": "Midden"
+            "top_left": "Linksboven",
+            "top_right": "Rechtsboven",
+            "bottom_left": "Linksonder",
+            "bottom_right": "Rechtsonder",
+            "center": "Midden"
         },
         "activity_action": {
-            "login": "Ingelogd", "login_failed": "Mislukte inlogpoging", "logout": "Uitgelogd",
-            "password_changed": "Wachtwoord gewijzigd", "password_reset": "Wachtwoord gereset",
-            "profile_updated": "Profiel gewijzigd", "email_verified": "E-mailadres geverifieerd",
-            "company_registered": "Bedrijf geregistreerd", "company_settings_updated": "Bedrijfsinstellingen gewijzigd",
-            "logo_changed": "Logo gewijzigd", "batch_created": "Batch aangemaakt", "batch_deleted": "Batch verwijderd",
-            "image_processed": "Foto verwerkt", "image_failed": "Foto mislukt",
-            "admin_company_created": "Bedrijf aangemaakt (admin)", "admin_company_updated": "Bedrijf gewijzigd (admin)",
-            "admin_company_blocked": "Bedrijf geblokkeerd", "admin_company_unblocked": "Bedrijf gedeblokkeerd",
-            "admin_company_deleted": "Bedrijf verwijderd", "admin_password_reset_sent": "Wachtwoordreset verstuurd (admin)",
-            "admin_storage_deleted": "Opslag verwijderd (admin)", "admin_settings_updated": "Systeeminstellingen gewijzigd"
+            "login": "Ingelogd",
+            "login_failed": "Mislukte inlogpoging",
+            "logout": "Uitgelogd",
+            "password_changed": "Wachtwoord gewijzigd",
+            "password_reset": "Wachtwoord gereset",
+            "profile_updated": "Profiel gewijzigd",
+            "email_verified": "E-mailadres geverifieerd",
+            "company_registered": "Bedrijf geregistreerd",
+            "company_settings_updated": "Bedrijfsinstellingen gewijzigd",
+            "logo_changed": "Logo gewijzigd",
+            "batch_created": "Batch aangemaakt",
+            "batch_deleted": "Batch verwijderd",
+            "image_processed": "Foto verwerkt",
+            "image_failed": "Foto mislukt",
+            "admin_company_created": "Bedrijf aangemaakt (admin)",
+            "admin_company_updated": "Bedrijf gewijzigd (admin)",
+            "admin_company_blocked": "Bedrijf geblokkeerd",
+            "admin_company_unblocked": "Bedrijf gedeblokkeerd",
+            "admin_company_deleted": "Bedrijf verwijderd",
+            "admin_password_reset_sent": "Wachtwoordreset verstuurd (admin)",
+            "admin_storage_deleted": "Opslag verwijderd (admin)",
+            "admin_settings_updated": "Systeeminstellingen gewijzigd"
+        }
+    },
+    "batch": {
+        "steps": {
+            "label": "Stappen",
+            "photos": "Foto's toevoegen",
+            "settings": "Instellingen kiezen",
+            "optimize": "Optimaliseren",
+            "results": "Resultaten bekijken",
+            "download": "Downloaden"
+        },
+        "unnamed": "Naamloze batch",
+        "photos_intro": "Voeg tot {{max}} foto's toe. Je kunt meerdere foto's tegelijk selecteren.",
+        "photo_count": "{{count}} van {{max}} foto's",
+        "photo_count_short": "{{count}} foto's",
+        "photo_count_short_one": "{{count}} foto",
+        "photo_count_short_other": "{{count}} foto's",
+        "next_settings": "Verder naar instellingen",
+        "wait_uploads": "Even wachten, uploads lopen nog",
+        "back_photos": "Terug naar foto's",
+        "settings_intro": "Deze instellingen gelden voor alle {{count}} foto's. Per foto bepaalt de AI welke verbeteringen nodig zijn.",
+        "start": "Optimaliseren",
+        "start_one": "{{count}} foto optimaliseren",
+        "start_other": "{{count}} foto's optimaliseren",
+        "discard": "Batch weggooien",
+        "discard_confirm": "Weggooien",
+        "discard_text": "Alle geüploade foto's van deze batch worden verwijderd.",
+        "expires": "beschikbaar tot {{date}}",
+        "delete_title": "Batch verwijderen",
+        "delete_text": "De batch met alle originele en geoptimaliseerde foto's wordt definitief verwijderd.",
+        "progress": {
+            "done_of": "{{done}} van {{total}} klaar",
+            "succeeded": "Geslaagd",
+            "failed": "Mislukt",
+            "current": "Huidige foto",
+            "waiting": "In de wachtrij. De verwerking start automatisch.",
+            "stay": "Je kunt op deze pagina blijven; afgeronde foto's verschijnen direct."
+        },
+        "settings": {
+            "name": "Naam van de batch (optioneel)",
+            "name_placeholder": "Bijvoorbeeld BMW 320i",
+            "name_hint": "Bestandsnamen worden: {{example}}",
+            "output": "Uitvoer",
+            "crop_hint": "Er wordt slim bijgesneden; het product blijft volledig in beeld.",
+            "optimization": "Optimalisatie",
+            "remove_people": "Personen op achtergrond verwijderen",
+            "remove_people_text": "Alleen personen die geen onderdeel van het product zijn. Lukt dit niet betrouwbaar, dan krijg je een melding.",
+            "integrity": "Het product blijft altijd zoals het is: beschadigingen, kleur, teksten, logo's en kentekens worden niet veranderd.",
+            "no_logo": "Upload eerst een bedrijfslogo bij Instellingen om een watermark te gebruiken.",
+            "descriptions": {
+                "optimization_strength": {
+                    "subtle": "Lichte correcties, zo dicht mogelijk bij het origineel.",
+                    "normal": "Duidelijk schonere, aantrekkelijke advertentiefoto.",
+                    "strong": "Meer correctie van licht, achtergrond en presentatie."
+                }
+            }
+        }
+    },
+    "upload": {
+        "title": "Foto's toevoegen",
+        "hint": "JPG, PNG, HEIC of HEIF. Rechtstreeks vanaf je iPhone, Android of computer.",
+        "choose": "Foto's kiezen",
+        "add_more": "Meer foto's toevoegen",
+        "camera": "Camera",
+        "remaining": "Nog {{count}} foto's mogelijk",
+        "remaining_one": "Nog {{count}} foto mogelijk",
+        "remaining_other": "Nog {{count}} foto's mogelijk",
+        "full": "Maximum aantal foto's bereikt",
+        "retry": "Opnieuw",
+        "dismiss": "Weghalen",
+        "remove": "Foto verwijderen",
+        "status": {
+            "pending": "Wachten",
+            "uploaded": "Geüpload",
+            "error": "Mislukt"
+        },
+        "errors": {
+            "invalid_type": "Ongeldig bestand. Gebruik JPG, PNG, HEIC of HEIF.",
+            "too_large": "Bestand te groot. Maximaal {{max}} MB.",
+            "empty": "Dit bestand is leeg of beschadigd.",
+            "too_many": "Maximaal {{max}} foto's per batch. {{count}} foto's zijn niet toegevoegd."
         }
     }
 }

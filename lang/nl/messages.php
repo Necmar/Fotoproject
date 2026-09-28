@@ -27,4 +27,20 @@ return [
         'storage_deleted' => ':count batch(es) en bijbehorende bestanden verwijderd.',
         'batch_deleted' => 'De batch en bijbehorende bestanden zijn verwijderd.',
     ],
+    'domain' => [
+        'upload_failed' => 'Het uploaden is mislukt. Probeer het opnieuw.',
+        'upload_failed_server_limit' => 'Het bestand is groter dan de server toestaat.',
+        'file_too_large' => 'Dit bestand is te groot. Maximaal :max MB per foto.',
+        'invalid_type' => 'Dit bestandstype wordt niet ondersteund. Gebruik JPG, PNG, HEIC of HEIF.',
+        'corrupt_file' => 'Dit bestand is beschadigd of geen geldige afbeelding.',
+        'too_many_pixels' => 'Deze foto heeft een te hoge resolutie om te verwerken.',
+        'too_many_images' => 'Je kunt maximaal :max foto\'s per batch uploaden.',
+        'batch_locked' => 'Deze batch wordt al verwerkt en kan niet meer worden gewijzigd.',
+        'batch_empty' => 'Voeg eerst minimaal één foto toe.',
+        'watermark_needs_logo' => 'Upload eerst een bedrijfslogo om een watermark te gebruiken.',
+    ],
+    'batch' => [
+        'deleted' => 'De batch en alle bijbehorende bestanden zijn verwijderd.',
+        'image_removed' => 'De foto is verwijderd.',
+    ],
 ];

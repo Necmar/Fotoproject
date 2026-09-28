@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\Auth\PasswordResetController;
 use App\Http\Controllers\Api\Auth\RegisterController;
 use App\Http\Controllers\Api\Auth\SessionController;
+use App\Http\Controllers\Api\Company\BatchController;
+use App\Http\Controllers\Api\Company\ImageController;
 use App\Http\Controllers\Api\Company\SettingsController as CompanySettingsController;
 use App\Http\Controllers\Api\MetaController;
 use Illuminate\Support\Facades\Route;
@@ -47,6 +49,20 @@ Route::middleware(['auth', 'account.active', 'throttle:api'])->group(function ()
         Route::get('settings', [CompanySettingsController::class, 'show'])->name('settings.show');
         Route::put('settings', [CompanySettingsController::class, 'update'])->name('settings.update');
         Route::get('stats', [CompanySettingsController::class, 'stats'])->name('stats');
+
+        Route::get('batches', [BatchController::class, 'index'])->name('batches.index');
+        Route::post('batches', [BatchController::class, 'store'])->name('batches.store');
+        Route::get('batches/{batch}', [BatchController::class, 'show'])->name('batches.show');
+        Route::patch('batches/{batch}', [BatchController::class, 'update'])->name('batches.update');
+        Route::delete('batches/{batch}', [BatchController::class, 'destroy'])->name('batches.destroy');
+        Route::post('batches/{batch}/start', [BatchController::class, 'start'])->name('batches.start');
+
+        Route::post('batches/{batch}/images', [ImageController::class, 'store'])
+            ->middleware('throttle:uploads')->name('images.store');
+        Route::delete('batches/{batch}/images/{image}', [ImageController::class, 'destroy'])
+            ->scopeBindings()->name('images.destroy');
+        Route::get('images/{image}/{variant}', [ImageController::class, 'file'])
+            ->whereIn('variant', ['original', 'thumbnail', 'optimized'])->name('images.file');
     });
 
     // Super Admin area

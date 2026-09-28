@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
     'company_id', 'user_id', 'name', 'filename_base', 'status', 'settings',
@@ -49,6 +50,16 @@ class Batch extends Model
     public function images(): HasMany
     {
         return $this->hasMany(Image::class)->orderBy('position');
+    }
+
+    /**
+     * First photo of the batch, for list thumbnails.
+     *
+     * @return HasOne<Image, $this>
+     */
+    public function cover(): HasOne
+    {
+        return $this->hasOne(Image::class)->ofMany('position', 'min');
     }
 
     /** @param Builder<Batch> $query */
