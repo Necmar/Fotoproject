@@ -402,7 +402,8 @@
         "status": {
             "pending": "Wachten",
             "uploaded": "Geüpload",
-            "error": "Mislukt"
+            "error": "Mislukt",
+            "converting": "HEIC omzetten…"
         },
         "errors": {
             "invalid_type": "Ongeldig bestand. Gebruik JPG, PNG, HEIC of HEIF.",

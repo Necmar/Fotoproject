@@ -23,16 +23,24 @@ class ImageResource extends JsonResource
             'original_size' => $this->original_size,
             'original_mime' => $this->original_mime,
             'width' => $this->width,
+            'output_width' => $this->output_width,
+            'output_height' => $this->output_height,
+            'output_size' => $this->output_size,
             'height' => $this->height,
             'status' => $this->status->value,
-            'warnings' => $this->warnings ?? [],
+            'warnings' => array_map(fn (array $w) => [
+                'code' => $w['code'],
+                'source' => $w['source'] ?? null,
+                'params' => $w['params'] ?? [],
+                'message' => __('messages.warnings.'.$w['code'], $w['params'] ?? []),
+            ], $this->warnings ?? []),
             'error' => $this->error_message,
             'duplicate_of' => $this->duplicate_of_id,
             'output_filename' => $this->output_filename,
             'apply_watermark' => $this->apply_watermark,
             'urls' => [
                 'original' => $originalUrl,
-                // Real thumbnails are generated in phase 3; until then the original is used when the browser can show it.
+                // Thumbnails are made at upload; the original is only a fallback for older records.
                 'thumbnail' => $this->thumbnail_path
                     ? route('api.company.images.file', [$this->id, 'thumbnail'])
                     : ($browserCanShowOriginal ? $originalUrl : null),

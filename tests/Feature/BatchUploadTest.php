@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Batch;
 use App\Models\User;
+use App\Services\Images\HeicConverter;
 use App\Services\SystemSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -13,6 +14,8 @@ use Tests\TestCase;
 class BatchUploadTest extends TestCase
 {
     use RefreshDatabase;
+
+    private const HEIC = "\x00\x00\x00\x18ftypheic\x00\x00\x00\x00mif1heic\x00\x00\x00\x00\x00\x00\x00\x00";
 
     protected function setUp(): void
     {
@@ -95,17 +98,53 @@ class BatchUploadTest extends TestCase
             ->assertJsonPath('code', 'corrupt_file');
     }
 
-    public function test_heic_is_accepted_by_magic_bytes(): void
+    public function test_heic_without_any_converter_is_rejected_with_clear_message(): void
     {
+        $this->app->instance(HeicConverter::class, new class extends HeicConverter
+        {
+            public function convert(string $source, string $targetJpeg): bool
+            {
+                return false;
+            }
+        });
+
         $user = User::factory()->create();
         $id = $this->draft($user);
 
-        $heic = "\x00\x00\x00\x18ftypheic\x00\x00\x00\x00mif1heic".str_repeat("\x00", 64);
+        $this->postJson("/api/company/batches/{$id}/images", ['file' => UploadedFile::fake()->createWithContent('IMG_0001.HEIC', self::HEIC)])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'conversion_failed');
 
-        $this->postJson("/api/company/batches/{$id}/images", ['file' => UploadedFile::fake()->createWithContent('IMG_0001.HEIC', $heic)])
+        // Nothing left behind: no record, no files, no storage counted.
+        $batch = Batch::query()->findOrFail($id);
+        $this->assertSame(0, $batch->images()->count());
+        $this->assertSame([], Storage::disk('local')->allFiles($batch->storageDirectory()));
+        $this->assertSame(0, $user->company->fresh()->storage_bytes);
+    }
+
+    public function test_heic_is_converted_on_the_server_when_a_converter_exists(): void
+    {
+        $this->app->instance(HeicConverter::class, new class extends HeicConverter
+        {
+            public function convert(string $source, string $targetJpeg): bool
+            {
+                $img = imagecreatetruecolor(1200, 900);
+                imagefill($img, 0, 0, imagecolorallocate($img, 90, 120, 150));
+
+                return imagejpeg($img, $targetJpeg, 90);
+            }
+        });
+
+        $user = User::factory()->create();
+        $id = $this->draft($user);
+
+        $response = $this->postJson("/api/company/batches/{$id}/images", ['file' => UploadedFile::fake()->createWithContent('IMG_0001.HEIC', self::HEIC)])
             ->assertCreated()
             ->assertJsonPath('data.original_mime', 'image/heic')
-            ->assertJsonPath('data.urls.thumbnail', null);
+            ->assertJsonPath('data.width', 1200)
+            ->assertJsonPath('data.height', 900);
+
+        $this->assertStringContainsString('/thumbnail', $response->json('data.urls.thumbnail'));
     }
 
     public function test_max_images_per_batch_is_enforced(): void
@@ -230,7 +269,7 @@ class BatchUploadTest extends TestCase
         $this->getJson('/api/company/batches?status=draft')
             ->assertOk()
             ->assertJsonPath('data.0.name', 'Eerste')
-            ->assertJsonPath('data.0.cover_url', route('api.company.images.file', [$imageId, 'original']));
+            ->assertJsonPath('data.0.cover_url', route('api.company.images.file', [$imageId, 'thumbnail']));
     }
 
     public function test_delete_batch_removes_files_and_storage(): void

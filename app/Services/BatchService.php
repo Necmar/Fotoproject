@@ -10,6 +10,7 @@ use App\Exceptions\DomainRuleException;
 use App\Models\Batch;
 use App\Models\Company;
 use App\Models\User;
+use App\Services\Images\DuplicateDetector;
 use App\Support\BatchSettings;
 use App\Support\FileNamer;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,7 @@ class BatchService
     public function __construct(
         private readonly ActivityLogger $activity,
         private readonly SystemSettings $system,
+        private readonly DuplicateDetector $duplicates,
     ) {}
 
     /** @param array<string, mixed> $settings validated settings keys (optional) */
@@ -104,6 +106,9 @@ class BatchService
             ]);
 
             Company::query()->whereKey($locked->company_id)->increment('batches_total');
+
+            // Identical and near-identical photos get a warning; nothing is removed.
+            $this->duplicates->markBatch($locked);
 
             // Phase 4 dispatches one ProcessImage job per image here.
 

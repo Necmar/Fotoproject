@@ -60,4 +60,21 @@ return [
 
     'locales' => ['nl', 'en'],
 
+    'processing' => [
+        // Internal working copy: orientation fixed, metadata stripped, JPEG.
+        // Large enough for the 2560 px output and as AI input.
+        'working_max_side' => 3072,
+        'working_quality' => 92,
+        'thumbnail_side' => 480,
+        'thumbnail_quality' => 80,
+        // Raised temporarily for large photos when the host allows ini_set.
+        'memory_limit' => env('BORA_PROCESSING_MEMORY', '1024M'),
+        // Optional CLI converters for HEIC when Imagick lacks HEIC support.
+        'heic_binaries' => array_filter(explode(',', (string) env('BORA_HEIC_BINARIES', '/usr/bin/heif-convert,/usr/bin/magick,/usr/bin/convert'))),
+        // Laplacian variance below this (on a 256 px sample) = possibly blurry.
+        'blur_threshold' => 18,
+        // dHash Hamming distance at or below this = very similar photos.
+        'duplicate_threshold' => 6,
+    ],
+
 ];

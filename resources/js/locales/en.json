@@ -402,7 +402,8 @@
         "status": {
             "pending": "Waiting",
             "uploaded": "Uploaded",
-            "error": "Failed"
+            "error": "Failed",
+            "converting": "Converting HEIC…"
         },
         "errors": {
             "invalid_type": "Invalid file. Use JPG, PNG, HEIC or HEIF.",

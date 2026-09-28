@@ -39,7 +39,7 @@ function Thumb({ src, alt, overlay }) {
 /** A photo that still lives in the browser: waiting, uploading or rejected. */
 export function LocalPhotoTile({ item, onRetry, onRemove }) {
     const { t, i18n } = useTranslation();
-    const uploading = item.status === 'uploading' || item.status === 'pending';
+    const uploading = item.status === 'uploading';
 
     return (
         <div className={cx('rounded-2xl bg-white ring-1', item.status === 'error' ? 'ring-red-200' : 'ring-stone-200/80')}>
@@ -67,7 +67,11 @@ export function LocalPhotoTile({ item, onRetry, onRemove }) {
                     ) : (
                         <span className="inline-flex items-center gap-1">
                             <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                            {item.status === 'pending' ? t('upload.status.pending') : `${item.progress}%`}
+                            {item.status === 'pending'
+                                ? t('upload.status.pending')
+                                : item.status === 'converting'
+                                  ? t('upload.status.converting')
+                                  : `${item.progress}%`}
                         </span>
                     )}
                 </div>

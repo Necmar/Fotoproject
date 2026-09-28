@@ -28,6 +28,7 @@ return [
         'batch_deleted' => 'The batch and its files have been deleted.',
     ],
     'domain' => [
+        'conversion_failed' => 'This HEIC/HEIF photo could not be converted. Set your iPhone to "Most Compatible" or export the photo as JPG.',
         'upload_failed' => 'The upload failed. Please try again.',
         'upload_failed_server_limit' => 'The file is larger than the server allows.',
         'file_too_large' => 'This file is too large. At most :max MB per photo.',
@@ -38,6 +39,17 @@ return [
         'batch_locked' => 'This batch is already being processed and can no longer be changed.',
         'batch_empty' => 'Please add at least one photo first.',
         'watermark_needs_logo' => 'Upload a company logo first to use a watermark.',
+    ],
+    'warnings' => [
+        'too_dark' => 'This photo is very dark. Improvement is limited.',
+        'too_bright' => 'This photo is heavily overexposed. Blown-out areas cannot be recovered.',
+        'low_contrast' => 'This photo has little contrast.',
+        'possibly_blurry' => 'This photo may be out of focus or shaken. Improvement is limited.',
+        'duplicate_exact' => 'This image is identical to photo :position.',
+        'duplicate_similar' => 'This image looks very similar to photo :position.',
+    ],
+    'processing' => [
+        'failed' => 'This photo could not be processed. Please try again.',
     ],
     'batch' => [
         'deleted' => 'The batch and all its files have been deleted.',

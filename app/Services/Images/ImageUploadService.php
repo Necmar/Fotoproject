@@ -28,6 +28,7 @@ class ImageUploadService
         private readonly ImageTypeDetector $detector,
         private readonly SystemSettings $settings,
         private readonly StorageAccounting $storage,
+        private readonly ImagePreparer $preparer,
     ) {}
 
     public function store(Batch $batch, UploadedFile $file): Image
@@ -99,16 +100,34 @@ class ImageUploadService
 
         $this->storage->add($batch, (int) $file->getSize());
 
-        return $image;
+        // Convert/orient/thumbnail right away so broken files and failed HEIC
+        // conversions are reported during upload, not minutes later.
+        try {
+            return $this->preparer->prepare($image);
+        } catch (Throwable $e) {
+            $this->remove($batch, $image);
+
+            if ($e instanceof DomainRuleException) {
+                throw $e;
+            }
+
+            report($e);
+            throw new DomainRuleException('corrupt_file');
+        }
     }
 
     /** Remove one image from a batch that has not been started yet. */
     public function delete(Batch $batch, Image $image): void
     {
         $this->ensureAcceptsUploads($batch);
+        $this->remove($batch, $image);
+    }
 
-        $bytes = (int) $image->original_size;
+    private function remove(Batch $batch, Image $image): void
+    {
         $paths = array_filter([$image->original_path, $image->working_path, $image->thumbnail_path, $image->optimized_path]);
+        $disk = Storage::disk(config('bora.disk'));
+        $bytes = array_sum(array_map(fn ($p) => $disk->exists($p) ? $disk->size($p) : 0, $paths));
 
         DB::transaction(function () use ($batch, $image) {
             $image->delete();
@@ -134,8 +153,8 @@ class ImageUploadService
     private function dimensions(string $path, string $mime): array
     {
         if ($this->detector->isHeif($mime)) {
-            // PHP cannot read HEIC headers without Imagick; dimensions are filled
-            // in after conversion (phase 3). The browser converts HEIC first when it can.
+            // PHP cannot read HEIC headers; ImagePreparer fills in the size after
+            // conversion. The browser converts HEIC to JPEG first when it can.
             return [null, null];
         }
 

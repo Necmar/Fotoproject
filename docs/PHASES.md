@@ -140,3 +140,55 @@ Foutcodes (`422`, veld `code`): `invalid_type`, `corrupt_file`, `file_too_large`
 ### PHP-instellingen voor uploads (Plesk)
 
 `upload_max_filesize` en `post_max_size` minimaal 1 MB hoger dan de ingestelde maximale bestandsgrootte (standaard 25 MB, dus bijvoorbeeld 32M / 34M). Aangevuld in `docs/PLESK.md`.
+
+## Fase 3: Bestandsopslag, HEIC/HEIF-conversie en normale beeldverwerking
+
+**Status:** afgerond. `php artisan test`: 61 tests, 364 assertions, alles groen. React-build slaagt.
+
+### Keuzes
+
+- **Opslagstructuur** per batch op de private disk:
+  `companies/{company}/batches/{batch}/{original,working,thumbs,optimized}/{ulid}.{ext}`. Verwijderen van een batch = één map weg.
+- **HEIC/HEIF in drie lagen:**
+  1. De browser zet HEIC om naar JPEG (`heic-to`, libheif in WebAssembly, ~750 KB gzip, alleen geladen als er HEIC wordt gekozen). Eén conversie tegelijk om het geheugen van telefoons te sparen.
+  2. Lukt dat niet, dan probeert de browser zijn eigen decoder (Safari).
+  3. Lukt dat ook niet, dan gaat het origineel naar de server, die Imagick (met HEIC) of een CLI-tool (`heif-convert`, `magick`) probeert. Zonder die tools krijgt de gebruiker direct bij de upload de melding "conversie mislukt", met een tip ("Meest compatibel" op de iPhone).
+- **Voorbereiding direct na upload** (`ImagePreparer`): EXIF-oriëntatie toepassen, werkkopie (max 3072 px, JPEG 92 %, zonder metadata), thumbnail (480 px), lokale kwaliteitsmeting en perceptuele hash. Kapotte bestanden en mislukte conversies worden zo meteen gemeld in plaats van minuten later.
+- **Alles met GD**, dat op iedere hosting aanwezig is. Imagick is optioneel en wordt alleen voor HEIC gebruikt. De EXIF-oriëntatie wordt zelf gelezen, zodat de `exif`-extensie niet verplicht is.
+- **Geheugenbewaking:** voor het openen wordt berekend hoeveel geheugen nodig is; waar mogelijk wordt `memory_limit` tijdelijk verhoogd, anders volgt een nette melding in plaats van een fatale fout.
+- **Metadata:** GD schrijft geen EXIF/GPS/XMP; iedere werkkopie, thumbnail en eindresultaat is dus schoon. Het origineel blijft ongewijzigd bewaard (voor de voor/na-vergelijking) en wordt na de bewaartermijn verwijderd.
+- **Uitvoer** (`OutputRenderer`): bijsnijden naar de gekozen verhouding, verkleinen naar de gekozen resolutie (nooit vergroten), JPG met de ingestelde kwaliteit (85 tot 90 %) of PNG met transparantie. Bestandsnaam `bmw-320i-01.jpg`. Een nieuwe versie vervangt de vorige.
+- **Slim bijsnijden:** met een productkader (komt uit de AI-analyse in fase 5) blijft het hele product altijd in beeld; past het product niet in de verhouding, dan wordt het canvas aangevuld met de randkleur in plaats van het product af te snijden. Zonder kader kiest het algoritme de uitsnede met de meeste details.
+- **Lokale verbetering zonder AI** (`LocalEnhancer`): belichting (gamma), contrast, lichte verscherping en alleen een witbalanscorrectie als er genoeg neutrale (grijze) pixels zijn. Een rode auto wordt dus nooit "gecorrigeerd" naar een andere kleur. Wordt gebruikt als AI uitstaat of als een AI-bewerking mislukt.
+- **Waarschuwingen zonder AI:** te donker, sterk overbelicht, weinig contrast, mogelijk onscherp/bewogen. De AI verfijnt dit in fase 5.
+- **Dubbele foto's** bij het starten van een batch: identiek (zelfde bestand) of sterk gelijkend (perceptuele hash). De latere foto krijgt "Deze afbeelding lijkt sterk op foto 7"; er wordt niets verwijderd.
+- **Verwerking per foto** (`ImagePipeline`) met de statussen Analyseren, Optimaliseren, Afronden, Klaar/Mislukt. Een fout bij één foto raakt de andere niet. De batchstatus (`BatchProgress`) wordt na iedere foto opnieuw bepaald. In fase 4 draait dit via de queue; nu kan het handmatig met `php artisan bora:process-local`.
+
+### Toegevoegd
+
+- `app/Services/Images/{ImageEditor,ExifOrientation,MemoryGuard,HeicConverter,ImagePreparer,LocalEnhancer,PerceptualHash,DuplicateDetector,OutputRenderer}.php`
+- `app/Services/Processing/{ImagePipeline,BatchProgress}.php`
+- `app/Services/Storage/LocalFiles.php` (lokale paden voor GD, klaar voor object storage)
+- `app/Console/Commands/ProcessBatchLocally.php` (`php artisan bora:process-local {batch?}`)
+- `resources/js/lib/heic.js`
+- `tests/Feature/ImageProcessingTest.php`
+
+### Gewijzigd
+
+`app/Services/Images/ImageUploadService.php` (voorbereiding na upload, opruimen bij fout), `app/Services/BatchService.php` (dubbele foto's bij starten), `app/Http/Resources/ImageResource.php` (vertaalde waarschuwingen, uitvoermaten), `config/bora.php` (sectie `processing`), `lang/{nl,en}/messages.php`, `resources/js/lib/useUploadQueue.js` (HEIC-conversie, geen herhaalknop bij definitieve fouten), `resources/js/components/batch/PhotoTile.jsx`, `resources/js/locales/{nl,en}.json`, `package.json` (`heic-to`), `tests/Feature/BatchUploadTest.php`.
+
+### Handmatig testen
+
+1. **iPhone HEIC:** zet de camera op "Hoge efficiëntie", kies een paar foto's. De tegel toont "HEIC omzetten…", daarna een echte preview en de upload.
+2. **HEIC op desktop Chrome/Firefox:** zelfde test met een HEIC-bestand van de computer.
+3. **Staande foto** van een telefoon: de thumbnail staat rechtop (EXIF-oriëntatie).
+4. **Heel donkere foto** en een **bewogen foto**: de tegel toont de waarschuwing.
+5. **Twee keer dezelfde foto** en een licht bijgesneden kopie in één batch; na starten staat bij de kopieën "lijkt sterk op foto N".
+6. Start de batch en draai `php artisan bora:process-local`. De batchpagina (polling) laat de foto's klaar komen, met percentage en geslaagd/mislukt.
+7. Download het resultaat via de URL `/api/company/images/{id}/optimized` en controleer: juiste verhouding en resolutie, geen EXIF/GPS (bijv. met `exiftool`), bestandsnaam volgt in fase 7.
+8. Kies PNG en 16:9 en verwerk opnieuw: PNG met de juiste afmetingen.
+9. **Server zonder HEIC-ondersteuning:** met een browser die de conversie niet kan (of door de netwerkaanvraag van `heic-to` te blokkeren in de DevTools) krijg je de melding "conversie mislukt".
+
+### Plesk
+
+Geen nieuwe verplichtingen: GD volstaat. Optioneel voor extra HEIC-zekerheid: Imagick met HEIC-ondersteuning, of pad naar `heif-convert` via `BORA_HEIC_BINARIES`.

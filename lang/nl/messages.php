@@ -28,6 +28,7 @@ return [
         'batch_deleted' => 'De batch en bijbehorende bestanden zijn verwijderd.',
     ],
     'domain' => [
+        'conversion_failed' => 'Deze HEIC/HEIF-foto kon niet worden omgezet. Stel je iPhone in op "Meest compatibel" of exporteer de foto als JPG.',
         'upload_failed' => 'Het uploaden is mislukt. Probeer het opnieuw.',
         'upload_failed_server_limit' => 'Het bestand is groter dan de server toestaat.',
         'file_too_large' => 'Dit bestand is te groot. Maximaal :max MB per foto.',
@@ -38,6 +39,17 @@ return [
         'batch_locked' => 'Deze batch wordt al verwerkt en kan niet meer worden gewijzigd.',
         'batch_empty' => 'Voeg eerst minimaal één foto toe.',
         'watermark_needs_logo' => 'Upload eerst een bedrijfslogo om een watermark te gebruiken.',
+    ],
+    'warnings' => [
+        'too_dark' => 'Deze foto is erg donker. Verbetering is beperkt mogelijk.',
+        'too_bright' => 'Deze foto is sterk overbelicht. Uitgebeten delen zijn niet te herstellen.',
+        'low_contrast' => 'Deze foto heeft weinig contrast.',
+        'possibly_blurry' => 'Deze foto is mogelijk onscherp of bewogen. Verbetering is beperkt mogelijk.',
+        'duplicate_exact' => 'Deze afbeelding is identiek aan foto :position.',
+        'duplicate_similar' => 'Deze afbeelding lijkt sterk op foto :position.',
+    ],
+    'processing' => [
+        'failed' => 'Deze foto kon niet worden verwerkt. Probeer het opnieuw.',
     ],
     'batch' => [
         'deleted' => 'De batch en alle bijbehorende bestanden zijn verwijderd.',
