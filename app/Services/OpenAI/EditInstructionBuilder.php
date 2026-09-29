@@ -27,6 +27,11 @@ class EditInstructionBuilder
         'Keep the camera angle, framing and composition.',
     ];
 
+    /** The "clean advertisement" look (what a good retoucher does), never at the cost of the rules. */
+    public const FINISH = 'Rich deep blacks and clean bright highlights, neutral white balance, clear local contrast without haze, '
+        .'accurate but vivid colours, low noise and crisp natural sharpness. Remove dust specks, lint, fingerprints and smudges from surfaces '
+        .'(these are dirt, not damage), but keep every scratch, dent, crack, stain and sign of wear.';
+
     public function build(array $analysis, BatchSettings $settings, bool $transparentBackground, bool $conservative = false): string
     {
         $lines = ['Edit this product photograph for an online advertisement.', '', 'STRICT RULES (never break these):'];
@@ -107,8 +112,8 @@ class EditInstructionBuilder
     {
         return match ($strength) {
             OptimizationStrength::Subtle => 'Light corrections only; stay as close to the original as possible.',
-            OptimizationStrength::Normal => 'Make it a clearly cleaner, more attractive advertising photo with balanced light and accurate colours.',
-            OptimizationStrength::Strong => 'Stronger correction of light, shadows, background and presentation for a professional look, while the product stays fully unchanged.',
+            OptimizationStrength::Normal => 'Professional retouch for a marketplace advertisement: clearly cleaner, crisper and more premium than the original. '.self::FINISH,
+            OptimizationStrength::Strong => 'Strong professional retouch for a premium advertisement: noticeably cleaner, crisper and richer than the original, with better light and shadows, while the product stays fully unchanged. '.self::FINISH,
         };
     }
 

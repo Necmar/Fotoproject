@@ -105,7 +105,8 @@ class ImagePipeline
             }
 
             $this->status($image, ImageStatus::Finalizing);
-            $this->renderer->render($image, $settings, $plan['source'], $plan['adjustments'], $plan['focus']);
+            $this->renderer->render($image, $settings, $plan['source'], $plan['adjustments'], $plan['focus'],
+                array_key_exists('finish', $plan) ? $plan['finish'] : $settings->strength);
 
             $image->forceFill([
                 'status' => ImageStatus::Completed,

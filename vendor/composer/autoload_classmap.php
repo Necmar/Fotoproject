@@ -105,6 +105,7 @@ return array(
     'App\\Services\\Images\\MemoryGuard' => $baseDir . '/app/Services/Images/MemoryGuard.php',
     'App\\Services\\Images\\OutputRenderer' => $baseDir . '/app/Services/Images/OutputRenderer.php',
     'App\\Services\\Images\\PerceptualHash' => $baseDir . '/app/Services/Images/PerceptualHash.php',
+    'App\\Services\\Images\\PhotoFinisher' => $baseDir . '/app/Services/Images/PhotoFinisher.php',
     'App\\Services\\Images\\ProductCompositor' => $baseDir . '/app/Services/Images/ProductCompositor.php',
     'App\\Services\\Images\\WatermarkRenderer' => $baseDir . '/app/Services/Images/WatermarkRenderer.php',
     'App\\Services\\LogoService' => $baseDir . '/app/Services/LogoService.php',
