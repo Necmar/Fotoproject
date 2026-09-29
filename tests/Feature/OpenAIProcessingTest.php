@@ -275,6 +275,48 @@ class OpenAIProcessingTest extends TestCase
         Sleep::assertSleptTimes(1);
     }
 
+    /** A washed-out photo (only light tones), as a local check would flag it. */
+    private function washedOutBatch(): Batch
+    {
+        $id = $this->actingAs($this->user)->postJson('/api/company/batches', ['name' => 'Wit'])->json('data.id');
+        $img = imagecreatetruecolor(1600, 1200);
+        for ($y = 0; $y < 1200; $y++) {
+            $v = 205 + (int) (50 * $y / 1199);
+            imageline($img, 0, $y, 1599, $y, imagecolorallocate($img, $v, $v, $v));
+        }
+        ob_start();
+        imagejpeg($img, null, 90);
+        $upload = $this->postJson("/api/company/batches/{$id}/images", ['file' => UploadedFile::fake()->createWithContent('wit.jpg', ob_get_clean())])->assertCreated();
+
+        // With AI configured the simple local check shows nothing yet: the AI judges the photo.
+        $this->assertSame([], $upload->json('data.warnings'));
+        $this->postJson("/api/company/batches/{$id}/start")->assertOk();
+
+        return Batch::query()->findOrFail($id);
+    }
+
+    public function test_ai_judgement_replaces_the_local_exposure_check(): void
+    {
+        $this->fakeOpenAI($this->analysis());
+        $batch = $this->washedOutBatch();
+
+        $this->artisan('bora:work')->assertSuccessful();
+
+        $this->assertNotContains('too_bright', array_column($batch->images()->first()->warnings, 'code'));
+    }
+
+    public function test_without_ai_answer_the_local_exposure_check_is_shown(): void
+    {
+        Http::fake(['*' => Http::response(['error' => ['message' => 'Server error', 'type' => 'server_error']], 500)]);
+        $batch = $this->washedOutBatch();
+
+        $this->artisan('bora:work')->assertSuccessful();
+
+        $codes = array_column($batch->images()->first()->warnings, 'code');
+        $this->assertContains('ai_unavailable', $codes);
+        $this->assertContains('too_bright', $codes);
+    }
+
     public function test_openai_down_retries_the_job_then_falls_back_to_local(): void
     {
         Http::fake(['*' => Http::response(['error' => ['message' => 'Server error', 'type' => 'server_error']], 500)]);

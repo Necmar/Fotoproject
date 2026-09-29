@@ -68,6 +68,8 @@ class ImagePipeline
             if ($this->ai->isActive()) {
                 try {
                     $analysis = $this->ai->analyze($image, $settings);
+                    // The AI's judgement replaces the simple local check (no double or false warnings).
+                    $this->setLocalWarnings($image, []);
                     $this->status($image, ImageStatus::Processing);
                     $plan = $this->ai->optimize($image, $analysis, $settings, $image->settings_override ? ProcessingType::Reoptimize : ProcessingType::Edit);
                     $aiStatus = $plan['status'];
@@ -80,7 +82,13 @@ class ImagePipeline
                     // Otherwise the photo still gets local corrections (never stuck on AI).
                     $aiStatus = AiStatus::Fallback;
                     $image->forceFill(['warnings' => $this->preparer->mergeWarnings($image->warnings ?? [], 'ai_edit', [['code' => 'ai_unavailable']])])->save();
+                    if (! isset($analysis)) {
+                        $this->setLocalWarnings($image, $this->enhancer->warnings($image->analysis['local'] ?? $this->analyzeWorking($image)));
+                    }
                 }
+            } else {
+                // No AI: the local check is all there is.
+                $this->setLocalWarnings($image, $this->enhancer->warnings($image->analysis['local'] ?? $this->analyzeWorking($image)));
             }
 
             if ($plan === null) {
@@ -167,6 +175,12 @@ class ImagePipeline
         $this->record($image, ProcessingType::Local, ImageProcessingRecord::STATUS_FAILED, $started, $settings, $code, $e->getMessage());
         Company::query()->whereKey($image->company_id)->increment('images_failed_total');
         $this->activity->log(ActivityAction::ImageFailed, $image, ['position' => $image->position, 'code' => $code], company: $image->company_id);
+    }
+
+    /** @param list<array{code: string}> $warnings */
+    private function setLocalWarnings(Image $image, array $warnings): void
+    {
+        $image->forceFill(['warnings' => $this->preparer->mergeWarnings($image->warnings ?? [], 'local', $warnings)])->save();
     }
 
     private function analyzeWorking(Image $image): array
