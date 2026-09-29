@@ -21,7 +21,8 @@ export default function ForgotPassword() {
             setStatus({ type: 'success', text: data.message });
         } catch (err) {
             setErrors(fieldErrors(err));
-            if (err.response?.status !== 422) setStatus({ type: 'error', text: errorMessage(err) });
+            // A 422 without field errors is a rule (e.g. e-mail switched off): show its message.
+            if (err.response?.status !== 422 || !err.response?.data?.errors) setStatus({ type: 'error', text: errorMessage(err) });
         } finally {
             setBusy(false);
         }

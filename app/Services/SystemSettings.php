@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Services\Mail\MailSettings;
+
 use App\Models\SystemSetting;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
@@ -55,6 +57,12 @@ class SystemSettings
     {
         Cache::forget(self::CACHE_KEY);
         $this->resolved = null;
+    }
+
+    /** Whether the app sends e-mail at all (see config bora.mail_enabled). */
+    public function mailEnabled(): bool
+    {
+        return app(MailSettings::class)->isEnabled();
     }
 
     public function retentionDays(): int

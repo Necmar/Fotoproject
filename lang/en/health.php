@@ -16,7 +16,7 @@ return [
     'storage' => ['label' => 'Write permissions', 'hint' => 'storage/ and bootstrap/cache/ must be writable for PHP.'],
     'disk_space' => ['label' => 'Free disk space', 'hint' => 'Free up space or shorten the retention period.'],
     'cron' => ['label' => 'Cron job', 'hint' => 'The scheduled task is not running: photos are not processed. Check the task in Plesk (every minute).'],
-    'mail' => ['label' => 'E-mail', 'hint' => 'Configure SMTP (MAIL_MAILER=smtp): no e-mails are sent now.'],
+    'mail' => ['label' => 'E-mail', 'hint' => 'E-mail is on, but no mail server is configured. Fill in SMTP under System > E-mail, or switch e-mail off.', 'off' => 'off (not needed)'],
     'openai' => ['label' => 'OpenAI', 'hint' => 'No API key: photos only get local basic corrections. Set OPENAI_API_KEY in .env.'],
     'frontend_build' => ['label' => 'React build', 'hint' => 'public/build is missing: upload the React build (see the installation guide).'],
     'deploy' => ['label' => 'Last update', 'hint' => 'The last update failed. Check storage/logs or run "bora:deploy --force".'],

@@ -61,20 +61,11 @@ Zonder sleutel staat deze URL uit (404).
 
 ## E-mail
 
-Nodig voor uitnodigingen, wachtwoordreset, e-mailverificatie en de melding "Je foto's zijn verwerkt". Gebruik een mailbox van het domein (Plesk > Mail):
+E-mail is **optioneel**. Zonder e-mail werkt alles: de Super Admin stelt wachtwoorden zelf in bij Bedrijven, e-mailadressen hoeven niet bevestigd te worden, en resultaten zijn alleen in het portaal te zien. "Wachtwoord vergeten" en "Wachtwoordreset versturen" zijn dan verborgen.
 
-```
-MAIL_MAILER=smtp
-MAIL_HOST=mail.jouwdomein.nl
-MAIL_PORT=587
-MAIL_SCHEME=null
-MAIL_USERNAME=noreply@jouwdomein.nl
-MAIL_PASSWORD=...
-MAIL_FROM_ADDRESS=noreply@jouwdomein.nl
-MAIL_FROM_NAME="Bora Foto"
-```
+Aanzetten: **Super Admin > Systeem > E-mail**. Vul de SMTP-server in (bijvoorbeeld een mailbox uit Plesk > Mail: server `mail.jouwdomein.nl`, poort 587, STARTTLS), de gebruikersnaam, het wachtwoord en het afzenderadres, en klik op **Testmail naar mij sturen**. Het wachtwoord wordt versleuteld opgeslagen en nooit teruggestuurd naar de browser. Stel SPF en DKIM in voor het domein (Plesk > Mail-instellingen) tegen spamfilters.
 
-De verwerkt-melding wordt via de wachtrij verstuurd (dezelfde cronjob). Stel SPF en DKIM in voor het domein (Plesk > Mail-instellingen) om spam-filters te voorkomen.
+Automatisch: zolang er niets is ingesteld, staat e-mail in productie uit als `MAIL_MAILER=log`. `BORA_MAIL_ENABLED=true|false` in `.env` overschrijft de schakelaar.
 
 ## Cleanup en bewaartermijn
 

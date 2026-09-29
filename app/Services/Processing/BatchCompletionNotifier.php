@@ -18,7 +18,8 @@ class BatchCompletionNotifier
     {
         $claimed = Batch::query()->whereKey($batch->getKey())->whereNull('notified_at')->update(['notified_at' => now()]);
 
-        if ($claimed === 0) {
+        // Without e-mail the results are simply visible in the portal.
+        if ($claimed === 0 || ! app(\App\Services\Mail\MailSettings::class)->isEnabled()) {
             return;
         }
 

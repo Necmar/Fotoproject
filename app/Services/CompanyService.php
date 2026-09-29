@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Exceptions\DomainRuleException;
+
 use App\Enums\ActivityAction;
 use App\Enums\CompanyStatus;
 use App\Enums\UserRole;
@@ -186,12 +188,20 @@ class CompanyService
     /** Send a normal password reset link (Super Admin action or "forgot password"). */
     public function sendPasswordReset(User $user): string
     {
+        if (! app(\App\Services\Mail\MailSettings::class)->isEnabled()) {
+            throw new DomainRuleException('mail_disabled');
+        }
+
         return Password::broker('users')->sendResetLink(['email' => $user->email]);
     }
 
     /** Invitation with a longer-lived "choose your password" link. */
     public function sendInvitation(User $user): void
     {
+        if (! app(\App\Services\Mail\MailSettings::class)->isEnabled()) {
+            throw new DomainRuleException('mail_disabled');
+        }
+
         $token = Password::broker('invites')->createToken($user);
         $user->notify(new CompanyInvitation($token));
     }

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\UserRole;
 use Database\Factories\UserFactory;
 use App\Notifications\ResetPasswordNotification;
+use App\Services\SystemSettings;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -67,6 +68,26 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
 
     public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
     {
-        $this->notify(new ResetPasswordNotification($token));
+        if (self::mailEnabled()) {
+            $this->notify(new ResetPasswordNotification($token));
+        }
+    }
+
+    public function sendEmailVerificationNotification(): void
+    {
+        if (self::mailEnabled()) {
+            parent::sendEmailVerificationNotification();
+        }
+    }
+
+    /** Without e-mail there is no way to confirm an address, so none is required. */
+    public function hasVerifiedEmail(): bool
+    {
+        return $this->email_verified_at !== null || ! self::mailEnabled();
+    }
+
+    private static function mailEnabled(): bool
+    {
+        return app(SystemSettings::class)->mailEnabled();
     }
 }

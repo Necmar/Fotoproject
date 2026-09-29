@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Account\ProfileController;
 use App\Http\Controllers\Api\Admin\BatchController as AdminBatchController;
 use App\Http\Controllers\Api\Admin\CompanyController as AdminCompanyController;
 use App\Http\Controllers\Api\Admin\SystemController as AdminSystemController;
+use App\Http\Controllers\Api\Admin\MailController as AdminMailController;
 use App\Http\Controllers\Api\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\Auth\PasswordResetController;
 use App\Http\Controllers\Api\Auth\RegisterController;
@@ -81,6 +82,9 @@ Route::middleware(['auth', 'account.active', 'throttle:api'])->group(function ()
     // Super Admin area
     Route::middleware('super_admin')->prefix('admin')->name('api.admin.')->group(function () {
         Route::get('dashboard', [AdminSystemController::class, 'dashboard'])->name('dashboard');
+        Route::get('mail', [AdminMailController::class, 'show'])->name('mail.show');
+        Route::put('mail', [AdminMailController::class, 'update'])->name('mail.update');
+        Route::post('mail/test', [AdminMailController::class, 'test'])->middleware('throttle:5,1')->name('mail.test');
         Route::get('health', [AdminSystemController::class, 'health'])->middleware('throttle:20,1')->name('health');
         Route::get('settings', [AdminSystemController::class, 'showSettings'])->name('settings.show');
         Route::put('settings', [AdminSystemController::class, 'updateSettings'])->name('settings.update');

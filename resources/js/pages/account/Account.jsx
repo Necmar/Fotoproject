@@ -21,7 +21,7 @@ export default function Account() {
 
 function ProfileForm() {
     const { t } = useTranslation();
-    const { user, setUser } = useAuth();
+    const { user, setUser, meta } = useAuth();
     const [form, setForm] = useState({ name: user.name, email: user.email, locale: user.locale, current_password: '' });
     const emailChanged = form.email.trim().toLowerCase() !== user.email;
     const [errors, setErrors] = useState({});
@@ -61,7 +61,7 @@ function ProfileForm() {
                     autoComplete="email"
                     value={form.email}
                     error={errors.email}
-                    hint={t('account.email_hint')}
+                    hint={meta?.mail_enabled === false ? undefined : t('account.email_hint')}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
                 />
                 {emailChanged && (

@@ -41,6 +41,10 @@ return [
     // list of proxy IPs when Apache could also be reached directly.
     'trusted_proxies' => env('TRUSTED_PROXIES', '*'),
 
+    // E-mail on/off. Normally managed by the Super Admin (Systeem > E-mail);
+    // BORA_MAIL_ENABLED=true/false in .env overrides that. See MailSettings.
+    'mail_enabled' => env('BORA_MAIL_ENABLED'),
+
     // Content Security Policy header (SecurityHeaders middleware). Escape hatch: BORA_CSP=false.
     'csp' => (bool) env('BORA_CSP', true),
 

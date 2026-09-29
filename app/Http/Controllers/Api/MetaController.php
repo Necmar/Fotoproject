@@ -27,6 +27,7 @@ class MetaController extends Controller
                 'max_images_per_batch' => $settings->maxImagesPerBatch(),
                 'max_upload_mb' => $settings->maxUploadMb(),
                 'retention_days' => $settings->retentionDays(),
+                'mail_enabled' => $settings->mailEnabled(),
                 'maintenance_message' => $settings->get('maintenance_message'),
                 'options' => [
                     'output_format' => OutputFormat::values(),

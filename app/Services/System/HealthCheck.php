@@ -86,8 +86,12 @@ class HealthCheck
         $lastRun = $queue['last_worker_run_at'] ? Carbon::parse($queue['last_worker_run_at']) : null;
         $this->add('cron', $lastRun && $lastRun->gt(now()->subMinutes(5)) ? self::OK : self::ERROR, $lastRun?->diffForHumans());
 
+        // E-mail is optional: off is fine (Super Admin sets passwords). On but without a real mailer is not.
+        $mail = app(\App\Services\Mail\MailSettings::class);
+        $mail->apply();
         $mailer = (string) config('mail.default');
-        $this->add('mail', in_array($mailer, ['log', 'array'], true) ? ($production ? self::ERROR : self::WARNING) : self::OK, $mailer);
+        $this->add('mail', ! $mail->isEnabled() || ! in_array($mailer, ['log', 'array'], true) || ! $production ? self::OK : self::ERROR,
+            $mail->isEnabled() ? $mailer.($mail->hasSmtp() && $mail->toggle() ? ' ('.config('mail.mailers.smtp.host').')' : '') : __('health.mail.off'));
 
         $this->add('openai', config('services.openai.key') ? self::OK : self::WARNING);
 

@@ -21,7 +21,8 @@ class StoreCompanyRequest extends FormRequest
             'owner_name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
             // Optional: without a password the owner receives an invitation e-mail.
-            'password' => ['nullable', 'string', Password::defaults()],
+            // Required when e-mail is off: the Super Admin then hands out the password.
+            'password' => [app(\App\Services\Mail\MailSettings::class)->isEnabled() ? 'nullable' : 'required', 'string', Password::defaults()],
             'locale' => ['sometimes', Rule::in(config('bora.locales'))],
             'mark_verified' => ['sometimes', 'boolean'],
         ];

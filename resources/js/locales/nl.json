@@ -211,7 +211,8 @@
             "delete": "Bedrijf verwijderen",
             "delete_text": "Dit verwijdert {{name}}, het eigenaar-account en alle bestanden definitief. Dit kan niet ongedaan worden gemaakt.",
             "type_name": "Typ de bedrijfsnaam ter bevestiging",
-            "delete_confirm": "Definitief verwijderen"
+            "delete_confirm": "Definitief verwijderen",
+            "password_no_mail": "E-mail staat uit: stel hier het wachtwoord in en geef het zelf door aan de eigenaar."
         },
         "batches": {
             "title": "Batches",
@@ -288,6 +289,29 @@
                 "warning": "Aandacht nodig",
                 "error": "Probleem"
             }
+        },
+        "mail": {
+            "title": "E-mail",
+            "on": "Aan",
+            "off": "Uit",
+            "intro": "E-mail is optioneel. Staat het uit, dan werkt alles gewoon: je stelt wachtwoorden zelf in bij Bedrijven, en resultaten zijn alleen in het portaal te zien. Zet het aan om uitnodigingen, \"wachtwoord vergeten\" en meldingen als een batch klaar is te versturen.",
+            "forced": "E-mail wordt aan- of uitgezet in het .env-bestand (BORA_MAIL_ENABLED); deze schakelaar heeft dan geen effect.",
+            "enable": "E-mail versturen",
+            "enable_on": "Uitnodigingen, wachtwoordherstel en meldingen worden gemaild.",
+            "enable_off": "Er worden geen e-mails verstuurd.",
+            "host": "SMTP-server",
+            "port": "Poort",
+            "encryption": "Beveiliging",
+            "enc_tls": "STARTTLS (poort 587)",
+            "enc_ssl": "SSL/TLS (poort 465)",
+            "enc_none": "Geen",
+            "username": "Gebruikersnaam",
+            "password": "Wachtwoord",
+            "password_kept": "Er is een wachtwoord opgeslagen. Laat leeg om het te behouden.",
+            "password_none": "Nog geen wachtwoord opgeslagen.",
+            "from_address": "Afzenderadres",
+            "from_name": "Afzendernaam",
+            "test": "Testmail naar mij sturen"
         }
     },
     "enums": {
