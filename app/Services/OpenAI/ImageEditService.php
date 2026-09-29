@@ -14,7 +14,7 @@ class ImageEditService
     ) {}
 
     /** @return array{path: string, extension: string, usage: Usage} */
-    public function edit(string $workingPath, string $prompt, bool $transparent, string $tempTarget, ?string $quality = null, ?int $maxSide = null): array
+    public function edit(string $workingPath, string $prompt, bool $transparent, string $tempTarget, ?string $quality = null, ?int $maxSide = null, bool $lossless = false): array
     {
         $model = (string) config('services.openai.image_model');
         $input = $this->input->editFile($workingPath, $maxSide ?? (int) config('services.openai.max_side'));
@@ -25,10 +25,11 @@ class ImageEditService
             'n' => 1,
             // Set by the Super Admin (Systeem > Verwerking): medium = faster, high = finest detail.
             'quality' => $quality ?? (string) app(\App\Services\SystemSettings::class)->get('ai_image_quality', config('services.openai.image_quality', 'medium')),
-            'output_format' => $transparent ? 'png' : 'jpeg',
+            // PNG for cut-outs: no compression artefacts along the product edge.
+            'output_format' => $transparent || $lossless ? 'png' : 'jpeg',
         ];
 
-        if (! $transparent) {
+        if (! $transparent && ! $lossless) {
             $fields['output_compression'] = 95;
         } else {
             $fields['background'] = 'transparent';
@@ -74,7 +75,7 @@ class ImageEditService
             throw new OpenAIException('invalid_response', 'No image in edit response', true);
         }
 
-        $extension = $transparent ? 'png' : 'jpg';
+        $extension = $transparent || $lossless ? 'png' : 'jpg';
         $path = preg_replace('/\.[a-z]+$/', '', $tempTarget).'.'.$extension;
         file_put_contents($path, $bytes);
 

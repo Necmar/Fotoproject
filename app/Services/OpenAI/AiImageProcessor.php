@@ -3,11 +3,14 @@
 namespace App\Services\OpenAI;
 
 use App\Enums\AiStatus;
+use App\Enums\BackgroundOption;
 use App\Enums\OptimizationStrength;
 use App\Enums\ProcessingType;
 use App\Models\Image;
 use App\Models\ImageProcessingRecord;
+use App\Services\Images\ImageEditor;
 use App\Services\Images\ImagePreparer;
+use App\Services\Images\ProductCompositor;
 use App\Services\Storage\LocalFiles;
 use App\Services\Storage\StorageAccounting;
 use App\Services\SystemSettings;
@@ -33,6 +36,7 @@ class AiImageProcessor
         private readonly LocalFiles $files,
         private readonly StorageAccounting $storage,
         private readonly SystemSettings $system,
+        private readonly ProductCompositor $compositor,
     ) {}
 
     public function isActive(): bool
@@ -73,53 +77,88 @@ class AiImageProcessor
     }
 
     /**
-     * Step 2: generative edit when needed, with integrity verification.
+     * Step 2: the product-preserving edit.
+     *
+     * The image model never delivers the product itself. It makes a cut-out on a
+     * flat key colour (from which we take a mask) and, when the background needs
+     * real work (tidying, removing distractions or people, a better-looking
+     * setting), a version with the improved background. The final photo is the
+     * ORIGINAL product, with global light/colour corrections from the analysis,
+     * on the chosen background. Without background work: analysis corrections only.
      *
      * @return array{source: ?string, adjustments: ?array, focus: ?array, status: AiStatus}
      */
     public function optimize(Image $image, array $analysis, BatchSettings $settings, ProcessingType $type = ProcessingType::Edit): array
     {
-        $local = [
-            'source' => null,
-            'adjustments' => $this->adjustmentsFrom($analysis, $settings->strength),
-            'focus' => $analysis['product_box'] ?? null,
-            'status' => AiStatus::Analyzed,
-        ];
+        $adjustments = $this->adjustmentsFrom($analysis, $settings->strength);
+        $focus = $analysis['product_box'] ?? null;
+        $local = ['source' => null, 'adjustments' => $adjustments, 'focus' => $focus, 'status' => AiStatus::Analyzed];
+        $plan = $this->editPlan($analysis, $settings);
 
-        if (! $this->needsEdit($analysis, $settings)) {
+        if (! $plan['mask']) {
             return $local;
         }
 
-        // A previous attempt already paid for the edit: reuse it.
+        $rotateOnly = ($adjustments['rotate'] ?? 0) != 0 ? ['rotate' => $adjustments['rotate']] : null;
+
+        // A previous attempt already paid for the composite: reuse it.
         if ($image->ai_path && $this->files->disk()->exists($image->ai_path)) {
-            return ['source' => $image->ai_path, 'adjustments' => null, 'focus' => $analysis['product_box'] ?? null, 'status' => AiStatus::Edited];
+            return ['source' => $image->ai_path, 'adjustments' => $rotateOnly, 'focus' => $focus, 'status' => AiStatus::Edited];
         }
 
-        $transparent = $settings->background->value === 'remove' && $settings->outputFormat->value === 'png';
-        $attempts = config('services.openai.retry_rejected_edit') && config('services.openai.verify_edits') ? 2 : 1;
+        $workingLocal = $this->files->localPath($image->working_path);
+        $temps = [];
+
+        try {
+            $original = ImageEditor::open($workingLocal)->fitWithin((int) config('services.openai.composite_max_side', 2560));
+            $w = $original->width();
+            $h = $original->height();
+
+            // 1. Cut-out on the key colour least present in this photo -> mask.
+            [$keyName, $key] = $this->compositor->keyColourFor($original);
+            $cutout = $this->aiEdit($image, $type, $this->instructions->cutout($analysis, $keyName, $key), $temps);
+            $cut = ImageEditor::open($cutout);
+            ['mask' => $mask, 'coverage' => $coverage] = $this->compositor->maskFromCutout($cut, $key, $w, $h);
+
+            if ($coverage < 0.01 || $coverage > 0.97 || $this->compositor->alignmentError($original, $cut, $mask) > 0.14) {
+                // No usable cut-out (product not found or moved): safe corrections only.
+                $this->addWarnings($image, 'ai_edit', [['code' => 'ai_cutout_failed']]);
+
+                return ['status' => AiStatus::EditRejected] + $local;
+            }
+
+            // 2. Background layer for the chosen option.
+            $product = $original->copy()->adjust(array_diff_key($adjustments, ['rotate' => true]));
+            $background = match (true) {
+                $plan['ai_background'] => $this->aiBackground($image, $type, $analysis, $settings, $w, $h, $temps),
+                $settings->background === BackgroundOption::BlurLight => $this->compositor->blurred($product, $mask),
+                $settings->background === BackgroundOption::Neutral => 'neutral',
+                default => null, // remove: transparent (JPG output gets white when saved)
+            };
+            if ($plan['ai_background'] && $settings->background === BackgroundOption::BlurLight) {
+                $background = $this->compositor->blurred(ImageEditor::fromGd($background), $mask);
+            }
+
+            // 3. Original product on the new background.
+            $composite = $this->compositor->compose($product, $mask, $background);
+            $transparent = $background === null;
+            $extension = $transparent ? 'png' : 'jpg';
+            $tmp = $this->files->tempPath($extension);
+            $temps[] = $tmp;
+            $transparent ? $composite->savePng($tmp) : $composite->saveJpeg($tmp, 95);
+
+            $diskPath = $image->batch->storageDirectory().'/ai/'.Str::ulid()->toBase32().'.'.$extension;
+            $bytes = $this->commit($image, $tmp, $diskPath);
+        } finally {
+            $this->files->release($workingLocal);
+            foreach ($temps as $t) {
+                @unlink($t);
+            }
+        }
+
+        // 4. Integrity check of the result (a mask could have cut off a part).
         $warnings = [];
-
-        for ($attempt = 1; ; $attempt++) {
-            // The second attempt (after a rejected edit) asks for a more conservative edit.
-            $prompt = $this->instructions->build($analysis, $settings, $transparent, conservative: $attempt > 1);
-            $started = microtime(true);
-
-            try {
-                $edit = $this->editor->edit($image->working_path, $prompt, $transparent, $this->files->tempPath('img'));
-            } catch (OpenAIException $e) {
-                $this->record($image, $type, $started, null, $e);
-                throw $e;
-            }
-
-            $this->record($image, $type, $started, $edit['usage']);
-
-            $diskPath = $image->batch->storageDirectory().'/ai/'.Str::ulid()->toBase32().'.'.$edit['extension'];
-            $bytes = $this->commit($image, $edit['path'], $diskPath);
-
-            if (! config('services.openai.verify_edits')) {
-                break;
-            }
-
+        if (config('services.openai.verify_edits')) {
             $started = microtime(true);
 
             try {
@@ -132,25 +171,21 @@ class AiImageProcessor
             }
 
             $this->record($image, ProcessingType::Analysis, $started, $check['usage']);
-            $image->forceFill(['analysis' => array_replace($image->analysis ?? [], ['verification' => $check['result'], 'edit_attempts' => $attempt])])->save();
+            $image->forceFill(['analysis' => array_replace($image->analysis ?? [], ['verification' => $check['result']])])->save();
 
-            if ($check['accepted']) {
-                if ($check['result']['people_remaining'] ?? false) {
-                    $warnings[] = ['code' => 'people_not_removed'];
-                }
-                break;
-            }
-
-            $this->files->disk()->delete($diskPath);
-            $this->storage->add($image->batch, -$bytes);
-
-            if ($attempt >= $attempts) {
+            if (! $check['accepted']) {
+                $this->files->disk()->delete($diskPath);
+                $this->storage->add($image->batch, -$bytes);
                 $reason = trim((string) ($check['result'][app()->getLocale() === 'en' ? 'reason_en' : 'reason_nl'] ?? ''));
                 $this->addWarnings($image, 'ai_edit', [$reason !== ''
                     ? ['code' => 'ai_edit_rejected_reason', 'params' => ['reason' => rtrim($reason, '.')]]
                     : ['code' => 'ai_edit_rejected']]);
 
                 return ['status' => AiStatus::EditRejected] + $local;
+            }
+
+            if ($check['result']['people_remaining'] ?? false) {
+                $warnings[] = ['code' => 'people_not_removed'];
             }
         }
 
@@ -163,7 +198,68 @@ class AiImageProcessor
 
         $this->addWarnings($image, 'ai_edit', $warnings);
 
-        return ['source' => $diskPath, 'adjustments' => null, 'focus' => $analysis['product_box'] ?? null, 'status' => AiStatus::Edited];
+        return ['source' => $diskPath, 'adjustments' => $rotateOnly, 'focus' => $focus, 'status' => AiStatus::Edited];
+    }
+
+    /**
+     * What the image model is needed for.
+     *
+     * @return array{mask: bool, ai_background: bool}
+     */
+    public function editPlan(array $analysis, BatchSettings $settings): array
+    {
+        $policy = config('services.openai.edit_policy', 'auto');
+        if ($policy === 'never') {
+            return ['mask' => false, 'ai_background' => false];
+        }
+
+        $option = $settings->background;
+        $people = $settings->removePeople && ($analysis['people']['present'] ?? false);
+        // Unrecoverable photos: no generative work on the setting either.
+        $restorable = $analysis['restorable'] ?? true;
+        $byStrength = $policy === 'always' || ($restorable && match ($settings->strength) {
+            OptimizationStrength::Subtle => false,
+            OptimizationStrength::Normal => (bool) ($analysis['needs_generative_edit'] ?? false),
+            OptimizationStrength::Strong => true,
+        });
+
+        $aiBackground = in_array($option, [BackgroundOption::CleanSubtle, BackgroundOption::RemoveDistractions], true)
+            || ($people && $option !== BackgroundOption::Remove && $option !== BackgroundOption::Neutral)
+            || ($option === BackgroundOption::Keep && $byStrength);
+
+        return ['mask' => $option !== BackgroundOption::Keep || $aiBackground, 'ai_background' => $aiBackground];
+    }
+
+    /** Whether this photo gets any work from the image model. */
+    public function needsEdit(array $analysis, BatchSettings $settings): bool
+    {
+        return $this->editPlan($analysis, $settings)['mask'];
+    }
+
+    /** @param list<string> $temps */
+    private function aiEdit(Image $image, ProcessingType $type, string $prompt, array &$temps, bool $lossless = true): string
+    {
+        $started = microtime(true);
+
+        try {
+            $edit = $this->editor->edit($image->working_path, $prompt, false, $this->files->tempPath('img'), lossless: $lossless);
+        } catch (OpenAIException $e) {
+            $this->record($image, $type, $started, null, $e);
+            throw $e;
+        }
+
+        $this->record($image, $type, $started, $edit['usage']);
+        $temps[] = $edit['path'];
+
+        return $edit['path'];
+    }
+
+    /** The whole photo with an improved background from the image model, at the composite size. */
+    private function aiBackground(Image $image, ProcessingType $type, array $analysis, BatchSettings $settings, int $w, int $h, array &$temps): \GdImage
+    {
+        $path = $this->aiEdit($image, $type, $this->instructions->build($analysis, $settings, false), $temps, lossless: false);
+
+        return ImageEditor::open($path)->resize($w, $h)->gd();
     }
 
     /** Local corrections derived from the AI analysis (used when no generative edit is made). */
@@ -188,36 +284,6 @@ class AiImageProcessor
             'sharpen' => round(min(0.5, (0.08 + 0.3 * ($c['sharpen'] ?? 0)) * $k), 3),
             'rotate' => round((float) ($c['rotate_degrees'] ?? 0), 2),
         ];
-    }
-
-    /** Edit policy: only pay for (and risk) a generative edit when it is really needed. */
-    public function needsEdit(array $analysis, BatchSettings $settings): bool
-    {
-        $policy = config('services.openai.edit_policy', 'auto');
-        if ($policy === 'never') {
-            return false;
-        }
-        if ($policy === 'always') {
-            return true;
-        }
-
-        $required = $settings->background->editsBackground()
-            || ($settings->removePeople && ($analysis['people']['present'] ?? false));
-
-        if ($required) {
-            return true;
-        }
-
-        // Unrecoverable photos: a generative edit could invent details. Keep it local.
-        if (! ($analysis['restorable'] ?? true)) {
-            return false;
-        }
-
-        return match ($settings->strength) {
-            OptimizationStrength::Subtle => false,
-            OptimizationStrength::Normal => (bool) ($analysis['needs_generative_edit'] ?? false),
-            OptimizationStrength::Strong => true,
-        };
     }
 
     /** @return list<array{code: string, params?: array}> */

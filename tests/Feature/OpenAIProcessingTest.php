@@ -93,13 +93,26 @@ class OpenAIProcessingTest extends TestCase
         ];
     }
 
-    private function editBody(): array
+    /**
+     * Fake image edit. A cut-out request gets the test product (red box, same
+     * place as in the uploaded photo) on the requested key colour; any other
+     * edit gets a new background, with the product drawn in $productColour.
+     */
+    private function editBody(?Request $request = null, array $productColour = [200, 30, 30]): array
     {
-        $img = imagecreatetruecolor(2048, 1536);
-        imagefill($img, 0, 0, imagecolorallocate($img, 150, 160, 170));
-        imagefilledrectangle($img, 500, 400, 1600, 1150, imagecolorallocate($img, 200, 30, 30));
+        $body = $request ? (string) $request->body() : '';
+        if (str_contains($body, 'Cut out the product') && preg_match('/#([0-9A-F]{6})/', $body, $m)) {
+            [$r, $g, $b] = sscanf($m[1], '%02x%02x%02x');
+            $img = imagecreatetruecolor(1600, 1200);
+            imagefill($img, 0, 0, imagecolorallocate($img, $r, $g, $b));
+            imagefilledrectangle($img, 400, 300, 1200, 900, imagecolorallocate($img, 200, 30, 30));
+        } else {
+            $img = imagecreatetruecolor(2048, 1536);
+            imagefill($img, 0, 0, imagecolorallocate($img, 150, 160, 170));
+            imagefilledrectangle($img, 512, 384, 1536, 1152, imagecolorallocate($img, ...$productColour));
+        }
         ob_start();
-        imagejpeg($img, null, 90);
+        imagepng($img);
 
         return [
             'data' => [['b64_json' => base64_encode(ob_get_clean())]],
@@ -118,7 +131,7 @@ class OpenAIProcessingTest extends TestCase
             }
 
             if (str_ends_with($request->url(), '/images/edits')) {
-                return $edit ? $edit($request) : Http::response($this->editBody());
+                return $edit ? $edit($request) : Http::response($this->editBody($request));
             }
 
             return Http::response([], 404);
@@ -171,12 +184,15 @@ class OpenAIProcessingTest extends TestCase
         $this->assertNotNull($image->ai_path);
         Storage::disk('local')->assertExists($image->ai_path);
         $this->assertSame(2, $this->sentTo('/responses'), 'analysis + verification');
-        $this->assertSame(1, $this->sentTo('/images/edits'));
+        // Cut-out (mask) + improved background; the product itself comes from the original.
+        $this->assertSame(2, $this->sentTo('/images/edits'));
+        $edits = Http::recorded(fn (Request $r) => str_ends_with($r->url(), '/images/edits'));
+        $this->assertStringContainsString('Cut out the product', (string) $edits->first()[0]->body());
 
-        // Output rendered from the 2048 px AI result, limited to 2000 px.
-        $this->assertSame(2000, max($image->output_width, $image->output_height));
+        // Composite at the photo's own size (1600 px): never upscaled to 2000.
+        $this->assertSame(1600, max($image->output_width, $image->output_height));
 
-        $edit = Http::recorded(fn (Request $r) => str_ends_with($r->url(), '/images/edits'))->first()[0];
+        $edit = $edits->last()[0];
         $body = (string) $edit->body();
         $this->assertStringContainsString('gpt-image-2', $body);
         $this->assertStringContainsString('Keep ALL damage visible', $body);
@@ -185,7 +201,7 @@ class OpenAIProcessingTest extends TestCase
         $this->assertStringContainsString('1600x1200', $body, 'size follows the working copy');
         $this->assertStringContainsString('input_fidelity', $body, 'stay close to the source photo');
 
-        $this->assertSame(3, ImageProcessingRecord::query()->where('provider', 'openai')->count());
+        $this->assertSame(4, ImageProcessingRecord::query()->where('provider', 'openai')->count());
         $editRecord = ImageProcessingRecord::query()->where('type', 'edit')->firstOrFail();
         // 500 text * 2.50 + 1000 image * 4.00 + 4000 out * 15.00 per million
         $this->assertEqualsWithDelta(0.06525, (float) $editRecord->estimated_cost_usd, 0.00001);
@@ -205,33 +221,67 @@ class OpenAIProcessingTest extends TestCase
         $this->assertSame([], Storage::disk('local')->files($batch->storageDirectory().'/ai'));
         $this->assertContains('ai_edit_rejected_reason', array_column($image->warnings, 'code'));
         $this->assertStringContainsString('de lakkleur is veranderd', collect($this->getJson("/api/company/batches/{$image->batch_id}")->json('data.images.0.warnings'))->pluck('message')->implode(' '));
-        // One normal and one conservative attempt, then the safe fallback.
-        $this->assertSame(2, $this->sentTo('/images/edits'));
-        $second = (string) Http::recorded(fn (Request $r) => str_ends_with($r->url(), '/images/edits'))->last()[0]->body();
-        $this->assertStringContainsString('previous edit of this photo changed the product', $second);
     }
 
-    public function test_a_rejected_edit_gets_one_conservative_second_attempt(): void
+    public function test_the_product_always_keeps_its_original_pixels(): void
     {
-        $verifications = [$this->verification(ok: false), $this->verification(ok: true)];
-        Http::fake(function (Request $request) use (&$verifications) {
-            if (str_ends_with($request->url(), '/responses')) {
-                $name = $request['text']['format']['name'] ?? '';
-
-                return Http::response($this->responsesBody($name === 'edit_verification' ? array_shift($verifications) : $this->analysis()));
-            }
-
-            return Http::response($this->editBody());
-        });
-        $batch = $this->batch(['strength' => 'strong']);
+        // The background edit "repaints" the product blue; the result must still show the original red product.
+        $this->fakeOpenAI(
+            $this->analysis(['corrections' => array_fill_keys(['exposure', 'contrast', 'warmth', 'tint', 'sharpen', 'denoise', 'rotate_degrees'], 0)]),
+            null,
+            fn (Request $r) => Http::response($this->editBody($r, [30, 60, 220])),
+        );
+        $batch = $this->batch(['strength' => 'strong', 'background' => 'remove_distractions']);
 
         $this->artisan('bora:work')->assertSuccessful();
 
         $image = $batch->images()->first();
         $this->assertSame('edited', $image->ai_status);
-        $this->assertNotNull($image->ai_path);
-        $this->assertSame(2, $this->sentTo('/images/edits'));
-        $this->assertNotContains('ai_edit_rejected_reason', array_column($image->warnings, 'code'));
+        $out = imagecreatefromstring(Storage::disk('local')->get($image->ai_path));
+        $c = imagecolorat($out, 800, 600); // centre of the product
+        $this->assertGreaterThan(170, ($c >> 16) & 0xFF, 'red channel of the original product');
+        $this->assertLessThan(80, $c & 0xFF, 'not the blue the model painted');
+        // Background (outside the product) comes from the edit.
+        $bg = imagecolorat($out, 100, 100);
+        $this->assertEqualsWithDelta(150, ($bg >> 16) & 0xFF, 12);
+    }
+
+    public function test_neutral_and_removed_backgrounds_are_composited_locally(): void
+    {
+        $this->fakeOpenAI($this->analysis());
+        $batch = $this->batch(['strength' => 'subtle', 'background' => 'remove', 'output_format' => 'png']);
+
+        $this->artisan('bora:work')->assertSuccessful();
+
+        $image = $batch->images()->first();
+        $this->assertSame('edited', $image->ai_status);
+        $this->assertSame(1, $this->sentTo('/images/edits'), 'only the cut-out');
+        $png = imagecreatefromstring(Storage::disk('local')->get($image->ai_path));
+        $this->assertSame(127, (imagecolorat($png, 50, 50) >> 24) & 0x7F, 'transparent background');
+        $this->assertSame(0, (imagecolorat($png, 800, 600) >> 24) & 0x7F, 'opaque product');
+    }
+
+    public function test_a_cutout_that_misses_the_product_falls_back_safely(): void
+    {
+        // The "cut-out" is only key colour: no product found.
+        $this->fakeOpenAI($this->analysis(), null, function (Request $r) {
+            preg_match('/#([0-9A-F]{6})/', (string) $r->body(), $m);
+            [$red, $green, $blue] = sscanf($m[1] ?? 'FF00FF', '%02x%02x%02x');
+            $img = imagecreatetruecolor(1600, 1200);
+            imagefill($img, 0, 0, imagecolorallocate($img, $red, $green, $blue));
+            ob_start();
+            imagepng($img);
+
+            return Http::response(['data' => [['b64_json' => base64_encode(ob_get_clean())]], 'usage' => []]);
+        });
+        $batch = $this->batch(['background' => 'neutral']);
+
+        $this->artisan('bora:work')->assertSuccessful();
+
+        $image = $batch->images()->first();
+        $this->assertSame('completed', $image->status->value);
+        $this->assertSame('edit_rejected', $image->ai_status);
+        $this->assertContains('ai_cutout_failed', array_column($image->warnings, 'code'));
     }
 
     public function test_input_fidelity_is_dropped_when_the_model_refuses_it(): void
@@ -239,14 +289,15 @@ class OpenAIProcessingTest extends TestCase
         $this->fakeOpenAI($this->analysis(), null, function (Request $request) {
             return str_contains((string) $request->body(), 'input_fidelity')
                 ? Http::response(['error' => ['message' => "Unknown parameter: 'input_fidelity'.", 'type' => 'invalid_request_error']], 400)
-                : Http::response($this->editBody());
+                : Http::response($this->editBody($request));
         });
         $batch = $this->batch(['strength' => 'strong']);
 
         $this->artisan('bora:work')->assertSuccessful();
 
         $this->assertSame('edited', $batch->images()->first()->ai_status);
-        $this->assertSame(2, $this->sentTo('/images/edits'));
+        // Cut-out and background edit: each refused once with input_fidelity, then sent without.
+        $this->assertSame(4, $this->sentTo('/images/edits'));
     }
 
     public function test_background_option_requires_an_edit_even_when_subtle(): void
@@ -284,7 +335,7 @@ class OpenAIProcessingTest extends TestCase
         $codes = array_column($image->warnings, 'code');
         $this->assertContains('person_overlaps_product', $codes);
         $this->assertContains('people_not_removed', $codes);
-        $this->assertStringContainsString('remove people who are not part of the product', (string) Http::recorded(fn ($r) => str_ends_with($r->url(), '/images/edits'))->first()[0]->body());
+        $this->assertStringContainsString('remove people who are not part of the product', (string) Http::recorded(fn ($r) => str_ends_with($r->url(), '/images/edits'))->last()[0]->body());
     }
 
     public function test_unrestorable_photo_gets_warning_and_no_generative_edit(): void
