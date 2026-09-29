@@ -35,6 +35,9 @@ return [
         'ai_enabled' => (bool) env('BORA_AI_ENABLED', true),
         // AI edit quality: "medium" is roughly twice as fast (and cheaper) as "high".
         'ai_image_quality' => env('OPENAI_IMAGE_QUALITY', 'medium'),
+        // "Opnieuw optimaliseren" costs AI edits. 0 = no limit. Set in Super Admin > Systeem.
+        'reoptimize_per_image' => 0, // not from .env: older installs had 5 there
+        'reoptimize_per_company_per_day' => (int) env('BORA_REOPTIMIZE_PER_DAY', 300),
         'maintenance_message' => null,
     ],
 
@@ -57,9 +60,6 @@ return [
         'retention_days_min' => 1,
         'retention_days_max' => 30,
         'max_upload_mb_max' => 50,
-        // Each re-optimisation is a paid AI edit: cap per photo and per company per day.
-        'reoptimize_per_image' => (int) env('BORA_REOPTIMIZE_PER_IMAGE', 5),
-        'reoptimize_per_company_per_day' => (int) env('BORA_REOPTIMIZE_PER_DAY', 300),
     ],
 
     'company_defaults' => [

@@ -271,7 +271,10 @@
                 "medium_text": "About twice as fast and cheaper. Hardly any difference for ad photos.",
                 "high": "Maximum detail",
                 "high_text": "Finest details, but slower and more expensive per edit."
-            }
+            },
+            "reoptimize_per_image": "Max re-optimisations per photo",
+            "reoptimize_per_day": "Max re-optimisations per company per day",
+            "zero_unlimited": "0 = no limit."
         },
         "queue": {
             "title": "Queue",

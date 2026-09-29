@@ -271,7 +271,10 @@
                 "medium_text": "Ongeveer twee keer zo snel en goedkoper. Voor advertentiefoto's nauwelijks verschil.",
                 "high": "Maximaal detail",
                 "high_text": "Fijnste details, maar trager en duurder per bewerking."
-            }
+            },
+            "reoptimize_per_image": "Max. keer opnieuw optimaliseren per foto",
+            "reoptimize_per_day": "Max. keer opnieuw optimaliseren per bedrijf per dag",
+            "zero_unlimited": "0 = geen limiet."
         },
         "queue": {
             "title": "Wachtrij",

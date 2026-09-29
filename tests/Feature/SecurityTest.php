@@ -44,7 +44,7 @@ class SecurityTest extends TestCase
     public function test_reoptimize_is_capped_per_photo_and_per_company_per_day(): void
     {
         Storage::fake('local');
-        config(['queue.default' => 'database', 'bora.limits.reoptimize_per_image' => 2, 'bora.limits.reoptimize_per_company_per_day' => 3]);
+        config(['queue.default' => 'database', 'bora.system_defaults.reoptimize_per_image' => 2, 'bora.system_defaults.reoptimize_per_company_per_day' => 3]);
         $user = User::factory()->create();
         $this->actingAs($user);
 
