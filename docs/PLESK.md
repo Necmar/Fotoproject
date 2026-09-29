@@ -21,20 +21,14 @@
 
 ## Eerste installatie
 
-Wat er op de server moet staan: de code, `vendor/` (PHP-pakketten) en `public/build/` (de gebouwde React-app). Er draait geen Node.js op de server, dus de React-build maak je op je eigen computer.
+Iedere push naar `main` bouwt op GitHub automatisch een kant-en-klare versie (met `vendor/` en de React-build) op de branch **`deploy`** (`.github/workflows/deploy-branch.yml`). Op de server is geen Composer, Node.js of SSH nodig.
 
-1. **Domein:** Plesk > Websites & Domeinen > Hostinginstellingen: zet de **document root** op de map `public` van het project (bijvoorbeeld `httpdocs/bora-foto/public`). Zet **SSL/TLS** aan (Let's Encrypt) en "Doorverwijzen van HTTP naar HTTPS".
-2. **Code:** via Plesk Git (repository `Necmar/Fotoproject`, branch `main`, doelmap `httpdocs/bora-foto`) of door een zip te uploaden via Bestandsbeheer.
-3. **PHP-pakketten:** Plesk > PHP Composer > project kiezen > **Installeren** (gebruikt `composer.lock`, zonder dev-pakketten). Alternatief: op je computer `composer install --no-dev --optimize-autoloader` en de map `vendor/` uploaden.
-4. **React-build:** op je computer in de projectmap `npm ci` en `npm run build`, daarna de map `public/build/` uploaden naar `httpdocs/bora-foto/public/build/` (Bestandsbeheer: zip uploaden en uitpakken).
-5. **Database:** Plesk > Databases > database en gebruiker aanmaken.
-6. **.env:** kopieer `.env.production.example` naar `.env` en vul database, `APP_URL`, mail en `OPENAI_API_KEY` in. `APP_KEY` blijft leeg tot stap 8.
-7. **Geplande taak** voor de cron aanmaken (zie hieronder). Dezelfde taak voert ook de update-stappen uit (migraties en caches, zie "Updates").
-8. **Eenmalige commando's** via een geplande taak "PHP-script uitvoeren" met scriptpad `artisan` en **Nu uitvoeren** (zie "Artisan-commando's zonder SSH"), in deze volgorde:
-   - `key:generate --force`
-   - `migrate --force`
-   - `bora:super-admin --email=beheer@jouwdomein.nl --name=Beheer --password=EenSterkWachtwoord123`
-9. Log in als Super Admin en open **Overzicht > Systeemcontrole**. Los alles op wat rood of oranje is.
+1. **Domein:** Plesk > Websites & Domeinen > Hostinginstellingen: **document root** `/<domein>/public`, SSL (Let's Encrypt) aan, doorverwijzen naar HTTPS.
+2. **Git:** Plesk > Git > repository `https://github.com/Necmar/Fotoproject.git`, **branch `deploy`**, automatisch uitrollen naar `/<domein>`. Zie "Updates" voor automatisch binnenhalen bij iedere push.
+3. **Database:** Plesk > Databases > Database toevoegen (MySQL/MariaDB). Noteer databasenaam, gebruiker en wachtwoord.
+4. **Installatiescherm:** open `https://<domein>`. Zolang er geen `.env` is, verschijnt het installatiescherm: vul de database, het Super Admin-account en optioneel de OpenAI-key in. De app richt de database in, maakt het account aan en schrijft `.env` (met een nieuwe `APP_KEY`). Daarna is het installatiescherm weg.
+5. **Cronjob** aanmaken (zie hieronder).
+6. Log in als Super Admin en open **Overzicht > Systeemcontrole**. Los alles op wat rood of oranje is (bijvoorbeeld e-mail via SMTP in `.env`).
 
 ## Cronjob voor de verwerking (zonder SSH)
 
@@ -115,10 +109,9 @@ Composer: gebruik de Plesk-extensie **PHP Composer** (Websites & Domeinen > PHP 
 
 ## Updates
 
-1. Nieuwe code op de server zetten: Plesk Git > **Pull/Deploy**, of uploaden.
-2. Gewijzigd `composer.lock`? Plesk > PHP Composer > **Update/Installeren**.
-3. Gewijzigde frontend? Lokaal `npm run build` en `public/build/` opnieuw uploaden (de oude map eerst leegmaken).
-4. Klaar. Binnen een minuut ziet de cronjob dat de code veranderd is en voert `bora:deploy` automatisch uit: database-migraties, caches legen, routes/views/events opnieuw cachen. Resultaat: Systeemcontrole > "Laatste update". Mislukt er iets, dan staat de fout in `storage/logs/laravel-*.log`.
+1. Push naar `main`. GitHub test de code en zet binnen een paar minuten een nieuwe versie op de branch `deploy`.
+2. Plesk haalt die binnen: automatisch als de webhook is ingesteld (GitHub > Settings > Webhooks > de "Webhook URL" uit Plesk > Git > instellingen), anders met **Pull now** in Plesk > Git.
+3. Binnen een minuut voert de cronjob `bora:deploy` uit: database-migraties, caches legen, routes/views/events cachen. Resultaat: Systeemcontrole > "Laatste update". Fouten staan in `storage/logs/laravel-*.log`.
 
 Open browsertabbladen met een oude versie laden zichzelf één keer opnieuw als ze een verdwenen bestand van de oude build nodig hebben.
 

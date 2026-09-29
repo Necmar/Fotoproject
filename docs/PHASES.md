@@ -486,3 +486,10 @@ Een aparte review (zonder kennis van hoe de code gebouwd is) vond geen ernstige 
 5. Optimaliseer één foto 5 keer opnieuw: de zesde keer komt een nette melding.
 6. Zet een update op de server (Git pull of upload): binnen een minuut staat bij Systeemcontrole > "Laatste update" de nieuwe versie.
 7. Laat het tabblad ruim 8 uur openstaan en klik dan iets: je komt op inloggen met "Je sessie is verlopen" en kunt direct opnieuw inloggen.
+
+## Na fase 10: automatisch uitrollen naar Plesk
+
+- **GitHub Actions** (`.github/workflows/deploy-branch.yml`): bij iedere push naar `main` worden de tests gedraaid, de React-build gemaakt en de PHP-pakketten zonder dev-pakketten geïnstalleerd. Het resultaat komt op de branch `deploy`, die Plesk Git binnenhaalt. Geen Composer, Node.js of SSH nodig op de server.
+- **Installatiescherm** (`/install`): zolang er geen `.env` is, vult de eigenaar in de browser de database, het Super Admin-account en optioneel de OpenAI-key in. De app richt de database in, maakt het account aan en schrijft `.env` met een nieuwe `APP_KEY`. Alleen een database op deze server met geldige inloggegevens wordt geaccepteerd; na installatie geeft `/install` een 404.
+- Toegevoegd: `app/Services/System/Installer.php`, `app/Http/Controllers/InstallController.php`, `app/Http/Middleware/RedirectToInstaller.php`, `resources/views/install.blade.php`, `tests/Feature/InstallerTest.php`, `.github/workflows/deploy-branch.yml`. Gewijzigd: `bootstrap/app.php`, `routes/web.php`, `resources/css/app.css`, `docs/PLESK.md`.
+- Tests: 122, alles groen.

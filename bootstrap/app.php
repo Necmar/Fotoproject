@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\CronController;
+use App\Http\Controllers\InstallController;
+use App\Http\Middleware\RedirectToInstaller;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureCompanyOwner;
 use App\Http\Middleware\EnsureSuperAdmin;
@@ -27,6 +29,10 @@ return Application::configure(basePath: dirname(__DIR__))
         then: function () {
             Route::middleware('web')->prefix('api')->group(base_path('routes/api.php'));
 
+            // First-run installer: no session/cookies (there is no APP_KEY yet).
+            Route::get('install', [InstallController::class, 'show'])->name('install');
+            Route::post('install', [InstallController::class, 'store']);
+
             // Cron via URL (no session/cookies needed): see CronController.
             Route::get('cron/{token}', CronController::class)
                 ->middleware('throttle:cron')
@@ -35,7 +41,9 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prepend(RedirectToInstaller::class);
         $middleware->append(SecurityHeaders::class);
+        $middleware->trimStrings(except: ['db_password']);
         $middleware->web(append: [SetLocale::class]);
 
         $middleware->alias([

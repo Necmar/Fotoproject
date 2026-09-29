@@ -15,5 +15,5 @@ Route::view('/verify-email', 'app')->name('verification.notice');
 
 // Everything else is handled by the React router.
 Route::view('/{path?}', 'app')
-    ->where('path', '^(?!api/|build/|storage/|cron/|up$).*$')
+    ->where('path', '^(?!api/|build/|storage/|cron/|install$|up$).*$')
     ->name('spa');
