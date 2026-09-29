@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../../auth/AuthContext';
 import { Ban, CheckCircle2, HardDrive, KeyRound, Trash2 } from 'lucide-react';
 import api, { errorMessage, fieldErrors } from '../../lib/api';
 import { useFetch } from '../../lib/useFetch';
@@ -9,6 +10,7 @@ import { Alert, Button, Card, Input, Modal, PageHeader, Select, Spinner, StatCar
 import { CompanyStatus } from './Companies';
 
 export default function CompanyDetail() {
+    const { meta } = useAuth();
     const { t, i18n } = useTranslation();
     const { id } = useParams();
     const location = useLocation();
@@ -88,9 +90,11 @@ export default function CompanyDetail() {
 
                     <Card className="space-y-2">
                         <h2 className="mb-3 font-semibold">{t('admin.companies.actions')}</h2>
-                        <Button variant="secondary" icon={KeyRound} className="w-full justify-start" onClick={() => run(() => api.post(`/admin/companies/${id}/password-reset`))}>
-                            {t('admin.companies.send_reset')}
-                        </Button>
+                        {meta?.mail_enabled !== false && (
+                            <Button variant="secondary" icon={KeyRound} className="w-full justify-start" onClick={() => run(() => api.post(`/admin/companies/${id}/password-reset`))}>
+                                {t('admin.companies.send_reset')}
+                            </Button>
+                        )}
                         {company.status === 'active' ? (
                             <Button variant="secondary" icon={Ban} className="w-full justify-start" onClick={() => setDialog('block')}>
                                 {t('admin.companies.block')}

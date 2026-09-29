@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import api, { errorMessage, fieldErrors } from '../../lib/api';
 import { useFetch } from '../../lib/useFetch';
 import { useAuth } from '../../auth/AuthContext';
+import MailSettingsCard from '../../components/admin/MailSettingsCard';
 import { Alert, Button, Card, Input, PageHeader, Spinner, Toggle } from '../../components/ui';
 
 export default function SystemSettings() {
@@ -148,6 +149,10 @@ export default function SystemSettings() {
                     </Button>
                 </div>
             </form>
+
+            <div className="mt-6">
+                <MailSettingsCard />
+            </div>
         </div>
     );
 }

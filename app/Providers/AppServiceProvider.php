@@ -7,6 +7,7 @@ use App\Support\FrontendUrl;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
+use App\Services\Mail\MailSettings;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -17,6 +18,10 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->singleton(MailSettings::class);
+        // SMTP settings from the admin screen are applied when mail is first used.
+        $this->app->resolving('mail.manager', fn () => $this->app->make(MailSettings::class)->apply());
+
         $this->app->singleton(SystemSettings::class);
     }
 

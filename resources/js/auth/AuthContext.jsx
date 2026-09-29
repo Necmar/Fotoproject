@@ -20,6 +20,8 @@ export function AuthProvider({ children }) {
         }
     }, []);
 
+    const reloadMeta = useCallback(() => api.get('/meta').then(({ data }) => setMeta(data.data)).catch(() => {}), []);
+
     const refresh = useCallback(async () => {
         try {
             const { data } = await api.get('/auth/me');
@@ -69,8 +71,8 @@ export function AuthProvider({ children }) {
     }, []);
 
     const value = useMemo(
-        () => ({ user, setUser: applyUser, meta, login, logout, refresh, signedOutReason }),
-        [user, applyUser, meta, login, logout, refresh, signedOutReason],
+        () => ({ user, setUser: applyUser, meta, reloadMeta, login, logout, refresh, signedOutReason }),
+        [user, applyUser, meta, reloadMeta, login, logout, refresh, signedOutReason],
     );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -493,3 +493,10 @@ Een aparte review (zonder kennis van hoe de code gebouwd is) vond geen ernstige 
 - **Installatiescherm** (`/install`): zolang er geen `.env` is, vult de eigenaar in de browser de database, het Super Admin-account en optioneel de OpenAI-key in. De app richt de database in, maakt het account aan en schrijft `.env` met een nieuwe `APP_KEY`. Alleen een database op deze server met geldige inloggegevens wordt geaccepteerd; na installatie geeft `/install` een 404.
 - Toegevoegd: `app/Services/System/Installer.php`, `app/Http/Controllers/InstallController.php`, `app/Http/Middleware/RedirectToInstaller.php`, `resources/views/install.blade.php`, `tests/Feature/InstallerTest.php`, `.github/workflows/deploy-branch.yml`. Gewijzigd: `bootstrap/app.php`, `routes/web.php`, `resources/css/app.css`, `docs/PLESK.md`.
 - Tests: 122, alles groen.
+
+## E-mail optioneel, SMTP instelbaar door de Super Admin
+
+- **Super Admin > Systeem > E-mail:** e-mail aan/uit, SMTP-server, poort, beveiliging, gebruikersnaam, wachtwoord (versleuteld opgeslagen, nooit terug naar de browser), afzender, en een knop voor een testmail.
+- **Zonder e-mail** (standaard zolang niets is ingesteld): bedrijven krijgen een wachtwoord van de Super Admin in plaats van een uitnodigingsmail, e-mailadressen hoeven niet bevestigd te worden, "wachtwoord vergeten" en de melding "batch klaar" zijn uit. Resultaten zijn gewoon in het portaal te zien.
+- Systeemcontrole: "E-mail: uit (niet nodig)" is in orde.
+- Toegevoegd: `app/Services/Mail/MailSettings.php`, `app/Http/Controllers/Api/Admin/MailController.php`, `resources/js/components/admin/MailSettingsCard.jsx`, `tests/Feature/MailSettingsTest.php`. Tests: 126, alles groen.

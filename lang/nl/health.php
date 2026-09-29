@@ -16,7 +16,7 @@ return [
     'storage' => ['label' => 'Schrijfrechten', 'hint' => 'storage/ en bootstrap/cache/ moeten schrijfbaar zijn voor PHP.'],
     'disk_space' => ['label' => 'Vrije schijfruimte', 'hint' => 'Maak ruimte vrij of verkort de bewaartermijn.'],
     'cron' => ['label' => 'Cronjob', 'hint' => 'De geplande taak draait niet: foto\'s worden niet verwerkt. Controleer de taak in Plesk (iedere minuut).'],
-    'mail' => ['label' => 'E-mail', 'hint' => 'Stel SMTP in (MAIL_MAILER=smtp): nu worden geen e-mails verstuurd.'],
+    'mail' => ['label' => 'E-mail', 'hint' => 'E-mail staat aan, maar er is geen mailserver ingesteld. Vul SMTP in bij Systeem > E-mail, of zet e-mail uit.', 'off' => 'uit (niet nodig)'],
     'openai' => ['label' => 'OpenAI', 'hint' => 'Geen API-key: foto\'s krijgen alleen lokale basiscorrecties. Zet OPENAI_API_KEY in .env.'],
     'frontend_build' => ['label' => 'React-build', 'hint' => 'public/build ontbreekt: upload de React-build (zie de installatiehandleiding).'],
     'deploy' => ['label' => 'Laatste update', 'hint' => 'De laatste update is mislukt. Bekijk storage/logs of voer "bora:deploy --force" uit.'],

@@ -27,6 +27,10 @@ class PasswordResetController extends Controller
     {
         $request->validate(['email' => ['required', 'email', 'max:255']]);
 
+        if (! app(\App\Services\Mail\MailSettings::class)->isEnabled()) {
+            throw new \App\Exceptions\DomainRuleException('mail_disabled');
+        }
+
         Password::broker('users')->sendResetLink(['email' => Str::lower($request->string('email'))]);
 
         return response()->json(['message' => __('passwords.sent_generic')]);

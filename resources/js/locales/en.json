@@ -211,7 +211,8 @@
             "delete": "Delete company",
             "delete_text": "This permanently deletes {{name}}, the owner account and all files. This cannot be undone.",
             "type_name": "Type the company name to confirm",
-            "delete_confirm": "Delete permanently"
+            "delete_confirm": "Delete permanently",
+            "password_no_mail": "E-mail is off: set the password here and pass it on to the owner yourself."
         },
         "batches": {
             "title": "Batches",
@@ -288,6 +289,29 @@
                 "warning": "Needs attention",
                 "error": "Problem"
             }
+        },
+        "mail": {
+            "title": "E-mail",
+            "on": "On",
+            "off": "Off",
+            "intro": "E-mail is optional. When it is off, everything still works: you set passwords yourself under Companies, and results are only visible in the portal. Switch it on to send invitations, \"forgot password\" and batch-completed notifications.",
+            "forced": "E-mail is switched on or off in the .env file (BORA_MAIL_ENABLED); this switch has no effect then.",
+            "enable": "Send e-mail",
+            "enable_on": "Invitations, password resets and notifications are e-mailed.",
+            "enable_off": "No e-mails are sent.",
+            "host": "SMTP server",
+            "port": "Port",
+            "encryption": "Security",
+            "enc_tls": "STARTTLS (port 587)",
+            "enc_ssl": "SSL/TLS (port 465)",
+            "enc_none": "None",
+            "username": "Username",
+            "password": "Password",
+            "password_kept": "A password is stored. Leave empty to keep it.",
+            "password_none": "No password stored yet.",
+            "from_address": "Sender address",
+            "from_name": "Sender name",
+            "test": "Send a test e-mail to me"
         }
     },
     "enums": {
