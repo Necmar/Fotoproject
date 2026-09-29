@@ -1,0 +1,26 @@
+{
+  "node_modules/heic-to/dist/csp/heic-to.js": {
+    "file": "assets/heic-to-DeD09f__.js",
+    "name": "heic-to",
+    "src": "node_modules/heic-to/dist/csp/heic-to.js",
+    "isDynamicEntry": true
+  },
+  "resources/css/app.css": {
+    "file": "assets/app-BnlhXL8n.css",
+    "name": "app",
+    "names": [
+      "app.css"
+    ],
+    "src": "resources/css/app.css",
+    "isEntry": true
+  },
+  "resources/js/main.jsx": {
+    "file": "assets/main-WbedPNBy.js",
+    "name": "main",
+    "src": "resources/js/main.jsx",
+    "isEntry": true,
+    "dynamicImports": [
+      "node_modules/heic-to/dist/csp/heic-to.js"
+    ]
+  }
+}
