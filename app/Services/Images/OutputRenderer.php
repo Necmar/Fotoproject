@@ -3,6 +3,7 @@
 namespace App\Services\Images;
 
 use App\Enums\AspectRatio;
+use App\Enums\OptimizationStrength;
 use App\Enums\OutputFormat;
 use App\Models\Image;
 use App\Services\Storage\LocalFiles;
@@ -27,14 +28,16 @@ class OutputRenderer
         private readonly LocalFiles $files,
         private readonly StorageAccounting $storage,
         private readonly SystemSettings $system,
+        private readonly PhotoFinisher $finisher,
     ) {}
 
     /**
      * @param  string|null  $sourcePath  disk path of the image to render (default: working copy; phase 5: AI result)
      * @param  array|null  $adjustments  output of LocalEnhancer::adjustments(), or null for none
      * @param  array{x: float, y: float, w: float, h: float}|null  $focus  product box (normalised) for smart cropping
+     * @param  OptimizationStrength|null  $finish  local finish to apply (null: none, e.g. an AI-retouched source)
      */
-    public function render(Image $image, BatchSettings $settings, ?string $sourcePath = null, ?array $adjustments = null, ?array $focus = null): Image
+    public function render(Image $image, BatchSettings $settings, ?string $sourcePath = null, ?array $adjustments = null, ?array $focus = null, ?OptimizationStrength $finish = null): Image
     {
         $image->loadMissing('batch');
         $sourcePath ??= $image->working_path;
@@ -54,7 +57,13 @@ class OutputRenderer
             $editor->fitWithin($settings->resolution->pixels());
 
             if ($adjustments) {
-                $editor->adjust($adjustments);
+                // The finish below sharpens once, at output size.
+                $editor->adjust($finish ? ['sharpen' => 0.0] + $adjustments : $adjustments);
+            }
+
+            // Clean advertisement look (levels, curve, clarity, vibrance, sharpening).
+            if ($finish) {
+                $this->finisher->finish($editor, $finish);
             }
 
             $extension = $settings->outputFormat->extension();

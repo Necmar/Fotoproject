@@ -103,62 +103,77 @@ class AiImageProcessor
 
         // A previous attempt already paid for the composite: reuse it.
         if ($image->ai_path && $this->files->disk()->exists($image->ai_path)) {
-            return ['source' => $image->ai_path, 'adjustments' => $rotateOnly, 'focus' => $focus, 'status' => AiStatus::Edited];
+            return ['source' => $image->ai_path, 'adjustments' => $rotateOnly, 'focus' => $focus, 'status' => AiStatus::Edited] + ($plan['retouch'] ? ['finish' => null] : []);
         }
 
         $workingLocal = $this->files->localPath($image->working_path);
         $temps = [];
 
         try {
-            $original = ImageEditor::open($workingLocal)->fitWithin((int) config('services.openai.composite_max_side', 2560));
-            $w = $original->width();
-            $h = $original->height();
+            if ($plan['retouch']) {
+                // Whole-photo retouch (the "clean advertisement" look), checked below.
+                $tmp = $this->aiEdit($image, $type, $this->instructions->build($analysis, $settings, false), $temps, lossless: false);
+                // Never larger than the photo itself (no upscaling), exact photo proportions.
+                [$pw, $ph] = getimagesize($workingLocal);
+                $retouched = ImageEditor::open($tmp);
+                if ($retouched->width() !== $pw || $retouched->height() !== $ph) {
+                    $scale = min(1, max($retouched->width(), $retouched->height()) / max($pw, $ph));
+                    $retouched->resize((int) round($pw * $scale), (int) round($ph * $scale))->saveJpeg($tmp, 95);
+                }
+                $extension = 'jpg';
+                $diskPath = $image->batch->storageDirectory().'/ai/'.Str::ulid()->toBase32().'.'.$extension;
+                $bytes = $this->commit($image, $tmp, $diskPath);
+            } else {
+                $original = ImageEditor::open($workingLocal)->fitWithin((int) config('services.openai.composite_max_side', 2560));
+                $w = $original->width();
+                $h = $original->height();
 
-            // 1. Cut-out on the key colour least present in this photo -> mask.
-            [$keyName, $key] = $this->compositor->keyColourFor($original);
-            $cutout = $this->aiEdit($image, $type, $this->instructions->cutout($analysis, $keyName, $key), $temps);
-            // A model that answers with a transparent PNG anyway: transparent = key colour.
-            $cut = ImageEditor::open($cutout)->flatten($key);
-            // The model rarely hits the exact key colour or keeps the exact frame: measure both.
-            $key = $this->compositor->measuredKey($cut, $key);
-            $placement = $this->compositor->register($original, $cut, $key);
-            ['mask' => $mask, 'coverage' => $coverage] = $this->compositor->maskFromCutout($cut, $key, $w, $h, $placement);
+                // 1. Cut-out on the key colour least present in this photo -> mask.
+                [$keyName, $key] = $this->compositor->keyColourFor($original);
+                $cutout = $this->aiEdit($image, $type, $this->instructions->cutout($analysis, $keyName, $key), $temps);
+                // A model that answers with a transparent PNG anyway: transparent = key colour.
+                $cut = ImageEditor::open($cutout)->flatten($key);
+                // The model rarely hits the exact key colour or keeps the exact frame: measure both.
+                $key = $this->compositor->measuredKey($cut, $key);
+                $placement = $this->compositor->register($original, $cut, $key);
+                ['mask' => $mask, 'coverage' => $coverage] = $this->compositor->maskFromCutout($cut, $key, $w, $h, $placement);
 
-            $image->forceFill(['analysis' => array_replace($image->analysis ?? [], ['cutout' => [
-                'key' => $keyName, 'measured_key' => $key, 'coverage' => round($coverage, 4),
-                'placement' => array_map(fn ($v) => round($v, 4), $placement),
-                'cutout_size' => [$cut->width(), $cut->height()], 'photo_size' => [$w, $h],
-            ]])])->save();
+                $image->forceFill(['analysis' => array_replace($image->analysis ?? [], ['cutout' => [
+                    'key' => $keyName, 'measured_key' => $key, 'coverage' => round($coverage, 4),
+                    'placement' => array_map(fn ($v) => round($v, 4), $placement),
+                    'cutout_size' => [$cut->width(), $cut->height()], 'photo_size' => [$w, $h],
+                ]])])->save();
 
-            if ($coverage < 0.01 || $coverage > 0.97 || $placement['error'] > (float) config('services.openai.cutout_max_error', 0.16)) {
-                // No usable cut-out (product not found or moved): safe corrections only.
-                $this->addWarnings($image, 'ai_edit', [['code' => 'ai_cutout_failed']]);
+                if ($coverage < 0.01 || $coverage > 0.97 || $placement['error'] > (float) config('services.openai.cutout_max_error', 0.16)) {
+                    // No usable cut-out (product not found or moved): safe corrections only.
+                    $this->addWarnings($image, 'ai_edit', [['code' => 'ai_cutout_failed']]);
 
-                return ['status' => AiStatus::EditRejected] + $local;
+                    return ['status' => AiStatus::EditRejected] + $local;
+                }
+
+                // 2. Background layer for the chosen option.
+                $product = $original->copy()->adjust(array_diff_key($adjustments, ['rotate' => true]));
+                $background = match (true) {
+                    $plan['ai_background'] => $this->aiBackground($image, $type, $analysis, $settings, $w, $h, $temps),
+                    $settings->background === BackgroundOption::BlurLight => $this->compositor->blurred($product, $mask),
+                    $settings->background === BackgroundOption::Neutral => 'neutral',
+                    default => null, // remove: transparent (JPG output gets white when saved)
+                };
+                if ($plan['ai_background'] && $settings->background === BackgroundOption::BlurLight) {
+                    $background = $this->compositor->blurred(ImageEditor::fromGd($background), $mask);
+                }
+
+                // 3. Original product on the new background.
+                $composite = $this->compositor->compose($product, $mask, $background);
+                $transparent = $background === null;
+                $extension = $transparent ? 'png' : 'jpg';
+                $tmp = $this->files->tempPath($extension);
+                $temps[] = $tmp;
+                $transparent ? $composite->savePng($tmp) : $composite->saveJpeg($tmp, 95);
+
+                $diskPath = $image->batch->storageDirectory().'/ai/'.Str::ulid()->toBase32().'.'.$extension;
+                $bytes = $this->commit($image, $tmp, $diskPath);
             }
-
-            // 2. Background layer for the chosen option.
-            $product = $original->copy()->adjust(array_diff_key($adjustments, ['rotate' => true]));
-            $background = match (true) {
-                $plan['ai_background'] => $this->aiBackground($image, $type, $analysis, $settings, $w, $h, $temps),
-                $settings->background === BackgroundOption::BlurLight => $this->compositor->blurred($product, $mask),
-                $settings->background === BackgroundOption::Neutral => 'neutral',
-                default => null, // remove: transparent (JPG output gets white when saved)
-            };
-            if ($plan['ai_background'] && $settings->background === BackgroundOption::BlurLight) {
-                $background = $this->compositor->blurred(ImageEditor::fromGd($background), $mask);
-            }
-
-            // 3. Original product on the new background.
-            $composite = $this->compositor->compose($product, $mask, $background);
-            $transparent = $background === null;
-            $extension = $transparent ? 'png' : 'jpg';
-            $tmp = $this->files->tempPath($extension);
-            $temps[] = $tmp;
-            $transparent ? $composite->savePng($tmp) : $composite->saveJpeg($tmp, 95);
-
-            $diskPath = $image->batch->storageDirectory().'/ai/'.Str::ulid()->toBase32().'.'.$extension;
-            $bytes = $this->commit($image, $tmp, $diskPath);
         } finally {
             $this->files->release($workingLocal);
             foreach ($temps as $t) {
@@ -208,19 +223,20 @@ class AiImageProcessor
 
         $this->addWarnings($image, 'ai_edit', $warnings);
 
-        return ['source' => $diskPath, 'adjustments' => $rotateOnly, 'focus' => $focus, 'status' => AiStatus::Edited];
+        // An AI retouch is already finished; a composite still gets the local finish.
+        return ['source' => $diskPath, 'adjustments' => $rotateOnly, 'focus' => $focus, 'status' => AiStatus::Edited] + ($plan['retouch'] ? ['finish' => null] : []);
     }
 
     /**
      * What the image model is needed for.
      *
-     * @return array{mask: bool, ai_background: bool}
+     * @return array{mask: bool, ai_background: bool, retouch: bool}
      */
     public function editPlan(array $analysis, BatchSettings $settings): array
     {
         $policy = config('services.openai.edit_policy', 'auto');
         if ($policy === 'never') {
-            return ['mask' => false, 'ai_background' => false];
+            return ['mask' => false, 'ai_background' => false, 'retouch' => false];
         }
 
         $option = $settings->background;
@@ -233,11 +249,17 @@ class AiImageProcessor
             OptimizationStrength::Strong => true,
         });
 
+        // Original background: one whole-photo retouch for the clean advertisement
+        // look (Normal and Strong), verified afterwards. Subtle stays local.
+        if ($option === BackgroundOption::Keep && $restorable && ($policy === 'always' || $settings->strength !== OptimizationStrength::Subtle)) {
+            return ['mask' => true, 'ai_background' => false, 'retouch' => true];
+        }
+
         $aiBackground = in_array($option, [BackgroundOption::CleanSubtle, BackgroundOption::RemoveDistractions], true)
             || ($people && $option !== BackgroundOption::Remove && $option !== BackgroundOption::Neutral)
             || ($option === BackgroundOption::Keep && $byStrength);
 
-        return ['mask' => $option !== BackgroundOption::Keep || $aiBackground, 'ai_background' => $aiBackground];
+        return ['mask' => $option !== BackgroundOption::Keep || $aiBackground, 'ai_background' => $aiBackground, 'retouch' => false];
     }
 
     /** Whether this photo gets any work from the image model. */

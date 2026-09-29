@@ -61,6 +61,14 @@ class ImageEditor
         return $this->gd;
     }
 
+    /** Swap in a processed image of the same size. */
+    public function replaceGd(GdImage $gd): self
+    {
+        $this->gd = $gd;
+
+        return $this;
+    }
+
     public function width(): int
     {
         return imagesx($this->gd);

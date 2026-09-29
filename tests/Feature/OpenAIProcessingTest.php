@@ -184,12 +184,12 @@ class OpenAIProcessingTest extends TestCase
         $this->assertNotNull($image->ai_path);
         Storage::disk('local')->assertExists($image->ai_path);
         $this->assertSame(2, $this->sentTo('/responses'), 'analysis + verification');
-        // Cut-out (mask) + improved background; the product itself comes from the original.
-        $this->assertSame(2, $this->sentTo('/images/edits'));
+        // Original background: one whole-photo retouch (the clean advertisement look), verified.
+        $this->assertSame(1, $this->sentTo('/images/edits'));
         $edits = Http::recorded(fn (Request $r) => str_ends_with($r->url(), '/images/edits'));
-        $this->assertStringContainsString('Cut out the product', (string) $edits->first()[0]->body());
+        $this->assertStringContainsString('Rich deep blacks', (string) $edits->first()[0]->body());
 
-        // Composite at the photo's own size (1600 px): never upscaled to 2000.
+        // At the photo's own size (1600 px): never upscaled to 2000.
         $this->assertSame(1600, max($image->output_width, $image->output_height));
 
         $edit = $edits->last()[0];
@@ -201,7 +201,7 @@ class OpenAIProcessingTest extends TestCase
         $this->assertStringContainsString('1600x1200', $body, 'size follows the working copy');
         $this->assertStringContainsString('input_fidelity', $body, 'stay close to the source photo');
 
-        $this->assertSame(4, ImageProcessingRecord::query()->where('provider', 'openai')->count());
+        $this->assertSame(3, ImageProcessingRecord::query()->where('provider', 'openai')->count(), 'analysis, retouch, verification');
         $editRecord = ImageProcessingRecord::query()->where('type', 'edit')->firstOrFail();
         // 500 text * 2.50 + 1000 image * 4.00 + 4000 out * 15.00 per million
         $this->assertEqualsWithDelta(0.06525, (float) $editRecord->estimated_cost_usd, 0.00001);
@@ -320,8 +320,8 @@ class OpenAIProcessingTest extends TestCase
         $this->artisan('bora:work')->assertSuccessful();
 
         $this->assertSame('edited', $batch->images()->first()->ai_status);
-        // Cut-out and background edit: each refused once with input_fidelity, then sent without.
-        $this->assertSame(4, $this->sentTo('/images/edits'));
+        // The retouch: refused once with input_fidelity, then sent without.
+        $this->assertSame(2, $this->sentTo('/images/edits'));
     }
 
     public function test_background_option_requires_an_edit_even_when_subtle(): void
