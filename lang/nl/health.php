@@ -4,7 +4,7 @@
 return [
     'php_version' => ['label' => 'PHP-versie', 'hint' => 'Kies PHP 8.3 of 8.4 in Plesk > PHP-instellingen.'],
     'extensions' => ['label' => 'PHP-extensies', 'hint' => 'Zet de ontbrekende extensies aan in Plesk > PHP-instellingen.'],
-    'heic_server' => ['label' => 'HEIC op de server', 'hint' => 'Geen probleem: de browser zet HEIC al om naar JPG. Alleen nodig voor oude browsers.'],
+    'heic_server' => ['label' => 'HEIC-omzetting', 'hint' => null, 'server' => 'op de server', 'browser' => 'via de browser'],
     'memory_limit' => ['label' => 'PHP memory_limit', 'hint' => 'Zet memory_limit op 512M voor de bewerking van grote foto\'s.'],
     'upload_limits' => ['label' => 'Uploadlimieten', 'hint' => 'Zet upload_max_filesize op 32M en post_max_size op 34M.'],
     'max_execution_time' => ['label' => 'Max. uitvoertijd', 'hint' => 'Zet max_execution_time op 120.'],

@@ -4,7 +4,7 @@
 return [
     'php_version' => ['label' => 'PHP version', 'hint' => 'Choose PHP 8.3 or 8.4 in Plesk > PHP Settings.'],
     'extensions' => ['label' => 'PHP extensions', 'hint' => 'Enable the missing extensions in Plesk > PHP Settings.'],
-    'heic_server' => ['label' => 'HEIC on the server', 'hint' => 'Not a problem: the browser already converts HEIC to JPG. Only needed for old browsers.'],
+    'heic_server' => ['label' => 'HEIC conversion', 'hint' => null, 'server' => 'on the server', 'browser' => 'via the browser'],
     'memory_limit' => ['label' => 'PHP memory_limit', 'hint' => 'Set memory_limit to 512M for processing large photos.'],
     'upload_limits' => ['label' => 'Upload limits', 'hint' => 'Set upload_max_filesize to 32M and post_max_size to 34M.'],
     'max_execution_time' => ['label' => 'Max execution time', 'hint' => 'Set max_execution_time to 120.'],
