@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\System\Installer;
 use Illuminate\Support\Facades\Schedule;
 
 /*
@@ -12,6 +13,11 @@ use Illuminate\Support\Facades\Schedule;
 | Everything below then runs from that single cronjob.
 |
 */
+
+// Nothing to do before the browser installer has run (no .env, no database yet).
+if (! app(Installer::class)->isInstalled()) {
+    return;
+}
 
 // Process queued photos for ~50 seconds, then stop. No permanent worker.
 // After an update (upload or Plesk Git): migrations and caches, automatically (production only).
