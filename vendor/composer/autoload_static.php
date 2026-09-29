@@ -600,6 +600,7 @@ class ComposerStaticInitcf1b226ae4df122956e8d4c852fc15ef
         'App\\Services\\Processing\\BatchProgress' => __DIR__ . '/../..' . '/app/Services/Processing/BatchProgress.php',
         'App\\Services\\Processing\\ImagePipeline' => __DIR__ . '/../..' . '/app/Services/Processing/ImagePipeline.php',
         'App\\Services\\Processing\\QueueHealth' => __DIR__ . '/../..' . '/app/Services/Processing/QueueHealth.php',
+        'App\\Services\\Processing\\QueueKicker' => __DIR__ . '/../..' . '/app/Services/Processing/QueueKicker.php',
         'App\\Services\\Processing\\ReoptimizeService' => __DIR__ . '/../..' . '/app/Services/Processing/ReoptimizeService.php',
         'App\\Services\\Storage\\BatchDeletionService' => __DIR__ . '/../..' . '/app/Services/Storage/BatchDeletionService.php',
         'App\\Services\\Storage\\LocalFiles' => __DIR__ . '/../..' . '/app/Services/Storage/LocalFiles.php',

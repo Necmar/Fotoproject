@@ -9,7 +9,8 @@
         "previous": "Vorige",
         "next": "Volgende",
         "page_of": "Pagina {{page}} van {{total}}",
-        "close": "Sluiten"
+        "close": "Sluiten",
+        "done": "Klaar"
     },
     "errors": {
         "generic": "Er ging iets mis. Probeer het later opnieuw.",
@@ -263,6 +264,13 @@
                 "auto": "Automatisch (alleen bewerken als het nodig is)",
                 "never": "Nooit bewerken (alleen analyse)",
                 "always": "Altijd bewerken"
+            },
+            "ai_image_quality": "AI-beeldkwaliteit",
+            "ai_quality": {
+                "medium": "Snel (aanbevolen)",
+                "medium_text": "Ongeveer twee keer zo snel en goedkoper. Voor advertentiefoto's nauwelijks verschil.",
+                "high": "Maximaal detail",
+                "high_text": "Fijnste details, maar trager en duurder per bewerking."
             }
         },
         "queue": {
@@ -411,7 +419,8 @@
             "settings": "Instellingen kiezen",
             "optimize": "Optimaliseren",
             "results": "Resultaten bekijken",
-            "download": "Downloaden"
+            "download": "Downloaden",
+            "of": "Stap {{step}} van {{total}}"
         },
         "unnamed": "Naamloze batch",
         "photos_intro": "Voeg tot {{max}} foto's toe. Je kunt meerdere foto's tegelijk selecteren.",
@@ -438,7 +447,21 @@
             "failed": "Mislukt",
             "current": "Huidige foto",
             "waiting": "In de wachtrij. De verwerking start automatisch.",
-            "stay": "Je kunt op deze pagina blijven; afgeronde foto's verschijnen direct."
+            "stay": "Je kunt op deze pagina blijven; afgeronde foto's verschijnen direct.",
+            "starting": "De verwerking start…",
+            "working_one": "Bezig met {{count}} foto",
+            "working_other": "Bezig met {{count}} foto's tegelijk",
+            "eta_unknown": "Resterende tijd wordt berekend…",
+            "eta_soon": "Bijna klaar",
+            "eta_minutes_one": "Nog ongeveer {{count}} minuut",
+            "eta_minutes_other": "Nog ongeveer {{count}} minuten",
+            "failed_count_one": "{{count}} mislukt",
+            "failed_count_other": "{{count}} mislukt",
+            "background": "Je kunt dit venster gerust sluiten of iets anders doen. De verwerking gaat door op de server; je vindt de resultaten terug onder Mijn verwerkingen.",
+            "notify": "Meld als het klaar is",
+            "notify_on": "Je krijgt een melding",
+            "notify_title": "Je foto's zijn klaar",
+            "notify_body": "{{count}} foto's van \"{{name}}\" zijn geoptimaliseerd."
         },
         "settings": {
             "name": "Naam van de batch (optioneel)",
@@ -457,7 +480,9 @@
                     "normal": "Duidelijk schonere, aantrekkelijke advertentiefoto.",
                     "strong": "Meer correctie van licht, achtergrond en presentatie."
                 }
-            }
+            },
+            "change": "Aanpassen",
+            "collapse": "Inklappen"
         },
         "ai_status": {
             "skipped": "Lokaal verbeterd",
@@ -465,6 +490,26 @@
             "edited": "AI-bewerkt en gecontroleerd",
             "edit_rejected": "AI-bewerking afgekeurd, basiscorrecties",
             "fallback": "Basiscorrecties (AI niet beschikbaar)"
+        },
+        "summary": {
+            "per_photo": "De AI bekijkt iedere foto apart en kiest zelf de verbeteringen.",
+            "integrity": "Het product blijft zoals het is: schade, kleur, tekst en kentekens blijven intact.",
+            "background": "Verwerking gaat door op de achtergrond; je kunt het venster sluiten."
+        },
+        "filter": {
+            "all": "Alle",
+            "attention": "Aandachtspunten",
+            "failed": "Mislukt"
+        },
+        "compare_hint": "Tik op een foto voor voor/na. Houd een foto ingedrukt om snel het origineel te zien.",
+        "result": {
+            "title_one": "{{count}} foto geoptimaliseerd",
+            "title_other": "{{count}} foto's geoptimaliseerd",
+            "all_good": "Alles is gelukt. Bekijk de resultaten en download ze hieronder.",
+            "failed_one": "{{count}} foto is mislukt",
+            "failed_other": "{{count}} foto's zijn mislukt",
+            "attention_one": "{{count}} foto met een aandachtspunt",
+            "attention_other": "{{count}} foto's met een aandachtspunt"
         }
     },
     "upload": {
@@ -492,7 +537,9 @@
             "too_large": "Bestand te groot. Maximaal {{max}} MB.",
             "empty": "Dit bestand is leeg of beschadigd.",
             "too_many": "Maximaal {{max}} foto's per batch. {{count}} foto's zijn niet toegevoegd."
-        }
+        },
+        "drop_here": "Laat los om toe te voegen",
+        "drop_paste_hint": "Tip: sleep foto's op deze pagina, of plak een screenshot met Ctrl+V."
     },
     "viewer": {
         "before": "Voor",
@@ -528,7 +575,10 @@
         "logo_on_photo": "Logo op deze foto",
         "select_hint": "Vink bij de foto's hieronder aan waar het logo op moet.",
         "watermark_note": "Het logo wordt alleen bij het downloaden toegevoegd; de opgeslagen foto blijft zonder logo.",
-        "short": "Download"
+        "short": "Download",
+        "more_coming": "er komen er nog bij",
+        "zip_count_one": "Download ({{count}})",
+        "zip_count_other": "Alles downloaden ({{count}})"
     },
     "history": {
         "title": "Mijn verwerkingen",

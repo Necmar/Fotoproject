@@ -121,6 +121,7 @@ return array(
     'App\\Services\\Processing\\BatchProgress' => $baseDir . '/app/Services/Processing/BatchProgress.php',
     'App\\Services\\Processing\\ImagePipeline' => $baseDir . '/app/Services/Processing/ImagePipeline.php',
     'App\\Services\\Processing\\QueueHealth' => $baseDir . '/app/Services/Processing/QueueHealth.php',
+    'App\\Services\\Processing\\QueueKicker' => $baseDir . '/app/Services/Processing/QueueKicker.php',
     'App\\Services\\Processing\\ReoptimizeService' => $baseDir . '/app/Services/Processing/ReoptimizeService.php',
     'App\\Services\\Storage\\BatchDeletionService' => $baseDir . '/app/Services/Storage/BatchDeletionService.php',
     'App\\Services\\Storage\\LocalFiles' => $baseDir . '/app/Services/Storage/LocalFiles.php',

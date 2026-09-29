@@ -19,6 +19,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(MailSettings::class);
+        $this->app->singleton(\App\Services\Processing\QueueKicker::class);
         // SMTP settings from the admin screen are applied when mail is first used.
         $this->app->resolving('mail.manager', fn () => $this->app->make(MailSettings::class)->apply());
 

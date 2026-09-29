@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\Company;
 
+use App\Services\Processing\QueueKicker;
+
 use App\Enums\BatchStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Batch\SaveBatchRequest;
@@ -59,6 +61,11 @@ class BatchController extends Controller
     {
         $this->authorize('view', $batch);
 
+        // Safety net: keeps the queue moving if the cron has stalled.
+        if ($batch->status->isActive()) {
+            app(QueueKicker::class)->kickIfStalled();
+        }
+
         return BatchResource::make($batch->load('images'))->response();
     }
 
@@ -73,6 +80,8 @@ class BatchController extends Controller
     {
         $this->authorize('update', $batch);
         $batch = $this->batches->start($batch);
+        // Start right away (after this response), not at the next cron minute.
+        app(QueueKicker::class)->kick();
 
         return BatchResource::make($batch->load('images'))->response();
     }

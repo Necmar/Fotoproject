@@ -69,8 +69,19 @@ class OutputRenderer
             $previous = $image->optimized_path;
             $previousBytes = (int) ($image->output_size ?? 0);
 
+            // Small preview for the photo grid: loads fast, also on phones.
+            $png = $settings->outputFormat === OutputFormat::Png;
+            $previewPath = $image->batch->storageDirectory().'/thumbs/'.Str::ulid()->toBase32().($png ? '.png' : '.jpg');
+            $preview = $editor->copy()->fitWithin((int) config('bora.processing.preview_side', 720));
+            $previewOut = $this->files->writablePath($previewPath);
+            $png ? $preview->savePng($previewOut) : $preview->saveJpeg($previewOut, 82);
+            $previewBytes = $this->files->commit($previewOut, $previewPath);
+            $previousPreview = $image->preview_path;
+            $previousPreviewBytes = $previousPreview && $this->files->disk()->exists($previousPreview) ? (int) $this->files->disk()->size($previousPreview) : 0;
+
             $image->forceFill([
                 'optimized_path' => $target,
+                'preview_path' => $previewPath,
                 'output_filename' => FileNamer::numbered($image->batch->filename_base, $image->position, $extension),
                 'output_size' => $bytes,
                 'output_width' => $editor->width(),
@@ -81,7 +92,11 @@ class OutputRenderer
                 $this->files->disk()->delete($previous);
             }
 
-            $this->storage->add($image->batch, $bytes - $previousBytes);
+            if ($previousPreview && $previousPreview !== $previewPath) {
+                $this->files->disk()->delete($previousPreview);
+            }
+
+            $this->storage->add($image->batch, $bytes - $previousBytes + $previewBytes - $previousPreviewBytes);
 
             return $image;
         } finally {

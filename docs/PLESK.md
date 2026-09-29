@@ -55,6 +55,8 @@ Plesk > Websites & Domeinen > Geplande taken > Taak toevoegen:
 
 Zonder sleutel staat deze URL uit (404).
 
+**Snelheid:** na "Optimaliseren" start de verwerking direct (na het antwoord aan de browser, via PHP-FPM), zonder op de volgende cronminuut te wachten. Daarna verwerkt de cronjob iedere minuut **3 foto's tegelijk** (`BORA_WORKERS`, standaard 3; ze wachten vooral op OpenAI, dus de serverbelasting blijft laag). De browser mag dicht: alles loopt op de server door. Stopt de cron onverhoopt, dan houdt een open voortgangspagina de wachtrij in beweging. De AI-beeldkwaliteit (Snel of Maximaal detail) staat in Super Admin > Systeem.
+
 **Mag het niet iedere minuut?** Kies dan de kortste interval die kan (bijvoorbeeld iedere 5 minuten); verwerking duurt dan langer. Verhoog eventueel `BORA_WORKER_MAX_TIME` (seconden per run) tot maximaal de `max_execution_time` van PHP.
 
 **Controle:** Super Admin > Overzicht > kaart "Wachtrij". Staat daar "Wacht op cronjob" terwijl er foto's klaarstaan, dan draait de geplande taak niet.

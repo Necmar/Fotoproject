@@ -9,7 +9,8 @@
         "previous": "Previous",
         "next": "Next",
         "page_of": "Page {{page}} of {{total}}",
-        "close": "Close"
+        "close": "Close",
+        "done": "Done"
     },
     "errors": {
         "generic": "Something went wrong. Please try again later.",
@@ -263,6 +264,13 @@
                 "auto": "Automatic (edit only when needed)",
                 "never": "Never edit (analysis only)",
                 "always": "Always edit"
+            },
+            "ai_image_quality": "AI image quality",
+            "ai_quality": {
+                "medium": "Fast (recommended)",
+                "medium_text": "About twice as fast and cheaper. Hardly any difference for ad photos.",
+                "high": "Maximum detail",
+                "high_text": "Finest details, but slower and more expensive per edit."
             }
         },
         "queue": {
@@ -411,7 +419,8 @@
             "settings": "Choose settings",
             "optimize": "Optimise",
             "results": "View results",
-            "download": "Download"
+            "download": "Download",
+            "of": "Step {{step}} of {{total}}"
         },
         "unnamed": "Unnamed batch",
         "photos_intro": "Add up to {{max}} photos. You can select several photos at once.",
@@ -438,7 +447,21 @@
             "failed": "Failed",
             "current": "Current photo",
             "waiting": "Queued. Processing starts automatically.",
-            "stay": "You can stay on this page; finished photos appear right away."
+            "stay": "You can stay on this page; finished photos appear right away.",
+            "starting": "Processing is starting…",
+            "working_one": "Working on {{count}} photo",
+            "working_other": "Working on {{count}} photos at once",
+            "eta_unknown": "Calculating time left…",
+            "eta_soon": "Almost done",
+            "eta_minutes_one": "About {{count}} minute left",
+            "eta_minutes_other": "About {{count}} minutes left",
+            "failed_count_one": "{{count}} failed",
+            "failed_count_other": "{{count}} failed",
+            "background": "Feel free to close this window or do something else. Processing continues on the server; you will find the results under My batches.",
+            "notify": "Notify me when done",
+            "notify_on": "You will get a notification",
+            "notify_title": "Your photos are ready",
+            "notify_body": "{{count}} photos of \"{{name}}\" have been optimised."
         },
         "settings": {
             "name": "Batch name (optional)",
@@ -457,7 +480,9 @@
                     "normal": "Clearly cleaner, attractive advertising photo.",
                     "strong": "More correction of light, background and presentation."
                 }
-            }
+            },
+            "change": "Change",
+            "collapse": "Collapse"
         },
         "ai_status": {
             "skipped": "Improved locally",
@@ -465,6 +490,26 @@
             "edited": "AI edited and checked",
             "edit_rejected": "AI edit rejected, basic corrections",
             "fallback": "Basic corrections (AI unavailable)"
+        },
+        "summary": {
+            "per_photo": "The AI looks at every photo separately and picks the improvements itself.",
+            "integrity": "The product stays as it is: damage, colour, text and licence plates stay intact.",
+            "background": "Processing continues in the background; you can close the window."
+        },
+        "filter": {
+            "all": "All",
+            "attention": "Needs attention",
+            "failed": "Failed"
+        },
+        "compare_hint": "Tap a photo for before/after. Press and hold a photo to quickly see the original.",
+        "result": {
+            "title_one": "{{count}} photo optimised",
+            "title_other": "{{count}} photos optimised",
+            "all_good": "Everything worked. Review the results and download them below.",
+            "failed_one": "{{count}} photo failed",
+            "failed_other": "{{count}} photos failed",
+            "attention_one": "{{count}} photo needs attention",
+            "attention_other": "{{count}} photos need attention"
         }
     },
     "upload": {
@@ -492,7 +537,9 @@
             "too_large": "File too large. At most {{max}} MB.",
             "empty": "This file is empty or damaged.",
             "too_many": "At most {{max}} photos per batch. {{count}} photos were not added."
-        }
+        },
+        "drop_here": "Drop to add",
+        "drop_paste_hint": "Tip: drag photos onto this page, or paste a screenshot with Ctrl+V."
     },
     "viewer": {
         "before": "Before",
@@ -528,7 +575,10 @@
         "logo_on_photo": "Logo on this photo",
         "select_hint": "Tick the photos below that should get the logo.",
         "watermark_note": "The logo is only added when downloading; the stored photo stays without logo.",
-        "short": "Download"
+        "short": "Download",
+        "more_coming": "more on the way",
+        "zip_count_one": "Download ({{count}})",
+        "zip_count_other": "Download all ({{count}})"
     },
     "history": {
         "title": "My batches",

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\Company;
 
+use App\Services\Processing\QueueKicker;
+
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Batch\ReoptimizeImageRequest;
 use App\Http\Requests\Batch\UploadImageRequest;
@@ -36,6 +38,7 @@ class ImageController extends Controller
     public function reoptimize(ReoptimizeImageRequest $request, Image $image, ReoptimizeService $service): JsonResponse
     {
         $image = $service->reoptimize($image, $request->validated());
+        app(QueueKicker::class)->kick();
 
         return ImageResource::make($image->load('batch'))->response()->setStatusCode(202);
     }
@@ -54,6 +57,7 @@ class ImageController extends Controller
             'working' => $image->working_path ?? $image->original_path,
             'thumbnail' => $image->thumbnail_path,
             'optimized' => $image->optimized_path,
+            'preview' => $image->preview_path ?? $image->optimized_path,
         };
 
         $disk = Storage::disk(config('bora.disk'));
