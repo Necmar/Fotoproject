@@ -24,6 +24,8 @@ class UpdateSystemSettingsRequest extends FormRequest
             'max_upload_mb' => ['sometimes', 'integer', "between:1,{$l['max_upload_mb_max']}"],
             'ai_enabled' => ['sometimes', 'boolean'],
             'ai_image_quality' => ['sometimes', 'in:medium,high'],
+            'reoptimize_per_image' => ['sometimes', 'integer', 'between:0,1000'],
+            'reoptimize_per_company_per_day' => ['sometimes', 'integer', 'between:0,100000'],
             'maintenance_message' => ['sometimes', 'nullable', 'string', 'max:500'],
         ];
     }

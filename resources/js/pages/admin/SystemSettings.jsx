@@ -44,6 +44,8 @@ export default function SystemSettings() {
                 jpg_quality: Number(form.jpg_quality),
                 max_images_per_batch: Number(form.max_images_per_batch),
                 max_upload_mb: Number(form.max_upload_mb),
+                reoptimize_per_image: Number(form.reoptimize_per_image ?? 0),
+                reoptimize_per_company_per_day: Number(form.reoptimize_per_company_per_day ?? 0),
                 maintenance_message: form.maintenance_message || null,
             };
             const { data: res } = await api.put('/admin/settings', payload);
@@ -93,6 +95,8 @@ export default function SystemSettings() {
                             hint={t('admin.settings.max_upload_hint', { max: limits.max_upload_mb_max })}
                             {...num('max_upload_mb')}
                         />
+                        <Input label={t('admin.settings.reoptimize_per_image')} hint={t('admin.settings.zero_unlimited')} {...num('reoptimize_per_image')} />
+                        <Input label={t('admin.settings.reoptimize_per_day')} hint={t('admin.settings.zero_unlimited')} {...num('reoptimize_per_company_per_day')} />
                     </div>
                     <div className="mt-5 border-t border-stone-100 pt-5">
                         <Toggle

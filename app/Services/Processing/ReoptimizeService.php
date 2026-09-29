@@ -32,7 +32,7 @@ class ReoptimizeService
     {
         $image->loadMissing('batch');
 
-        $daily = (int) config('bora.limits.reoptimize_per_company_per_day');
+        $daily = (int) app(\App\Services\SystemSettings::class)->get('reoptimize_per_company_per_day', 300);
         $dailyKey = 'reoptimize:company:'.$image->batch->company_id;
         if ($daily > 0 && RateLimiter::tooManyAttempts($dailyKey, $daily)) {
             throw new DomainRuleException('reoptimize_daily_limit', status: 429);
@@ -46,7 +46,7 @@ class ReoptimizeService
                 throw new DomainRuleException('image_busy');
             }
 
-            $max = (int) config('bora.limits.reoptimize_per_image');
+            $max = (int) app(\App\Services\SystemSettings::class)->get('reoptimize_per_image', 0);
             if ($max > 0 && $locked->reoptimize_count >= $max) {
                 throw new DomainRuleException('reoptimize_limit', ['max' => $max]);
             }
