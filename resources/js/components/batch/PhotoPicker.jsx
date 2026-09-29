@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Camera, ImagePlus } from 'lucide-react';
 import { cx } from '../ui';
@@ -14,31 +14,18 @@ export default function PhotoPicker({ onFiles, disabled, remaining, compact = fa
     const { t } = useTranslation();
     const library = useRef(null);
     const camera = useRef(null);
-    const [dragging, setDragging] = useState(false);
 
     const pick = (e) => {
         onFiles(e.target.files);
         e.target.value = ''; // allow picking the same file again
     };
 
-    const drop = (e) => {
-        e.preventDefault();
-        setDragging(false);
-        if (!disabled) onFiles(e.dataTransfer.files);
-    };
-
     return (
+        // Drag and drop and paste are handled for the whole page (BatchEdit).
         <div
-            onDragOver={(e) => {
-                e.preventDefault();
-                if (!disabled) setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={drop}
             className={cx(
-                'rounded-3xl border-2 border-dashed text-center transition-colors',
+                'rounded-3xl border-2 border-dashed border-stone-200 bg-white text-center transition-colors hover:border-brand-300',
                 compact ? 'px-4 py-5' : 'px-6 py-10 sm:py-14',
-                dragging ? 'border-brand-500 bg-brand-50' : 'border-stone-200 bg-white',
                 disabled && 'opacity-60',
             )}
         >

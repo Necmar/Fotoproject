@@ -506,3 +506,23 @@ Een aparte review (zonder kennis van hoe de code gebouwd is) vond geen ernstige 
 - **AI eerst:** is OpenAI ingesteld, dan beoordeelt de AI iedere foto en vervangt die beoordeling de eenvoudige lokale controle. Bij het uploaden verschijnen dan geen voorlopige lokale waarschuwingen meer. Alleen als de AI niet beschikbaar is (of uit staat) wordt de lokale controle getoond.
 - **Slimmere lokale controle:** over- en onderbelichting worden bepaald op het toonbereik van de hele foto, niet op hoeveel wit of zwart er is. Witte achtergronden, witte tegels, screenshots en producten op zwart geven geen valse melding meer; een echt uitgebleekte of te donkere foto wel.
 - Tests: `tests/Feature/ExposureCheckTest.php` en twee nieuwe gevallen in `OpenAIProcessingTest`. Totaal 133 tests, alles groen.
+
+## Sneller, op de achtergrond, en een modernere flow
+
+**Achtergrond en snelheid**
+- Na "Optimaliseren" start de verwerking direct (in het webverzoek, nadat de browser zijn antwoord heeft), in plaats van te wachten op de volgende cronminuut.
+- De cronjob draait nu **3 werkers tegelijk** (`BORA_WORKERS`), dus 3 foto's parallel. Dat scheelt veel, omdat de tijd vooral zit in wachten op OpenAI.
+- Vangnet: stopt de cron, dan houdt een open voortgangspagina de wachtrij in beweging.
+- De browser mag dicht; de pagina ververst ook in een achtergrondtabblad, toont de voortgang in de tabtitel ("(7/20) Bora Foto") en kan een melding geven als alles klaar is.
+- **AI-beeldkwaliteit** instelbaar in Super Admin > Systeem: "Snel" (standaard, ongeveer twee keer zo snel en goedkoper) of "Maximaal detail".
+- **Snellere resultatenpagina:** iedere foto krijgt een kleine preview (720 px) voor het overzicht, in plaats van het volledige resultaat van 2000+ px.
+
+**Flow (stap 1 t/m 5)**
+- Stappenbalk: op telefoon "Stap 2 van 5" met voortgangsbalk; op desktop alle stappen, eerdere stappen aanklikbaar.
+- Stap 1: foto's overal op de pagina neerzetten (slepen), of een screenshot plakken met Ctrl+V.
+- Stap 2: eerst de belangrijke keuzes (sterkte en achtergrond, met iconen); uitvoer en watermerk ingeklapt achter een samenvatting; op desktop een vaste samenvatting met de startknop.
+- Stap 3: grote voortgang met bewegende balk, geschatte resterende tijd, hoeveel foto's tegelijk bezig zijn, en de uitleg dat het venster dicht mag. Op iedere foto staat of hij wacht of bezig is.
+- Stap 4: korte uitslag bovenaan, filters (Alle, Aandachtspunten, Mislukt), tik = voor/na, **ingedrukt houden = snel het origineel**.
+- Stap 5: vaste downloadbalk onderaan met "Alles downloaden (n)"; watermerk in een apart venster.
+
+Tests: 135, alles groen. Toegevoegd: `app/Services/Processing/QueueKicker.php`, migratie `add_preview_path_to_images_table`. Gewijzigd onder meer: `app/Console/Commands/Work.php`, `routes/console.php`, `OutputRenderer`, `ImageEditService`, `resources/js/pages/company/{BatchEdit,BatchDetail}.jsx`, `resources/js/components/batch/{Stepper,BatchSettingsForm,PhotoTile,PhotoPicker,DownloadPanel}.jsx`, `resources/js/lib/usePolling.js`.

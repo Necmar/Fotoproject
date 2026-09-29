@@ -65,7 +65,7 @@ Route::middleware(['auth', 'account.active', 'throttle:api'])->group(function ()
         Route::delete('batches/{batch}/images/{image}', [ImageController::class, 'destroy'])
             ->scopeBindings()->name('images.destroy');
         Route::get('images/{image}/{variant}', [ImageController::class, 'file'])
-            ->whereIn('variant', ['original', 'working', 'thumbnail', 'optimized'])->name('images.file');
+            ->whereIn('variant', ['original', 'working', 'thumbnail', 'optimized', 'preview'])->name('images.file');
         Route::get('logo', [LogoController::class, 'show'])->name('logo.show');
         Route::post('logo', [LogoController::class, 'store'])->middleware('throttle:10,1')->name('logo.store');
         Route::delete('logo', [LogoController::class, 'destroy'])->name('logo.destroy');

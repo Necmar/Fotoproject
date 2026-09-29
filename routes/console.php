@@ -23,7 +23,10 @@ if (! app(Installer::class)->isInstalled()) {
 // After an update (upload or Plesk Git): migrations and caches, automatically (production only).
 Schedule::command('bora:deploy')->everyMinute()->withoutOverlapping(10);
 
-Schedule::command('bora:work')->everyMinute()->withoutOverlapping(5);
+// One worker per slot, side by side (in the background, so this cron run ends at once).
+foreach (range(1, (int) config('bora.queue.workers')) as $slot) {
+    Schedule::command('bora:work', ['--slot' => $slot])->everyMinute()->withoutOverlapping(10)->runInBackground();
+}
 
 // Re-queue photos that made no progress (lost jobs, crashed runs).
 Schedule::command('bora:recover-stuck')->everyTenMinutes()->withoutOverlapping();

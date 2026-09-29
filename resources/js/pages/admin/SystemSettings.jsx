@@ -4,6 +4,7 @@ import api, { errorMessage, fieldErrors } from '../../lib/api';
 import { useFetch } from '../../lib/useFetch';
 import { useAuth } from '../../auth/AuthContext';
 import MailSettingsCard from '../../components/admin/MailSettingsCard';
+import { Choice } from '../../components/batch/BatchSettingsForm';
 import { Alert, Button, Card, Input, PageHeader, Spinner, Toggle } from '../../components/ui';
 
 export default function SystemSettings() {
@@ -99,6 +100,16 @@ export default function SystemSettings() {
                             checked={!!form.ai_enabled}
                             onChange={(v) => setForm({ ...form, ai_enabled: v })}
                         />
+                        <div className="mt-5">
+                            <Choice
+                                label={t('admin.settings.ai_image_quality')}
+                                options={['medium', 'high'].map((v) => ({ value: v, label: t(`admin.settings.ai_quality.${v}`), description: t(`admin.settings.ai_quality.${v}_text`) }))}
+                                value={form.ai_image_quality ?? 'medium'}
+                                onChange={(v) => setForm({ ...form, ai_image_quality: v })}
+                                describe
+                                columns="grid-cols-1 sm:grid-cols-2"
+                            />
+                        </div>
                     </div>
                 </Card>
 

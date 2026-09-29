@@ -23,7 +23,8 @@ class ImageEditService
             'model' => $model,
             'prompt' => $prompt,
             'n' => 1,
-            'quality' => (string) config('services.openai.image_quality', 'high'),
+            // Set by the Super Admin (Systeem > Verwerking): medium = faster, high = finest detail.
+            'quality' => (string) app(\App\Services\SystemSettings::class)->get('ai_image_quality', config('services.openai.image_quality', 'medium')),
             'output_format' => $transparent ? 'png' : 'jpeg',
         ];
 

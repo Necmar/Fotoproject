@@ -33,6 +33,8 @@ return [
         'max_images_per_batch' => 30,
         'max_upload_mb' => (int) env('BORA_MAX_UPLOAD_MB', 25),
         'ai_enabled' => (bool) env('BORA_AI_ENABLED', true),
+        // AI edit quality: "medium" is roughly twice as fast (and cheaper) as "high".
+        'ai_image_quality' => env('OPENAI_IMAGE_QUALITY', 'medium'),
         'maintenance_message' => null,
     ],
 
@@ -83,6 +85,14 @@ return [
     'queue' => [
         'images' => env('BORA_QUEUE_IMAGES', 'images'),
         'max_time' => (int) env('BORA_WORKER_MAX_TIME', 50),
+        // Photos processed at the same time. Mostly waiting on OpenAI, so a few
+        // parallel workers speed a batch up a lot without much server load.
+        'workers' => max(1, (int) env('BORA_WORKERS', 3)),
+        // Start processing right after "Optimaliseren" (in the web request, after
+        // the response is sent) instead of waiting for the next cron minute.
+        // auto = only where PHP-FPM can finish the response first; always/never.
+        'web_kick' => env('BORA_WEB_KICK', 'auto'),
+        'web_max_time' => (int) env('BORA_WEB_WORKER_MAX_TIME', 25),
         'job_timeout' => (int) env('BORA_JOB_TIMEOUT', 240),
         'tries' => (int) env('BORA_JOB_TRIES', 3),
         // Seconds between retries (exponential).
@@ -99,6 +109,7 @@ return [
         'working_max_side' => 3072,
         'working_quality' => 92,
         'thumbnail_side' => 480,
+        'preview_side' => 720,
         'thumbnail_quality' => 80,
         // Raised temporarily for large photos when the host allows ini_set.
         'memory_limit' => env('BORA_PROCESSING_MEMORY', '1024M'),

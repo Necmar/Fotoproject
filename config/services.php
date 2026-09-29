@@ -49,7 +49,7 @@ return [
         // Empty = do not send (for models without reasoning support).
         'analysis_reasoning' => env('OPENAI_ANALYSIS_REASONING', 'low'),
         'image_model' => env('OPENAI_IMAGE_MODEL', 'gpt-image-2'),
-        'image_quality' => env('OPENAI_IMAGE_QUALITY', 'high'),
+        'image_quality' => env('OPENAI_IMAGE_QUALITY', 'medium'),
         // Only sent to models that use it (gpt-image-1.x); gpt-image-2 always keeps high fidelity.
         'input_fidelity' => env('OPENAI_INPUT_FIDELITY', 'high'),
 

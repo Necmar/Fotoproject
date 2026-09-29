@@ -79,19 +79,46 @@ class QueueProcessingTest extends TestCase
         $this->assertNotNull(Cache::get(QueueHealth::HEARTBEAT_KEY));
     }
 
-    public function test_only_one_worker_runs_at_a_time(): void
+    public function test_a_worker_slot_never_runs_twice(): void
     {
         $this->useDatabaseQueue();
+        config(['bora.queue.workers' => 2]);
         $this->startedBatch(1);
 
-        $lock = Cache::lock('bora:worker', 60);
+        $lock = Cache::lock('bora:worker:1', 60);
         $lock->get();
 
-        $this->artisan('bora:work')->expectsOutputToContain('al een worker')->assertSuccessful();
-        $this->assertSame(1, DB::table('jobs')->count(), 'nothing processed while locked');
+        $this->artisan('bora:work', ['--slot' => 1])->expectsOutputToContain('al een worker')->assertSuccessful();
+        $this->assertSame(1, DB::table('jobs')->count(), 'nothing processed while the slot is busy');
 
+        // "any" takes the next free slot.
+        $this->artisan('bora:work', ['--slot' => 'any'])->assertSuccessful();
+        $this->assertSame(0, DB::table('jobs')->count());
         $lock->release();
-        $this->artisan('bora:work')->assertSuccessful();
+    }
+
+    public function test_optimise_starts_processing_right_away_without_waiting_for_cron(): void
+    {
+        $this->useDatabaseQueue();
+        config(['bora.queue.web_kick' => 'always']);
+
+        // Starting the batch runs a worker after the response (terminating callback).
+        $batch = $this->startedBatch(2);
+
+        $this->assertSame(0, DB::table('jobs')->count());
+        $this->assertSame('completed', $batch->fresh()->status->value);
+    }
+
+    public function test_progress_polling_keeps_the_queue_moving_when_cron_has_stalled(): void
+    {
+        $this->useDatabaseQueue();
+        $batch = $this->startedBatch(1);
+        $this->assertSame(1, DB::table('jobs')->count());
+
+        config(['bora.queue.web_kick' => 'always']);
+        Cache::put(\App\Services\Processing\QueueHealth::HEARTBEAT_KEY, now()->subMinutes(5)->toIso8601String());
+        $this->getJson("/api/company/batches/{$batch->id}")->assertOk();
+
         $this->assertSame(0, DB::table('jobs')->count());
     }
 

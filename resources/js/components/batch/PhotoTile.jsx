@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, CheckCircle2, Columns2, Download, RefreshCw, ImageIcon, Loader2, RotateCcw, Trash2, XCircle } from 'lucide-react';
 import { formatBytes } from '../../lib/format';
@@ -95,19 +96,90 @@ export function LocalPhotoTile({ item, onRetry, onRemove }) {
     );
 }
 
+const WORKING = ['analyzing', 'processing', 'finalizing'];
+
+/** Overlay while a photo waits or is being processed. */
+function StageOverlay({ status }) {
+    const { t } = useTranslation();
+    if (status === 'queued' || status === 'uploaded') {
+        return (
+            <span className="absolute top-2 left-2 rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-stone-600 shadow-sm">
+                {t('enums.image_status.queued')}
+            </span>
+        );
+    }
+    if (!WORKING.includes(status)) return null;
+
+    return (
+        <div className="absolute inset-0 grid place-items-center bg-stone-900/35 backdrop-blur-[1px]">
+            <span className="inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 text-xs font-medium text-brand-800 shadow-sm">
+                <Loader2 className="size-3.5 animate-spin" aria-hidden /> {t(`enums.image_status.${status}`)}
+            </span>
+        </div>
+    );
+}
+
 /** A photo stored on the server. */
 export function ServerPhotoTile({ image, onRemove, removing, showStatus = false, onOpen, watermarkSelectable = false, onToggleWatermark }) {
     const { t, i18n } = useTranslation();
     const warnings = image.warnings ?? [];
+    const result = image.urls.preview ?? image.urls.optimized;
+    const [original, setOriginal] = useState(false);
+    const hold = useRef({ timer: null, held: false });
+
+    // Press and hold (touch or mouse) shows the original; a short tap opens the viewer.
+    const canCompare = !!(result && image.urls.thumbnail);
+    const down = () => {
+        if (!canCompare) return;
+        hold.current.held = false;
+        hold.current.timer = setTimeout(() => {
+            hold.current.held = true;
+            setOriginal(true);
+        }, 180);
+    };
+    const up = () => {
+        clearTimeout(hold.current.timer);
+        setOriginal(false);
+    };
+    const click = () => {
+        if (hold.current.held) {
+            hold.current.held = false;
+            return;
+        }
+        onOpen(image);
+    };
+
+    const thumb = (
+        <Thumb
+            src={original ? image.urls.thumbnail : (result ?? image.urls.thumbnail)}
+            alt={image.original_filename}
+            overlay={
+                <>
+                    {showStatus && <StageOverlay status={image.status} />}
+                    {original && <span className="absolute top-2 left-2 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white">{t('viewer.before')}</span>}
+                </>
+            }
+        />
+    );
 
     return (
-        <div className="min-w-0 rounded-2xl bg-white ring-1 ring-stone-200/80">
+        <div className="min-w-0 overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200/80 transition hover:shadow-md">
             {onOpen ? (
-                <button type="button" onClick={() => onOpen(image)} className="block w-full" aria-label={t('viewer.open', { name: image.original_filename })}>
-                    <Thumb src={image.urls.optimized ?? image.urls.thumbnail} alt={image.original_filename} />
+                <button
+                    type="button"
+                    onClick={click}
+                    onPointerDown={down}
+                    onPointerUp={up}
+                    onPointerLeave={up}
+                    onPointerCancel={up}
+                    onContextMenu={(e) => canCompare && e.preventDefault()}
+                    className="block w-full touch-manipulation select-none [-webkit-touch-callout:none]"
+                    aria-label={t('viewer.open', { name: image.original_filename })}
+                >
+                    {thumb}
                 </button>
             ) : (
-                <Thumb src={image.urls.optimized ?? image.urls.thumbnail} alt={image.original_filename} />
+                thumb
             )}
             <div className="space-y-1.5 p-3">
                 <div className="flex items-start justify-between gap-2">
@@ -129,7 +201,8 @@ export function ServerPhotoTile({ image, onRemove, removing, showStatus = false,
                 <div className="flex items-center justify-between gap-2 text-xs text-stone-500">
                     <span>{formatBytes(image.original_size, i18n.language)}</span>
                     {showStatus ? (
-                        <ImageStatusBadge status={image.status} />
+                        // Waiting/working is shown on the photo itself.
+                        ['completed', 'failed'].includes(image.status) && <ImageStatusBadge status={image.status} />
                     ) : (
                         <span className="inline-flex items-center gap-1 text-emerald-700">
                             <CheckCircle2 className="size-3.5" aria-hidden /> {t('upload.status.uploaded')}

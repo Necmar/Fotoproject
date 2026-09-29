@@ -23,6 +23,7 @@ class UpdateSystemSettingsRequest extends FormRequest
             'max_images_per_batch' => ['sometimes', 'integer', "between:1,{$l['max_images_per_batch']}"],
             'max_upload_mb' => ['sometimes', 'integer', "between:1,{$l['max_upload_mb_max']}"],
             'ai_enabled' => ['sometimes', 'boolean'],
+            'ai_image_quality' => ['sometimes', 'in:medium,high'],
             'maintenance_message' => ['sometimes', 'nullable', 'string', 'max:500'],
         ];
     }

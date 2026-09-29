@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, ArrowRight, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Clock, ImagePlus, ShieldCheck, Sparkles, Trash2 } from 'lucide-react';
 import api, { errorMessage, fieldErrors } from '../../lib/api';
 import { useFetch } from '../../lib/useFetch';
 import { useWakeLock } from '../../lib/useWakeLock';
@@ -64,6 +64,47 @@ function Wizard({ initial }) {
         return () => window.removeEventListener('beforeunload', handler);
     }, [queue.busy]);
 
+    // Step 1: drop photos anywhere on the page, or paste them (e.g. a screenshot) with Ctrl/Cmd+V.
+    const [dragging, setDragging] = useState(false);
+    useEffect(() => {
+        if (step !== 1) return undefined;
+        let depth = 0;
+        const hasFiles = (e) => Array.from(e.dataTransfer?.types ?? []).includes('Files');
+        const enter = (e) => {
+            if (!hasFiles(e)) return;
+            depth += 1;
+            setDragging(true);
+        };
+        const leave = () => {
+            depth = Math.max(0, depth - 1);
+            if (depth === 0) setDragging(false);
+        };
+        const over = (e) => hasFiles(e) && e.preventDefault();
+        const drop = (e) => {
+            if (!hasFiles(e)) return;
+            e.preventDefault();
+            depth = 0;
+            setDragging(false);
+            queue.add(e.dataTransfer.files);
+        };
+        const paste = (e) => {
+            const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith('image/'));
+            if (files.length) queue.add(files);
+        };
+        window.addEventListener('dragenter', enter);
+        window.addEventListener('dragleave', leave);
+        window.addEventListener('dragover', over);
+        window.addEventListener('drop', drop);
+        document.addEventListener('paste', paste);
+        return () => {
+            window.removeEventListener('dragenter', enter);
+            window.removeEventListener('dragleave', leave);
+            window.removeEventListener('dragover', over);
+            window.removeEventListener('drop', drop);
+            document.removeEventListener('paste', paste);
+        };
+    }, [step, queue.add]);
+
     const removeImage = async (image) => {
         setRemoving(image.id);
         try {
@@ -99,8 +140,17 @@ function Wizard({ initial }) {
     return (
         <div className="mx-auto max-w-5xl">
             <div className="mb-8">
-                <Stepper current={step === 1 ? 1 : 2} />
+                <Stepper current={step === 1 ? 1 : 2} onStep={(s) => s === 1 && setStep(1)} />
             </div>
+
+            {dragging && (
+                <div className="pointer-events-none fixed inset-0 z-50 grid place-items-center bg-brand-900/30 p-6 backdrop-blur-sm">
+                    <div className="rounded-3xl border-2 border-dashed border-white bg-white/90 px-10 py-12 text-center shadow-xl">
+                        <ImagePlus className="mx-auto size-10 text-brand-600" aria-hidden />
+                        <p className="mt-3 text-lg font-semibold">{t('upload.drop_here')}</p>
+                    </div>
+                </div>
+            )}
 
             {notice && (
                 <Alert type={notice.type} onClose={() => setNotice(null)} className="mb-6">
@@ -116,6 +166,7 @@ function Wizard({ initial }) {
                                 {t('batch.steps.photos')}
                             </h1>
                             <p className="mt-1 text-stone-500">{t('batch.photos_intro', { max: maxFiles })}</p>
+                            <p className="mt-1 hidden text-sm text-stone-400 sm:block">{t('upload.drop_paste_hint')}</p>
                         </div>
                         {images.length > 0 && (
                             <p className="text-sm text-stone-500">
@@ -162,9 +213,40 @@ function Wizard({ initial }) {
                     </h1>
                     <p className="mb-6 text-stone-500">{t('batch.settings_intro', { count: images.length })}</p>
 
-                    <BatchSettingsForm value={form} onChange={setForm} hasLogo={!!user.company?.has_logo} errors={errors} />
+                    <div className="lg:grid lg:grid-cols-[1fr_20rem] lg:items-start lg:gap-6">
+                        <BatchSettingsForm value={form} onChange={setForm} hasLogo={!!user.company?.has_logo} errors={errors} />
 
-                    <StickyActions>
+                        {/* Desktop: summary with the start button always in view. */}
+                        <aside className="hidden lg:sticky lg:top-24 lg:block">
+                            <div className="rounded-2xl bg-white p-5 ring-1 ring-stone-200/80">
+                                <div className="grid grid-cols-3 gap-1.5 overflow-hidden rounded-xl">
+                                    {images.slice(0, 6).map((image) => (
+                                        <img key={image.id} src={image.urls.thumbnail} alt="" className="aspect-square size-full rounded-md object-cover" />
+                                    ))}
+                                </div>
+                                <p className="mt-4 font-semibold">{t('batch.photo_count_short', { count: images.length })}</p>
+                                <ul className="mt-3 space-y-2 text-sm text-stone-600">
+                                    <li className="flex gap-2">
+                                        <Sparkles className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden /> {t('batch.summary.per_photo')}
+                                    </li>
+                                    <li className="flex gap-2">
+                                        <ShieldCheck className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden /> {t('batch.summary.integrity')}
+                                    </li>
+                                    <li className="flex gap-2">
+                                        <Clock className="mt-0.5 size-4 shrink-0 text-brand-600" aria-hidden /> {t('batch.summary.background')}
+                                    </li>
+                                </ul>
+                                <Button size="lg" icon={Sparkles} loading={starting} onClick={start} className="mt-5 w-full">
+                                    {t('batch.start', { count: images.length })}
+                                </Button>
+                                <Button variant="ghost" icon={ArrowLeft} onClick={() => setStep(1)} className="mt-2 w-full">
+                                    {t('batch.back_photos')}
+                                </Button>
+                            </div>
+                        </aside>
+                    </div>
+
+                    <StickyActions className="lg:hidden">
                         <Button variant="ghost" icon={ArrowLeft} onClick={() => setStep(1)}>
                             {t('batch.back_photos')}
                         </Button>
@@ -197,9 +279,9 @@ function Wizard({ initial }) {
 }
 
 /** Primary actions stay reachable at the bottom of the screen on phones. */
-function StickyActions({ children }) {
+function StickyActions({ children, className }) {
     return (
-        <div className="sticky bottom-0 z-10 -mx-4 mt-8 border-t border-stone-200/70 bg-stone-50/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pt-0 sm:pb-0">
+        <div className={`sticky bottom-0 z-10 -mx-4 mt-8 border-t border-stone-200/70 bg-stone-50/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pt-0 sm:pb-0 ${className ?? ''}`}>
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">{children}</div>
         </div>
     );

@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Download } from 'lucide-react';
 import api, { errorMessage } from '../../lib/api';
 import { useAuth } from '../../auth/AuthContext';
 import { Choice } from './BatchSettingsForm';
-import { Alert, Button, Card } from '../ui';
+import { Alert } from '../ui';
 
 /**
- * Step 5: download everything as ZIP, and choose the watermark. The
- * watermark is only added to downloads, so it can be changed at any time.
+ * Step 5: watermark choice for downloads (shown in a dialog from the download
+ * bar). The watermark is only added to downloads, so it can change any time.
  */
 export default function DownloadPanel({ batch, onBatchChange }) {
     const { t } = useTranslation();
@@ -39,18 +38,8 @@ export default function DownloadPanel({ batch, onBatchChange }) {
     const opts = (key, group) => (meta?.options?.[key] ?? []).map((v) => ({ value: v, label: t(`enums.${group}.${v}`) }));
 
     return (
-        <Card className="mb-8 space-y-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h2 className="font-semibold">{t('download.title')}</h2>
-                    <p className="text-sm text-stone-500">{t('download.text', { count: batch.progress.completed })}</p>
-                </div>
-                <Button size="lg" icon={Download} onClick={() => (window.location.href = batch.download_url)} disabled={!batch.download_url}>
-                    {t('download.zip')}
-                </Button>
-            </div>
-
-            <div className="space-y-4 border-t border-stone-100 pt-5">
+        <div className="space-y-5">
+            <div className="space-y-4">
                 {!hasLogo ? (
                     <p className="text-sm text-stone-500">{t('batch.settings.no_logo')}</p>
                 ) : (
@@ -84,6 +73,6 @@ export default function DownloadPanel({ batch, onBatchChange }) {
                 )}
                 <Alert type="error">{error}</Alert>
             </div>
-        </Card>
+        </div>
     );
 }
