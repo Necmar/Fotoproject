@@ -569,3 +569,9 @@ Tests: 135, alles groen. Toegevoegd: `app/Services/Processing/QueueKicker.php`, 
 - Drempel instelbaar via `OPENAI_CUTOUT_MAX_ERROR` (standaard 0.16). Meetwaarden staan per foto in `analysis.cutout` voor diagnose.
 - Gewijzigd: `app/Services/Images/ProductCompositor.php`, `app/Services/OpenAI/AiImageProcessor.php`, `config/services.php`; nieuw: `tests/Unit/ProductCompositorTest.php`.
 - Testen: foto met achtergrondoptie "Verwijderen" of "Neutraal" opnieuw optimaliseren.
+
+## Uitsnijden: echte oorzaak opgelost
+
+- **Oorzaak:** de aanvraag voor de uitsnede vroeg OpenAI om een *transparante* achtergrond, terwijl de prompt om een egale sleutelkleur vroeg. Het model gaf een transparante PNG terug; transparante pixels lezen als zwart, dus zag de app de hele foto als "product" en keurde de uitsnede af. Dit gebeurde bij iedere foto.
+- **Opgelost:** uitsnedes worden nu met `background=opaque` aangevraagd (weigert een model die optie, dan gaat hij zonder). Komt er toch een transparante PNG terug, dan wordt de transparantie eerst op de sleutelkleur gezet, zodat het masker altijd klopt.
+- Gewijzigd: `app/Services/OpenAI/ImageEditService.php`, `app/Services/OpenAI/AiImageProcessor.php`, `tests/Feature/OpenAIProcessingTest.php`. Tests: 144, alles groen.

@@ -261,6 +261,30 @@ class OpenAIProcessingTest extends TestCase
         $this->assertSame(0, (imagecolorat($png, 800, 600) >> 24) & 0x7F, 'opaque product');
     }
 
+    public function test_a_transparent_cutout_still_gives_a_reliable_mask(): void
+    {
+        // Some models answer a cut-out with a transparent PNG (transparent pixels read as black).
+        $this->fakeOpenAI($this->analysis(), null, function (Request $r) {
+            $this->assertStringContainsString('opaque', (string) $r->body());
+            $img = imagecreatetruecolor(1600, 1200);
+            imagealphablending($img, false);
+            imagesavealpha($img, true);
+            imagefill($img, 0, 0, imagecolorallocatealpha($img, 0, 0, 0, 127));
+            imagefilledrectangle($img, 400, 300, 1200, 900, imagecolorallocatealpha($img, 200, 30, 30, 0));
+            ob_start();
+            imagepng($img);
+
+            return Http::response(['data' => [['b64_json' => base64_encode(ob_get_clean())]], 'usage' => []]);
+        });
+        $batch = $this->batch(['strength' => 'subtle', 'background' => 'neutral']);
+
+        $this->artisan('bora:work')->assertSuccessful();
+
+        $image = $batch->images()->first();
+        $this->assertSame('edited', $image->ai_status);
+        $this->assertNotContains('ai_cutout_failed', array_column($image->warnings ?? [], 'code'));
+    }
+
     public function test_a_cutout_that_misses_the_product_falls_back_safely(): void
     {
         // The "cut-out" is only key colour: no product found.
