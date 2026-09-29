@@ -500,3 +500,9 @@ Een aparte review (zonder kennis van hoe de code gebouwd is) vond geen ernstige 
 - **Zonder e-mail** (standaard zolang niets is ingesteld): bedrijven krijgen een wachtwoord van de Super Admin in plaats van een uitnodigingsmail, e-mailadressen hoeven niet bevestigd te worden, "wachtwoord vergeten" en de melding "batch klaar" zijn uit. Resultaten zijn gewoon in het portaal te zien.
 - Systeemcontrole: "E-mail: uit (niet nodig)" is in orde.
 - Toegevoegd: `app/Services/Mail/MailSettings.php`, `app/Http/Controllers/Api/Admin/MailController.php`, `resources/js/components/admin/MailSettingsCard.jsx`, `tests/Feature/MailSettingsTest.php`. Tests: 126, alles groen.
+
+## Betrouwbaardere waarschuwingen voor over- en onderbelichting
+
+- **AI eerst:** is OpenAI ingesteld, dan beoordeelt de AI iedere foto en vervangt die beoordeling de eenvoudige lokale controle. Bij het uploaden verschijnen dan geen voorlopige lokale waarschuwingen meer. Alleen als de AI niet beschikbaar is (of uit staat) wordt de lokale controle getoond.
+- **Slimmere lokale controle:** over- en onderbelichting worden bepaald op het toonbereik van de hele foto, niet op hoeveel wit of zwart er is. Witte achtergronden, witte tegels, screenshots en producten op zwart geven geen valse melding meer; een echt uitgebleekte of te donkere foto wel.
+- Tests: `tests/Feature/ExposureCheckTest.php` en twee nieuwe gevallen in `OpenAIProcessingTest`. Totaal 133 tests, alles groen.

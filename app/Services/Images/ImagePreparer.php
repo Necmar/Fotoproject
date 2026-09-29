@@ -4,7 +4,9 @@ namespace App\Services\Images;
 
 use App\Exceptions\DomainRuleException;
 use App\Models\Image;
+use App\Services\OpenAI\OpenAIClient;
 use App\Services\Storage\LocalFiles;
+use App\Services\SystemSettings;
 use App\Services\Storage\StorageAccounting;
 use Illuminate\Support\Str;
 
@@ -27,6 +29,8 @@ class ImagePreparer
         private readonly LocalEnhancer $enhancer,
         private readonly LocalFiles $files,
         private readonly StorageAccounting $storage,
+        private readonly OpenAIClient $openai,
+        private readonly SystemSettings $system,
     ) {}
 
     public function prepare(Image $image): Image
@@ -84,7 +88,9 @@ class ImagePreparer
                 'thumbnail_path' => $thumbPath,
                 'perceptual_hash' => $hash,
                 'analysis' => array_replace($image->analysis ?? [], ['local' => $metrics]),
-                'warnings' => $this->mergeWarnings($image->warnings ?? [], 'local', $this->enhancer->warnings($metrics)),
+                // With AI the analysis judges the photo shortly; the simple local
+                // check would only give false alarms (e.g. a white background) until then.
+                'warnings' => $this->mergeWarnings($image->warnings ?? [], 'local', $this->aiWillJudge() ? [] : $this->enhancer->warnings($metrics)),
             ])->save();
 
             if ($previous) {
@@ -100,6 +106,12 @@ class ImagePreparer
                 @unlink($converted);
             }
         }
+    }
+
+    /** Same condition as AiImageProcessor::isActive (not injected: that class depends on this one). */
+    private function aiWillJudge(): bool
+    {
+        return $this->openai->isConfigured() && (bool) $this->system->get('ai_enabled', true);
     }
 
     /**
