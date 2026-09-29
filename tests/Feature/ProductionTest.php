@@ -35,6 +35,14 @@ class ProductionTest extends TestCase
         $this->assertNotNull($checks['debug']['hint']);
     }
 
+    public function test_heic_and_equal_upload_limits_are_not_reported_as_problems(): void
+    {
+        $checks = collect(app(\App\Services\System\HealthCheck::class)->run())->keyBy('key');
+
+        $this->assertSame('ok', $checks['heic_server']['status']);
+        $this->assertNull($checks['heic_server']['hint']);
+    }
+
     public function test_deploy_runs_once_per_new_version(): void
     {
         $version = base_path('VERSION');

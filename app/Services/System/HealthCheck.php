@@ -52,7 +52,8 @@ class HealthCheck
         }
         $this->add('extensions', $missing ? self::ERROR : self::OK, $missing ? implode(', ', $missing) : null);
 
-        $this->add('heic_server', $this->heic->isAvailable() ? self::OK : self::WARNING);
+        // Not a problem either way: browsers convert HEIC to JPG before uploading.
+        $this->add('heic_server', self::OK, $this->heic->isAvailable() ? __('health.heic_server.server') : __('health.heic_server.browser'));
 
         $memory = MemoryGuard::limit();
         $this->add('memory_limit', $memory === -1 || $memory >= 512 * 1024 * 1024 ? self::OK : ($memory >= 256 * 1024 * 1024 ? self::WARNING : self::ERROR), (string) ini_get('memory_limit'));
@@ -60,7 +61,10 @@ class HealthCheck
         $maxUpload = $this->settings->maxUploadMb() * 1024 * 1024;
         $upload = MemoryGuard::toBytes((string) ini_get('upload_max_filesize'));
         $post = MemoryGuard::toBytes((string) ini_get('post_max_size'));
-        $this->add('upload_limits', ($upload === -1 || $upload >= min($maxUpload, 16 * 1024 * 1024)) && ($post === -1 || $post > $upload) ? self::OK : self::WARNING,
+        // One photo per request: both limits must fit the largest allowed photo (plus a little for the form).
+        $uploadOk = $upload === -1 || $upload >= $maxUpload;
+        $postOk = $post === 0 || $post === -1 || $post >= $maxUpload + 1024 * 1024;
+        $this->add('upload_limits', $uploadOk && $postOk ? self::OK : self::WARNING,
             ini_get('upload_max_filesize').' / '.ini_get('post_max_size'));
 
         $time = (int) ini_get('max_execution_time');
