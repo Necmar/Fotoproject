@@ -27,9 +27,13 @@ class EditInstructionBuilder
         'Keep the camera angle, framing and composition.',
     ];
 
-    public function build(array $analysis, BatchSettings $settings, bool $transparentBackground): string
+    public function build(array $analysis, BatchSettings $settings, bool $transparentBackground, bool $conservative = false): string
     {
         $lines = ['Edit this product photograph for an online advertisement.', '', 'STRICT RULES (never break these):'];
+        if ($conservative) {
+            // Second attempt after an edit that changed the product.
+            array_splice($lines, 1, 0, ['A previous edit of this photo changed the product and was rejected. This time make only minimal, global corrections of light and colour, and change the background only as far as the background option below requires. Leave the product itself visually identical to the original.']);
+        }
 
         foreach (self::INTEGRITY_RULES as $i => $rule) {
             $lines[] = ($i + 1).'. '.$rule;
@@ -49,7 +53,7 @@ class EditInstructionBuilder
         }
 
         $lines[] = '';
-        $lines[] = 'IMAGE QUALITY: '.$this->strengthText($settings->strength);
+        $lines[] = 'IMAGE QUALITY: '.$this->strengthText($conservative ? OptimizationStrength::Subtle : $settings->strength);
 
         $problems = array_keys(array_filter($analysis['issues'] ?? []));
         if ($problems) {

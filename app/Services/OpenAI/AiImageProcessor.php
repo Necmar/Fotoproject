@@ -96,23 +96,30 @@ class AiImageProcessor
         }
 
         $transparent = $settings->background->value === 'remove' && $settings->outputFormat->value === 'png';
-        $prompt = $this->instructions->build($analysis, $settings, $transparent);
-        $started = microtime(true);
-
-        try {
-            $edit = $this->editor->edit($image->working_path, $prompt, $transparent, $this->files->tempPath('img'));
-        } catch (OpenAIException $e) {
-            $this->record($image, $type, $started, null, $e);
-            throw $e;
-        }
-
-        $this->record($image, $type, $started, $edit['usage']);
-
-        $diskPath = $image->batch->storageDirectory().'/ai/'.Str::ulid()->toBase32().'.'.$edit['extension'];
-        $bytes = $this->commit($image, $edit['path'], $diskPath);
-
+        $attempts = config('services.openai.retry_rejected_edit') && config('services.openai.verify_edits') ? 2 : 1;
         $warnings = [];
-        if (config('services.openai.verify_edits')) {
+
+        for ($attempt = 1; ; $attempt++) {
+            // The second attempt (after a rejected edit) asks for a more conservative edit.
+            $prompt = $this->instructions->build($analysis, $settings, $transparent, conservative: $attempt > 1);
+            $started = microtime(true);
+
+            try {
+                $edit = $this->editor->edit($image->working_path, $prompt, $transparent, $this->files->tempPath('img'));
+            } catch (OpenAIException $e) {
+                $this->record($image, $type, $started, null, $e);
+                throw $e;
+            }
+
+            $this->record($image, $type, $started, $edit['usage']);
+
+            $diskPath = $image->batch->storageDirectory().'/ai/'.Str::ulid()->toBase32().'.'.$edit['extension'];
+            $bytes = $this->commit($image, $edit['path'], $diskPath);
+
+            if (! config('services.openai.verify_edits')) {
+                break;
+            }
+
             $started = microtime(true);
 
             try {
@@ -125,18 +132,25 @@ class AiImageProcessor
             }
 
             $this->record($image, ProcessingType::Analysis, $started, $check['usage']);
-            $image->forceFill(['analysis' => array_replace($image->analysis ?? [], ['verification' => $check['result']])])->save();
+            $image->forceFill(['analysis' => array_replace($image->analysis ?? [], ['verification' => $check['result'], 'edit_attempts' => $attempt])])->save();
 
-            if (! $check['accepted']) {
-                $this->files->disk()->delete($diskPath);
-                $this->storage->add($image->batch, -$bytes);
-                $this->addWarnings($image, 'ai_edit', [['code' => 'ai_edit_rejected']]);
-
-                return ['status' => AiStatus::EditRejected] + $local;
+            if ($check['accepted']) {
+                if ($check['result']['people_remaining'] ?? false) {
+                    $warnings[] = ['code' => 'people_not_removed'];
+                }
+                break;
             }
 
-            if ($check['result']['people_remaining'] ?? false) {
-                $warnings[] = ['code' => 'people_not_removed'];
+            $this->files->disk()->delete($diskPath);
+            $this->storage->add($image->batch, -$bytes);
+
+            if ($attempt >= $attempts) {
+                $reason = trim((string) ($check['result'][app()->getLocale() === 'en' ? 'reason_en' : 'reason_nl'] ?? ''));
+                $this->addWarnings($image, 'ai_edit', [$reason !== ''
+                    ? ['code' => 'ai_edit_rejected_reason', 'params' => ['reason' => rtrim($reason, '.')]]
+                    : ['code' => 'ai_edit_rejected']]);
+
+                return ['status' => AiStatus::EditRejected] + $local;
             }
         }
 

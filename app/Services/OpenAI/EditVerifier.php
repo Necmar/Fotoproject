@@ -4,12 +4,41 @@ namespace App\Services\OpenAI;
 
 /**
  * Integrity check after a generative edit: a second vision call compares the
- * original and the edited photo. Any change to the product (colour, damage,
- * text, logos, plate, parts) rejects the edit; the photo then gets local
- * corrections instead. Enabled by default (OPENAI_VERIFY_EDITS).
+ * original and the edited photo. A real change to the product (other shape or
+ * parts, other paint/material colour, damage hidden, text/logos/plate altered,
+ * product looking fake) rejects the edit; the photo then gets the analysis
+ * corrections instead. Better light, white balance, contrast, sharpness, less
+ * noise and a cleaner background are the purpose of the edit and never count.
+ * Enabled by default (OPENAI_VERIFY_EDITS).
  */
 class EditVerifier
 {
+    public const CHECKS = ['product_identity_changed', 'product_colour_changed', 'damage_hidden_or_changed', 'text_or_logos_altered', 'license_plate_altered', 'product_looks_fake', 'people_still_visible'];
+
+    private const SYSTEM = <<<'TXT'
+    You check a product photo edit for an online advert. Image A is the original, image B the edited version.
+    The edit was ASKED to improve presentation: exposure, brightness, contrast, white balance, colour cast, shadows,
+    highlights, sharpness, noise, straightening and (depending on the options) the background or people around the product.
+    Those improvements are the goal and are NEVER a problem, even when they make the product look lighter, cleaner or
+    differently lit. A car that looks less blue-tinted after white balance correction has NOT changed colour.
+    Small re-rendering differences in fine texture are fine, unless they alter a detail that matters to a buyer.
+
+    Only report a real change to the PRODUCT itself, the kind a buyer would call misleading:
+    - product_identity_changed: other shape or model, parts added, removed or reshaped (mirrors, wheels, handles, buttons...).
+    - product_colour_changed: the actual paint or material colour is different (e.g. silver became white, red became orange),
+      beyond what better lighting or white balance explains.
+    - damage_hidden_or_changed: a visible scratch, dent, crack, stain, wear or damaged part in A is gone, smaller or different in B.
+    - text_or_logos_altered: letters, digits, logos, labels or displays ON THE PRODUCT are changed, garbled, added or removed.
+    - license_plate_altered: the licence plate characters differ or became unreadable.
+    - product_looks_fake: the product looks clearly artificial (CGI, plastic, painted) instead of a real photo.
+    - people_still_visible: people who are not part of the product are still visible in B.
+    Judge only what you can actually see; do not guess. Background changes never count as product changes.
+    TXT;
+
+    private const QUESTION = 'Answer each check. In notes, describe briefly (English) what differs. '
+        .'In reason_nl and reason_en give ONE short sentence (Dutch and English) naming the most important product change '
+        .'if any check (except people_still_visible) is true, for example "de tekst op het label is veranderd"; otherwise an empty string.';
+
     public function __construct(
         private readonly OpenAIClient $client,
         private readonly ImageInput $input,
@@ -23,13 +52,13 @@ class EditVerifier
         $payload = [
             'model' => $model,
             'input' => [
-                ['role' => 'system', 'content' => [['type' => 'input_text', 'text' => 'You are a strict quality inspector. Compare image A (original) with image B (edited). Only judge the PRODUCT, not the background. Be conservative: when in doubt, report a change.']]],
+                ['role' => 'system', 'content' => [['type' => 'input_text', 'text' => self::SYSTEM]]],
                 ['role' => 'user', 'content' => [
                     ['type' => 'input_text', 'text' => 'Image A (original):'],
                     ['type' => 'input_image', 'image_url' => $this->input->dataUrl($originalPath), 'detail' => 'high'],
                     ['type' => 'input_text', 'text' => 'Image B (edited):'],
                     ['type' => 'input_image', 'image_url' => $this->input->dataUrl($editedPath), 'detail' => 'high'],
-                    ['type' => 'input_text', 'text' => 'Did the edit change the product itself? Check shape, parts added/removed, colour, visible damage (scratches, dents, cracks, wear), text, logos, labels, displays and licence plates. Also report whether people who are not part of the product are still visible in B.'],
+                    ['type' => 'input_text', 'text' => self::QUESTION],
                 ]],
             ],
             'text' => ['format' => ['type' => 'json_schema', 'name' => 'edit_verification', 'strict' => true, 'schema' => self::schema()]],
@@ -42,8 +71,8 @@ class EditVerifier
         $response = $this->client->responses($payload);
         $result = $this->decode($response);
 
-        $productChanged = $result['shape_or_parts_changed'] || $result['colour_changed'] || $result['damage_removed_or_changed']
-            || $result['text_or_logos_changed'] || $result['license_plate_changed'] || $result['looks_artificial'];
+        $productChanged = $result['product_identity_changed'] || $result['product_colour_changed'] || $result['damage_hidden_or_changed']
+            || $result['text_or_logos_altered'] || $result['license_plate_altered'] || $result['product_looks_fake'];
 
         return [
             'accepted' => ! $productChanged,
@@ -54,13 +83,17 @@ class EditVerifier
 
     public static function schema(): array
     {
-        $keys = ['shape_or_parts_changed', 'colour_changed', 'damage_removed_or_changed', 'text_or_logos_changed', 'license_plate_changed', 'looks_artificial', 'people_still_visible'];
+        $keys = self::CHECKS;
 
         return [
             'type' => 'object',
             'additionalProperties' => false,
-            'required' => [...$keys, 'notes'],
-            'properties' => array_fill_keys($keys, ['type' => 'boolean']) + ['notes' => ['type' => 'string']],
+            'required' => [...$keys, 'notes', 'reason_nl', 'reason_en'],
+            'properties' => array_fill_keys($keys, ['type' => 'boolean']) + [
+                'notes' => ['type' => 'string'],
+                'reason_nl' => ['type' => 'string'],
+                'reason_en' => ['type' => 'string'],
+            ],
         ];
     }
 
@@ -71,7 +104,7 @@ class EditVerifier
                 if (($content['type'] ?? null) === 'output_text' && is_array($data = json_decode((string) $content['text'], true))) {
                     $out = [];
                     foreach (array_keys(self::schema()['properties']) as $key) {
-                        $out[$key] = $key === 'notes' ? mb_substr((string) ($data[$key] ?? ''), 0, 500) : (bool) ($data[$key] ?? true);
+                        $out[$key] = in_array($key, self::CHECKS, true) ? (bool) ($data[$key] ?? true) : mb_substr((string) ($data[$key] ?? ''), 0, 300);
                     }
 
                     return $out;
