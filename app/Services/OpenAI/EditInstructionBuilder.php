@@ -81,6 +81,28 @@ class EditInstructionBuilder
         return implode("\n", $lines);
     }
 
+    /**
+     * Prompt for the cut-out: product unchanged on a flat key colour. Only the
+     * mask is taken from the result; the product pixels come from the original.
+     *
+     * @param  array{int, int, int}  $rgb
+     */
+    public function cutout(array $analysis, string $keyName, array $rgb): string
+    {
+        $hex = sprintf('#%02X%02X%02X', ...$rgb);
+        $product = $analysis['product']['description'] ?? '' ?: 'the main product';
+
+        return implode("\n", [
+            'Cut out the product in this photograph for a product mask.',
+            "PRODUCT: {$product}.",
+            "Replace EVERYTHING that is not part of the product with one perfectly flat, uniform colour: pure {$keyName} {$hex}.",
+            'That includes the background, floor, walls, sky, people, hands, other objects and every shadow or reflection on the ground.',
+            'Keep the complete product, including thin or small parts (mirrors, antennas, wheels, tyres, cables, handles, legs, straps).',
+            'Keep the product exactly where it is: same position, size, angle and framing. Do not move, crop, zoom, rotate or re-frame anything.',
+            'Keep the product itself unchanged. Do not add outlines, glow, gradients, shadows or colour spill; do not tint the product with the '.$keyName.' colour.',
+        ]);
+    }
+
     private function strengthText(OptimizationStrength $strength): string
     {
         return match ($strength) {

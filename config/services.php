@@ -52,13 +52,13 @@ return [
         'image_quality' => env('OPENAI_IMAGE_QUALITY', 'medium'),
         // How closely the edit follows the source photo; left out automatically if a model refuses it.
         'input_fidelity' => env('OPENAI_INPUT_FIDELITY', 'high'),
-        // After a rejected edit, one more (conservative) attempt before falling back.
-        'retry_rejected_edit' => (bool) env('OPENAI_RETRY_REJECTED_EDIT', true),
 
         // "match": ask for the photo's own aspect ratio (multiple of 16, long side <= max_side);
         // falls back to "auto" if the model refuses the size.
         'size_strategy' => env('OPENAI_SIZE_STRATEGY', 'match'),
         'max_side' => (int) env('OPENAI_MAX_SIDE', 2048),
+        // Size at which the original product is put on the new background (largest output is 2560).
+        'composite_max_side' => (int) env('OPENAI_COMPOSITE_MAX_SIDE', 2560),
         'analysis_image_side' => 1024,
 
         // auto: generative edit only when it is really needed (background/people options,

@@ -58,6 +58,7 @@ return [
         'person_overlaps_product' => 'A person partly covers the product. That area cannot be restored reliably and has been kept as original as possible.',
         'people_not_removed' => 'Not all people could be removed reliably.',
         'ai_edit_rejected' => 'The AI edit differed too much from the original and was rejected. To stay reliable, the photo was only improved with safe corrections.',
+        'ai_cutout_failed' => 'The AI could not reliably cut out the product. To stay reliable, the photo was only improved with safe corrections; the background was not changed. Try "Re-optimise".',
         'ai_edit_rejected_reason' => 'The AI edit was rejected because :reason. To stay reliable, the photo was only improved with safe corrections. You can try "Re-optimise" with strength Subtle.',
         'ai_unavailable' => 'AI processing was not available. Only basic corrections were applied.',
         'ai_edit_unavailable' => 'The AI edit did not succeed. The photo was improved using the AI analysis and automatic corrections. Try "Re-optimise".',

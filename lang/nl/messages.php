@@ -58,6 +58,7 @@ return [
         'person_overlaps_product' => 'Een persoon staat deels voor het product. Dat deel is niet betrouwbaar te herstellen en is zo veel mogelijk origineel gelaten.',
         'people_not_removed' => 'Niet alle personen konden betrouwbaar worden verwijderd.',
         'ai_edit_rejected' => 'De AI-bewerking week te veel af van het origineel en is afgekeurd. Voor de betrouwbaarheid is de foto alleen verbeterd met veilige correcties.',
+        'ai_cutout_failed' => 'De AI kon het product niet betrouwbaar uitsnijden. Voor de betrouwbaarheid is de foto alleen verbeterd met veilige correcties; de achtergrond is niet aangepast. Probeer "Opnieuw optimaliseren".',
         'ai_edit_rejected_reason' => 'De AI-bewerking is afgekeurd omdat :reason. Voor de betrouwbaarheid is de foto alleen verbeterd met veilige correcties. Probeer eventueel "Opnieuw optimaliseren" met sterkte Subtiel.',
         'ai_unavailable' => 'AI-verwerking was niet beschikbaar. Alleen basiscorrecties zijn toegepast.',
         'ai_edit_unavailable' => 'De AI-bewerking is niet gelukt. De foto is verbeterd met de AI-analyse en automatische correcties. Probeer "Opnieuw optimaliseren".',

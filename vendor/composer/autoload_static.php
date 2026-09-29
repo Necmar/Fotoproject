@@ -584,6 +584,7 @@ class ComposerStaticInitcf1b226ae4df122956e8d4c852fc15ef
         'App\\Services\\Images\\MemoryGuard' => __DIR__ . '/../..' . '/app/Services/Images/MemoryGuard.php',
         'App\\Services\\Images\\OutputRenderer' => __DIR__ . '/../..' . '/app/Services/Images/OutputRenderer.php',
         'App\\Services\\Images\\PerceptualHash' => __DIR__ . '/../..' . '/app/Services/Images/PerceptualHash.php',
+        'App\\Services\\Images\\ProductCompositor' => __DIR__ . '/../..' . '/app/Services/Images/ProductCompositor.php',
         'App\\Services\\Images\\WatermarkRenderer' => __DIR__ . '/../..' . '/app/Services/Images/WatermarkRenderer.php',
         'App\\Services\\LogoService' => __DIR__ . '/../..' . '/app/Services/LogoService.php',
         'App\\Services\\Mail\\MailSettings' => __DIR__ . '/../..' . '/app/Services/Mail/MailSettings.php',

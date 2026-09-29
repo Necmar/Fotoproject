@@ -545,3 +545,19 @@ Tests: 135, alles groen. Toegevoegd: `app/Services/Processing/QueueKicker.php`, 
 - **Reden erbij:** een afgekeurde bewerking toont nu waarom, bijvoorbeeld "omdat de tekst op het label is veranderd".
 - Let op: screenshots van websites en beelden met veel tekst worden terecht vaak afgekeurd, omdat een AI-beeldmodel tekst opnieuw tekent. Test met echte productfoto's.
 - Tests: 140, alles groen.
+
+## Achtergrondopties: origineel product op nieuwe achtergrond
+
+- **Probleem:** voor iedere achtergrondoptie tekende het AI-beeldmodel de hele foto opnieuw, dus ook het product. Dat botste steeds met de productintegriteit: de controle keurde af en de foto viel terug op basiscorrecties, zodat de opties "niets deden".
+- **Nieuwe aanpak (productbehoudend samenvoegen):**
+  1. Het beeldmodel maakt alleen een **uitsnede**: het product op een egale sleutelkleur (magenta, groen of blauw, de kleur die het minst in de foto voorkomt). Daaruit berekent de app een masker met zachte randen.
+  2. Controle: vindt de uitsnede het product niet, of staat het product verschoven, dan valt de foto veilig terug (melding "kon het product niet betrouwbaar uitsnijden").
+  3. Het **originele product** (alleen met lichte en kleurcorrecties uit de analyse) wordt op de gekozen achtergrond gezet:
+     - *Achtergrond verwijderen:* transparant bij PNG, wit bij JPG.
+     - *Neutrale achtergrond:* lichte studio-achtergrond met verloop en zachte contactschaduw.
+     - *Licht vervagen:* de eigen achtergrond sterk vervaagd, zonder waas van het product.
+     - *Subtiel opschonen / storende elementen / personen verwijderen / Sterk:* het beeldmodel verbetert de achtergrond, maar het product komt altijd uit het origineel.
+  4. De controle achteraf kijkt of het masker geen onderdelen heeft afgesneden.
+- **Resultaat:** het product kan niet meer door de AI worden hertekend, verkleurd of "gerepareerd"; beschadigingen, tekst en kentekens blijven per definitie de originele pixels.
+- Snelheid: masker en samenvoegen op 2560 px kosten samen ongeveer 3 à 5 seconden per foto op de server.
+- Toegevoegd: `app/Services/Images/ProductCompositor.php`. Gewijzigd: `AiImageProcessor` (nieuw `editPlan`), `EditInstructionBuilder::cutout`, `ImageEditService` (PNG-uitsnede). Tests: 142, alles groen.
