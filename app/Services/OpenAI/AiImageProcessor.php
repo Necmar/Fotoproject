@@ -117,7 +117,8 @@ class AiImageProcessor
             // 1. Cut-out on the key colour least present in this photo -> mask.
             [$keyName, $key] = $this->compositor->keyColourFor($original);
             $cutout = $this->aiEdit($image, $type, $this->instructions->cutout($analysis, $keyName, $key), $temps);
-            $cut = ImageEditor::open($cutout);
+            // A model that answers with a transparent PNG anyway: transparent = key colour.
+            $cut = ImageEditor::open($cutout)->flatten($key);
             // The model rarely hits the exact key colour or keeps the exact frame: measure both.
             $key = $this->compositor->measuredKey($cut, $key);
             $placement = $this->compositor->register($original, $cut, $key);

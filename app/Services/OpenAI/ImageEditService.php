@@ -31,9 +31,9 @@ class ImageEditService
 
         if (! $transparent && ! $lossless) {
             $fields['output_compression'] = 95;
-        } else {
-            $fields['background'] = 'transparent';
         }
+        // A key-colour cut-out must stay opaque: a transparent answer loses the key colour.
+        $fields['background'] = $transparent ? 'transparent' : 'opaque';
 
         // Stay as close as possible to the source photo (product integrity). Dropped
         // automatically below for a model that does not accept the parameter.
@@ -45,18 +45,20 @@ class ImageEditService
             $fields['size'] = $this->size($input['width'], $input['height']);
 
             // Not every model accepts every option: drop a refused one (custom size -> auto,
-            // input_fidelity -> left out) and try again, at most twice.
+            // input_fidelity -> left out) and try again, at most three times.
             for ($try = 0; ; $try++) {
                 try {
                     $response = $this->client->imageEdit($fields, ['image' => $input['path']]);
                     break;
                 } catch (OpenAIException $e) {
                     $message = strtolower($e->getMessage());
-                    if ($e->reason !== 'invalid_request' || $try >= 2) {
+                    if ($e->reason !== 'invalid_request' || $try >= 3) {
                         throw $e;
                     }
                     if (isset($fields['input_fidelity']) && str_contains($message, 'input_fidelity')) {
                         unset($fields['input_fidelity']);
+                    } elseif (isset($fields['background']) && str_contains($message, 'background')) {
+                        unset($fields['background']);
                     } elseif ($fields['size'] !== 'auto' && str_contains($message, 'size')) {
                         $fields['size'] = 'auto';
                     } else {
