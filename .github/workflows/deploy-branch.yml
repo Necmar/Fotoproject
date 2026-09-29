@@ -1,0 +1,84 @@
+# On every push to main: test, build a ready-to-run copy of the app and commit it
+# to the "deploy" branch. Plesk Git pulls that branch into foto.necmardemo.nl.
+# The copy includes vendor/ (PHP packages, no dev) and public/build/ (React),
+# because the shared hosting has no SSH and no Node.js. After a pull, the cron
+# runs `bora:deploy` (migrations, caches) within a minute.
+name: Deploy branch
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-branch
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: gd, zip, fileinfo, mbstring, intl, exif, pdo_sqlite
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: PHP packages and tests
+        run: |
+          composer install --no-interaction --no-progress --prefer-dist
+          cp .env.example .env
+          php artisan key:generate
+          php artisan test
+
+      - name: React build
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: PHP packages for production
+        run: composer install --no-dev --optimize-autoloader --no-interaction --no-progress --prefer-dist
+
+      - name: Assemble deploy copy
+        run: |
+          echo "$(date -u +%Y%m%d%H%M)-${GITHUB_SHA::7}" > VERSION
+          mkdir -p "$RUNNER_TEMP/out"
+          rsync -a ./ "$RUNNER_TEMP/out/" \
+            --exclude /.git --exclude /.github --exclude /node_modules --exclude /tests \
+            --exclude /.env --exclude /phpunit.xml --exclude /database/database.sqlite \
+            --exclude '/storage/logs/*.log' --exclude '/storage/framework/sessions/*' \
+            --exclude '/storage/framework/views/*.php' --exclude '/storage/framework/cache/data/*' \
+            --exclude /storage/framework/testing --exclude '/bootstrap/cache/*.php'
+          test -f "$RUNNER_TEMP/out/vendor/autoload.php"
+          test -f "$RUNNER_TEMP/out/public/build/manifest.json"
+
+      - name: Commit to deploy branch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin deploy >/dev/null; then
+            git fetch -q origin deploy
+            git worktree add -q "$RUNNER_TEMP/deploy" origin/deploy
+            cd "$RUNNER_TEMP/deploy" && git checkout -q -B deploy
+          else
+            git worktree add -q --detach "$RUNNER_TEMP/deploy"
+            cd "$RUNNER_TEMP/deploy" && git checkout -q --orphan deploy && git rm -rfq .
+          fi
+          rsync -a --delete --exclude /.git "$RUNNER_TEMP/out/" ./
+          # vendor/ and public/build/ must be committed, whatever any .gitignore says.
+          rm -f .gitignore
+          git add -A -f
+          git commit -qm "build $(cat VERSION) from ${GITHUB_SHA}" || { echo "No changes"; exit 0; }
+          git push -q origin deploy
