@@ -59,6 +59,8 @@ return [
         'max_side' => (int) env('OPENAI_MAX_SIDE', 2048),
         // Size at which the original product is put on the new background (largest output is 2560).
         'composite_max_side' => (int) env('OPENAI_COMPOSITE_MAX_SIDE', 2560),
+        // Largest mean difference (0..1) between the cut-out product and the original after alignment.
+        'cutout_max_error' => (float) env('OPENAI_CUTOUT_MAX_ERROR', 0.16),
         'analysis_image_side' => 1024,
 
         // auto: generative edit only when it is really needed (background/people options,
