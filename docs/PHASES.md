@@ -561,3 +561,11 @@ Tests: 135, alles groen. Toegevoegd: `app/Services/Processing/QueueKicker.php`, 
 - **Resultaat:** het product kan niet meer door de AI worden hertekend, verkleurd of "gerepareerd"; beschadigingen, tekst en kentekens blijven per definitie de originele pixels.
 - Snelheid: masker en samenvoegen op 2560 px kosten samen ongeveer 3 à 5 seconden per foto op de server.
 - Toegevoegd: `app/Services/Images/ProductCompositor.php`. Gewijzigd: `AiImageProcessor` (nieuw `editPlan`), `EditInstructionBuilder::cutout`, `ImageEditService` (PNG-uitsnede). Tests: 142, alles groen.
+
+## Uitsnijden robuuster
+
+- De AI levert de uitsnede soms iets verschoven of ingezoomd aan, en de sleutelkleur is niet altijd exact. Dat gaf "De AI kon het product niet betrouwbaar uitsnijden".
+- `ProductCompositor::measuredKey()` meet de werkelijke sleutelkleur aan de rand; `register()` zoekt schaal (±6%) en verschuiving (±6%) waarmee de uitsnede op het origineel valt; het masker wordt met die plaatsing gemaakt.
+- Drempel instelbaar via `OPENAI_CUTOUT_MAX_ERROR` (standaard 0.16). Meetwaarden staan per foto in `analysis.cutout` voor diagnose.
+- Gewijzigd: `app/Services/Images/ProductCompositor.php`, `app/Services/OpenAI/AiImageProcessor.php`, `config/services.php`; nieuw: `tests/Unit/ProductCompositorTest.php`.
+- Testen: foto met achtergrondoptie "Verwijderen" of "Neutraal" opnieuw optimaliseren.

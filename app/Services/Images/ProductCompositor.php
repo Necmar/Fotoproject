@@ -50,9 +50,9 @@ class ProductCompositor
      *
      * @return array{mask: GdImage, coverage: float}
      */
-    public function maskFromCutout(ImageEditor $cutout, array $key, int $width, int $height): array
+    public function maskFromCutout(ImageEditor $cutout, array $key, int $width, int $height, ?array $transform = null): array
     {
-        $gd = $cutout->copy()->resize($width, $height)->gd();
+        $gd = $this->placed($cutout, $key, $width, $height, $transform);
         $mask = imagecreatetruecolor($width, $height);
         $sum = 0;
 
@@ -71,32 +71,125 @@ class ProductCompositor
     }
 
     /**
-     * Did the model keep the product in place? Compares original and cut-out
-     * inside the mask on a small grayscale sample (a shifted or redrawn product
-     * gives large differences). Returns the mean difference 0..1.
+     * The real background colour of the cut-out (models rarely hit the exact
+     * key colour): median of the outer border, if it is close to the requested key.
+     *
+     * @return array{int, int, int}
      */
-    public function alignmentError(ImageEditor $original, ImageEditor $cutout, GdImage $mask): float
+    public function measuredKey(ImageEditor $cutout, array $requested): array
     {
-        $size = 128;
-        $o = $original->copy()->fitWithin($size)->gd();
+        $gd = $cutout->copy()->fitWithin(200)->gd();
+        $w = imagesx($gd);
+        $h = imagesy($gd);
+        $r = $g = $b = [];
+        $band = max(2, (int) round(min($w, $h) * 0.03));
+
+        for ($y = 0; $y < $h; $y++) {
+            for ($x = 0; $x < $w; $x++) {
+                if ($x >= $band && $x < $w - $band && $y >= $band && $y < $h - $band) {
+                    continue;
+                }
+                $c = imagecolorat($gd, $x, $y);
+                $px = [($c >> 16) & 0xFF, ($c >> 8) & 0xFF, $c & 0xFF];
+                if ($this->distance($px, $requested) < 0.35) {
+                    $r[] = $px[0];
+                    $g[] = $px[1];
+                    $b[] = $px[2];
+                }
+            }
+        }
+
+        if (count($r) < 20) {
+            return $requested;
+        }
+        sort($r);
+        sort($g);
+        sort($b);
+        $mid = intdiv(count($r), 2);
+
+        return [$r[$mid], $g[$mid], $b[$mid]];
+    }
+
+    /**
+     * Where did the model put the product? Image models often shift or scale
+     * the frame a little. Searches scale and offset (coarse to fine, on small
+     * copies) for the placement where the cut-out product best matches the
+     * original, and returns it with the remaining mean difference (0..1).
+     *
+     * @return array{scale: float, dx: float, dy: float, error: float}
+     */
+    public function register(ImageEditor $original, ImageEditor $cutout, array $key): array
+    {
+        $o = $original->copy()->fitWithin(112)->gd();
         $w = imagesx($o);
         $h = imagesy($o);
-        $c = $cutout->copy()->resize($w, $h)->gd();
-        $m = imagescale($mask, $w, $h);
+        $luma = [];
+        for ($y = 0; $y < $h; $y++) {
+            for ($x = 0; $x < $w; $x++) {
+                $luma[$y][$x] = $this->luma(imagecolorat($o, $x, $y));
+            }
+        }
+
+        $best = ['scale' => 1.0, 'dx' => 0.0, 'dy' => 0.0, 'error' => $this->placementError($luma, $cutout, $key, $w, $h, null)];
+        $rounds = [[[0.94, 0.97, 1.0, 1.03, 1.06], [-0.06, -0.04, -0.02, 0.0, 0.02, 0.04, 0.06]], [[-0.015, 0.0, 0.015], [-0.01, 0.0, 0.01]]];
+
+        foreach ($rounds as $round => [$scales, $shifts]) {
+            $centre = $best;
+            foreach ($scales as $s) {
+                $scale = $round === 0 ? $s : $centre['scale'] + $s;
+                foreach ($shifts as $sx) {
+                    foreach ($shifts as $sy) {
+                        $t = ['scale' => $scale, 'dx' => ($round === 0 ? 0 : $centre['dx']) + $sx, 'dy' => ($round === 0 ? 0 : $centre['dy']) + $sy];
+                        $e = $this->placementError($luma, $cutout, $key, $w, $h, $t);
+                        if ($e < $best['error']) {
+                            $best = $t + ['error' => $e];
+                        }
+                    }
+                }
+            }
+        }
+
+        return $best;
+    }
+
+    /** Cut-out drawn into the original frame (scale around the centre, then shift), background = key colour. */
+    private function placed(ImageEditor $cutout, array $key, int $width, int $height, ?array $t): GdImage
+    {
+        if ($t === null || ($t['scale'] == 1.0 && $t['dx'] == 0.0 && $t['dy'] == 0.0)) {
+            return $cutout->copy()->resize($width, $height)->gd();
+        }
+
+        $canvas = imagecreatetruecolor($width, $height);
+        imagefill($canvas, 0, 0, imagecolorallocate($canvas, ...$key));
+        $dw = (int) round($width * $t['scale']);
+        $dh = (int) round($height * $t['scale']);
+        $dx = (int) round(($width - $dw) / 2 + $t['dx'] * $width);
+        $dy = (int) round(($height - $dh) / 2 + $t['dy'] * $height);
+        $src = $cutout->gd();
+        imagecopyresampled($canvas, $src, $dx, $dy, 0, 0, $dw, $dh, imagesx($src), imagesy($src));
+
+        return $canvas;
+    }
+
+    /** Mean luma difference inside the (placed) cut-out product, 0..1; 1 when there is no product. */
+    private function placementError(array $luma, ImageEditor $cutout, array $key, int $w, int $h, ?array $t): float
+    {
+        $placed = $this->placed($cutout, $key, $w, $h, $t);
         $diff = 0.0;
         $n = 0;
 
         for ($y = 0; $y < $h; $y++) {
             for ($x = 0; $x < $w; $x++) {
-                if ((imagecolorat($m, $x, $y) & 0xFF) < 230) {
-                    continue; // only well inside the product
+                $c = imagecolorat($placed, $x, $y);
+                if ($this->distance([($c >> 16) & 0xFF, ($c >> 8) & 0xFF, $c & 0xFF], $key) < 0.5) {
+                    continue; // background
                 }
-                $diff += abs($this->luma(imagecolorat($o, $x, $y)) - $this->luma(imagecolorat($c, $x, $y)));
+                $diff += abs($luma[$y][$x] - $this->luma($c));
                 $n++;
             }
         }
 
-        return $n > 0 ? $diff / $n / 255 : 1.0;
+        return $n > ($w * $h * 0.005) ? $diff / $n / 255 : 1.0;
     }
 
     /**

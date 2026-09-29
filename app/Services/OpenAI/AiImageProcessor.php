@@ -118,9 +118,18 @@ class AiImageProcessor
             [$keyName, $key] = $this->compositor->keyColourFor($original);
             $cutout = $this->aiEdit($image, $type, $this->instructions->cutout($analysis, $keyName, $key), $temps);
             $cut = ImageEditor::open($cutout);
-            ['mask' => $mask, 'coverage' => $coverage] = $this->compositor->maskFromCutout($cut, $key, $w, $h);
+            // The model rarely hits the exact key colour or keeps the exact frame: measure both.
+            $key = $this->compositor->measuredKey($cut, $key);
+            $placement = $this->compositor->register($original, $cut, $key);
+            ['mask' => $mask, 'coverage' => $coverage] = $this->compositor->maskFromCutout($cut, $key, $w, $h, $placement);
 
-            if ($coverage < 0.01 || $coverage > 0.97 || $this->compositor->alignmentError($original, $cut, $mask) > 0.14) {
+            $image->forceFill(['analysis' => array_replace($image->analysis ?? [], ['cutout' => [
+                'key' => $keyName, 'measured_key' => $key, 'coverage' => round($coverage, 4),
+                'placement' => array_map(fn ($v) => round($v, 4), $placement),
+                'cutout_size' => [$cut->width(), $cut->height()], 'photo_size' => [$w, $h],
+            ]])])->save();
+
+            if ($coverage < 0.01 || $coverage > 0.97 || $placement['error'] > (float) config('services.openai.cutout_max_error', 0.16)) {
                 // No usable cut-out (product not found or moved): safe corrections only.
                 $this->addWarnings($image, 'ai_edit', [['code' => 'ai_cutout_failed']]);
 
