@@ -320,6 +320,19 @@
             "from_address": "Sender address",
             "from_name": "Sender name",
             "test": "Send a test e-mail to me"
+        },
+        "openai_test": {
+            "last_error": "Latest failed AI request ({{date}})",
+            "run": "Test connection",
+            "run_edit": "Also test image editing (± $0.01)",
+            "busy": "Testing, this can take up to a few minutes…",
+            "steps": {
+                "key": "API key set",
+                "analysis_model": "Access to analysis model",
+                "image_model": "Access to editing model",
+                "analysis": "Test analysis of a sample photo",
+                "edit": "Test edit of a sample photo"
+            }
         }
     },
     "enums": {

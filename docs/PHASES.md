@@ -526,3 +526,12 @@ Een aparte review (zonder kennis van hoe de code gebouwd is) vond geen ernstige 
 - Stap 5: vaste downloadbalk onderaan met "Alles downloaden (n)"; watermerk in een apart venster.
 
 Tests: 135, alles groen. Toegevoegd: `app/Services/Processing/QueueKicker.php`, migratie `add_preview_path_to_images_table`. Gewijzigd onder meer: `app/Console/Commands/Work.php`, `routes/console.php`, `OutputRenderer`, `ImageEditService`, `resources/js/pages/company/{BatchEdit,BatchDetail}.jsx`, `resources/js/components/batch/{Stepper,BatchSettingsForm,PhotoTile,PhotoPicker,DownloadPanel}.jsx`, `resources/js/lib/usePolling.js`.
+
+## AI-bewerking betrouwbaarder, en een verbindingstest
+
+- **Oorzaak van "AI-verwerking was niet beschikbaar":** een AI-bewerking van een grote foto kan in hoge kwaliteit langer duren dan de 120 seconden die ervoor stonden. Na de herhaalpogingen viel de foto terug op basiscorrecties.
+- **Opgelost:** bewerkingen krijgen tot 300 seconden (analyse 90), een verlopen bewerking wordt niet direct in hetzelfde verzoek opnieuw geprobeerd, en een fototaak mag tot 10 minuten duren (wachtrij-`retry_after` 660 s). Standaardkwaliteit is "Snel", wat ongeveer twee keer zo snel is.
+- **Duidelijkere melding:** lukt alleen de bewerking niet, dan staat er nu dat de foto verbeterd is met de AI-analyse, met de tip "Opnieuw optimaliseren".
+- **Super Admin > Systeem > OpenAI:** de laatste mislukte AI-aanvraag met de foutmelding van OpenAI, en de knop **Verbinding testen**. Die controleert de key, de toegang tot beide modellen en doet een proefanalyse; optioneel ook een proefbewerking (± $0,01). Per stap zie je de exacte melding van OpenAI.
+- Systeemcontrole: nieuwe regel "OpenAI-aanvragen" (rood als de laatste aanvraag mislukte).
+- Tests: 138, alles groen.

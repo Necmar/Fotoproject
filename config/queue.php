@@ -42,7 +42,9 @@ return [
             'queue' => env('DB_QUEUE', 'default'),
             // Must be longer than the longest job (image jobs: 240 s timeout, AI edits can be slow),
             // otherwise a slow job would be handed out twice.
-            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 300),
+            // Must be longer than the longest job (bora.queue.job_timeout), or a
+            // running photo would be handed out a second time.
+            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 660),
             'after_commit' => true,
         ],
 

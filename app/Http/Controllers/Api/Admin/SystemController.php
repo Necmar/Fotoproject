@@ -13,6 +13,7 @@ use App\Services\ActivityLogger;
 use App\Services\CompanyStatsService;
 use App\Services\OpenAI\OpenAIClient;
 use App\Services\Processing\QueueHealth;
+use App\Services\OpenAI\ConnectionTester;
 use App\Services\System\HealthCheck;
 use App\Services\SystemSettings;
 use Illuminate\Http\JsonResponse;
@@ -77,9 +78,19 @@ class SystemController extends Controller
                     'image_model' => config('services.openai.image_model'),
                     'edit_policy' => config('services.openai.edit_policy'),
                     'verify_edits' => (bool) config('services.openai.verify_edits'),
+                    'last_error' => app(ConnectionTester::class)->lastError(),
                 ],
             ],
         ]);
+    }
+
+    /** "Verbinding testen" in Systeem > OpenAI. The edit test costs about one cent. */
+    public function testOpenAI(Request $request, ConnectionTester $tester): JsonResponse
+    {
+        $request->validate(['edit' => ['sometimes', 'boolean']]);
+        @set_time_limit(360);
+
+        return response()->json(['data' => $tester->run($request->boolean('edit'))]);
     }
 
     public function updateSettings(UpdateSystemSettingsRequest $request): JsonResponse

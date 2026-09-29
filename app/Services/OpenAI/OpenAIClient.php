@@ -43,6 +43,12 @@ class OpenAIClient
      * @param  array<string, string>  $files  field name => local path
      * @return array<string, mixed>
      */
+    /** Plain GET (e.g. models/{id}), used by the connection test. */
+    public function get(string $path): array
+    {
+        return $this->send($path, fn (PendingRequest $http) => $http->timeout(20)->get($path), null);
+    }
+
     public function imageEdit(array $fields, array $files): array
     {
         return $this->send('images/edits', function (PendingRequest $http) use ($fields, $files) {
@@ -90,7 +96,10 @@ class OpenAIClient
                 'message' => mb_substr($error->getMessage(), 0, 300),
             ]);
 
-            if (! $error->retryable || $attempt > count($delays)) {
+            // A timed-out edit already took minutes: retry it in a later job, not right away.
+            $slowTimeout = $endpoint === 'images/edits' && $error->reason === 'timeout';
+
+            if (! $error->retryable || $slowTimeout || $attempt > count($delays)) {
                 throw $error;
             }
 

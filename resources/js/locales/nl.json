@@ -320,6 +320,19 @@
             "from_address": "Afzenderadres",
             "from_name": "Afzendernaam",
             "test": "Testmail naar mij sturen"
+        },
+        "openai_test": {
+            "last_error": "Laatste mislukte AI-aanvraag ({{date}})",
+            "run": "Verbinding testen",
+            "run_edit": "Ook beeldbewerking testen (± $0,01)",
+            "busy": "Bezig met testen, dit kan tot een paar minuten duren…",
+            "steps": {
+                "key": "API-key ingesteld",
+                "analysis_model": "Toegang tot analysemodel",
+                "image_model": "Toegang tot bewerkingsmodel",
+                "analysis": "Proef-analyse van een testfoto",
+                "edit": "Proef-bewerking van een testfoto"
+            }
         }
     },
     "enums": {

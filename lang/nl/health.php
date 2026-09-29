@@ -20,4 +20,5 @@ return [
     'openai' => ['label' => 'OpenAI', 'hint' => 'Geen API-key: foto\'s krijgen alleen lokale basiscorrecties. Zet OPENAI_API_KEY in .env.'],
     'frontend_build' => ['label' => 'React-build', 'hint' => 'public/build ontbreekt: upload de React-build (zie de installatiehandleiding).'],
     'deploy' => ['label' => 'Laatste update', 'hint' => 'De laatste update is mislukt. Bekijk storage/logs of voer "bora:deploy --force" uit.'],
+    'openai_calls' => ['label' => 'OpenAI-aanvragen', 'hint' => 'De laatste AI-aanvraag is mislukt. Gebruik Systeem > OpenAI > "Verbinding testen" voor details.', 'working' => 'werken'],
 ];

@@ -85,6 +85,7 @@ Route::middleware(['auth', 'account.active', 'throttle:api'])->group(function ()
         Route::get('mail', [AdminMailController::class, 'show'])->name('mail.show');
         Route::put('mail', [AdminMailController::class, 'update'])->name('mail.update');
         Route::post('mail/test', [AdminMailController::class, 'test'])->middleware('throttle:5,1')->name('mail.test');
+        Route::post('openai/test', [AdminSystemController::class, 'testOpenAI'])->middleware('throttle:6,1')->name('openai.test');
         Route::get('health', [AdminSystemController::class, 'health'])->middleware('throttle:20,1')->name('health');
         Route::get('settings', [AdminSystemController::class, 'showSettings'])->name('settings.show');
         Route::put('settings', [AdminSystemController::class, 'updateSettings'])->name('settings.update');

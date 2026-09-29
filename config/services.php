@@ -67,8 +67,9 @@ return [
         'verify_edits' => (bool) env('OPENAI_VERIFY_EDITS', true),
 
         'timeouts' => [
-            'analysis' => (int) env('OPENAI_ANALYSIS_TIMEOUT', 60),
-            'edit' => (int) env('OPENAI_EDIT_TIMEOUT', 120),
+            'analysis' => (int) env('OPENAI_ANALYSIS_TIMEOUT', 90),
+            // An edit of a large photo can take several minutes at high quality.
+            'edit' => (int) env('OPENAI_EDIT_TIMEOUT', 300),
         ],
         // Retries inside one job for 429/5xx/timeouts (seconds, exponential); the
         // queue retries the whole job on top of this.

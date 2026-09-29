@@ -4,6 +4,7 @@ import api, { errorMessage, fieldErrors } from '../../lib/api';
 import { useFetch } from '../../lib/useFetch';
 import { useAuth } from '../../auth/AuthContext';
 import MailSettingsCard from '../../components/admin/MailSettingsCard';
+import OpenAITest from '../../components/admin/OpenAITest';
 import { Choice } from '../../components/batch/BatchSettingsForm';
 import { Alert, Button, Card, Input, PageHeader, Spinner, Toggle } from '../../components/ui';
 
@@ -135,6 +136,7 @@ export default function SystemSettings() {
                         ))}
                     </dl>
                     <p className="mt-4 text-xs text-stone-400">{t('admin.settings.openai_env_hint')}</p>
+                    {meta.openai.configured && <OpenAITest lastError={meta.openai.last_error} />}
                 </Card>
 
                 <Card className="space-y-5">
