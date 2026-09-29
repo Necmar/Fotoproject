@@ -535,3 +535,13 @@ Tests: 135, alles groen. Toegevoegd: `app/Services/Processing/QueueKicker.php`, 
 - **Super Admin > Systeem > OpenAI:** de laatste mislukte AI-aanvraag met de foutmelding van OpenAI, en de knop **Verbinding testen**. Die controleert de key, de toegang tot beide modellen en doet een proefanalyse; optioneel ook een proefbewerking (± $0,01). Per stap zie je de exacte melding van OpenAI.
 - Systeemcontrole: nieuwe regel "OpenAI-aanvragen" (rood als de laatste aanvraag mislukte).
 - Tests: 138, alles groen.
+
+## Controle na AI-bewerking: eerlijker afgesteld
+
+- **Probleem:** de controle na een AI-bewerking keurde te snel af. Ze stond op "bij twijfel afkeuren", zag licht- en witbalanscorrectie aan voor "kleur van het product veranderd", en keurde af op "ziet er kunstmatig uit".
+- **Nu:** betere belichting, witbalans, contrast, scherpte, minder ruis en een schonere achtergrond gelden uitdrukkelijk als doel en nooit als productwijziging. Er wordt alleen afgekeurd bij een echte wijziging: andere vorm of onderdelen, andere lak- of materiaalkleur, schade verdwenen, tekst/logo's/kenteken veranderd, of een product dat er nep uitziet.
+- **Tweede poging:** keurt de controle een bewerking af, dan doet de AI automatisch nog één behoudende poging (alleen minimale correcties) voordat de foto terugvalt op veilige correcties (`OPENAI_RETRY_REJECTED_EDIT`).
+- **Dichter bij het origineel:** de bewerking vraagt nu `input_fidelity=high`; weigert een model die optie, dan gaat hij automatisch zonder.
+- **Reden erbij:** een afgekeurde bewerking toont nu waarom, bijvoorbeeld "omdat de tekst op het label is veranderd".
+- Let op: screenshots van websites en beelden met veel tekst worden terecht vaak afgekeurd, omdat een AI-beeldmodel tekst opnieuw tekent. Test met echte productfoto's.
+- Tests: 140, alles groen.

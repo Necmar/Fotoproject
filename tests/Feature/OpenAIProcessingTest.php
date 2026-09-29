@@ -86,9 +86,10 @@ class OpenAIProcessingTest extends TestCase
     private function verification(bool $ok = true, bool $peopleVisible = false): array
     {
         return [
-            'shape_or_parts_changed' => false, 'colour_changed' => ! $ok, 'damage_removed_or_changed' => false,
-            'text_or_logos_changed' => false, 'license_plate_changed' => false, 'looks_artificial' => false,
+            'product_identity_changed' => false, 'product_colour_changed' => ! $ok, 'damage_hidden_or_changed' => false,
+            'text_or_logos_altered' => false, 'license_plate_altered' => false, 'product_looks_fake' => false,
             'people_still_visible' => $peopleVisible, 'notes' => $ok ? 'identical' : 'colour shifted',
+            'reason_nl' => $ok ? '' : 'de lakkleur is veranderd', 'reason_en' => $ok ? '' : 'the paint colour changed',
         ];
     }
 
@@ -182,7 +183,7 @@ class OpenAIProcessingTest extends TestCase
         $this->assertStringContainsString('licence plate', $body);
         $this->assertStringContainsString('scratch on rear bumper', $body);
         $this->assertStringContainsString('1600x1200', $body, 'size follows the working copy');
-        $this->assertStringNotContainsString('input_fidelity', $body, 'gpt-image-2 ignores input_fidelity');
+        $this->assertStringContainsString('input_fidelity', $body, 'stay close to the source photo');
 
         $this->assertSame(3, ImageProcessingRecord::query()->where('provider', 'openai')->count());
         $editRecord = ImageProcessingRecord::query()->where('type', 'edit')->firstOrFail();
@@ -202,7 +203,50 @@ class OpenAIProcessingTest extends TestCase
         $this->assertSame('edit_rejected', $image->ai_status);
         $this->assertNull($image->ai_path);
         $this->assertSame([], Storage::disk('local')->files($batch->storageDirectory().'/ai'));
-        $this->assertContains('ai_edit_rejected', array_column($image->warnings, 'code'));
+        $this->assertContains('ai_edit_rejected_reason', array_column($image->warnings, 'code'));
+        $this->assertStringContainsString('de lakkleur is veranderd', collect($this->getJson("/api/company/batches/{$image->batch_id}")->json('data.images.0.warnings'))->pluck('message')->implode(' '));
+        // One normal and one conservative attempt, then the safe fallback.
+        $this->assertSame(2, $this->sentTo('/images/edits'));
+        $second = (string) Http::recorded(fn (Request $r) => str_ends_with($r->url(), '/images/edits'))->last()[0]->body();
+        $this->assertStringContainsString('previous edit of this photo changed the product', $second);
+    }
+
+    public function test_a_rejected_edit_gets_one_conservative_second_attempt(): void
+    {
+        $verifications = [$this->verification(ok: false), $this->verification(ok: true)];
+        Http::fake(function (Request $request) use (&$verifications) {
+            if (str_ends_with($request->url(), '/responses')) {
+                $name = $request['text']['format']['name'] ?? '';
+
+                return Http::response($this->responsesBody($name === 'edit_verification' ? array_shift($verifications) : $this->analysis()));
+            }
+
+            return Http::response($this->editBody());
+        });
+        $batch = $this->batch(['strength' => 'strong']);
+
+        $this->artisan('bora:work')->assertSuccessful();
+
+        $image = $batch->images()->first();
+        $this->assertSame('edited', $image->ai_status);
+        $this->assertNotNull($image->ai_path);
+        $this->assertSame(2, $this->sentTo('/images/edits'));
+        $this->assertNotContains('ai_edit_rejected_reason', array_column($image->warnings, 'code'));
+    }
+
+    public function test_input_fidelity_is_dropped_when_the_model_refuses_it(): void
+    {
+        $this->fakeOpenAI($this->analysis(), null, function (Request $request) {
+            return str_contains((string) $request->body(), 'input_fidelity')
+                ? Http::response(['error' => ['message' => "Unknown parameter: 'input_fidelity'.", 'type' => 'invalid_request_error']], 400)
+                : Http::response($this->editBody());
+        });
+        $batch = $this->batch(['strength' => 'strong']);
+
+        $this->artisan('bora:work')->assertSuccessful();
+
+        $this->assertSame('edited', $batch->images()->first()->ai_status);
+        $this->assertSame(2, $this->sentTo('/images/edits'));
     }
 
     public function test_background_option_requires_an_edit_even_when_subtle(): void

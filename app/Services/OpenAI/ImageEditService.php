@@ -34,23 +34,34 @@ class ImageEditService
             $fields['background'] = 'transparent';
         }
 
-        // gpt-image-1.x uses input_fidelity; gpt-image-2+ always keeps high fidelity and ignores it.
-        if (str_starts_with($model, 'gpt-image-1')) {
-            $fields['input_fidelity'] = (string) config('services.openai.input_fidelity', 'high');
+        // Stay as close as possible to the source photo (product integrity). Dropped
+        // automatically below for a model that does not accept the parameter.
+        if (str_starts_with($model, 'gpt-image') && config('services.openai.input_fidelity')) {
+            $fields['input_fidelity'] = (string) config('services.openai.input_fidelity');
         }
 
         try {
             $fields['size'] = $this->size($input['width'], $input['height']);
 
-            try {
-                $response = $this->client->imageEdit($fields, ['image' => $input['path']]);
-            } catch (OpenAIException $e) {
-                // Not every model accepts custom sizes: retry once with automatic sizing.
-                if ($e->reason !== 'invalid_request' || $fields['size'] === 'auto' || ! str_contains(strtolower($e->getMessage()), 'size')) {
-                    throw $e;
+            // Not every model accepts every option: drop a refused one (custom size -> auto,
+            // input_fidelity -> left out) and try again, at most twice.
+            for ($try = 0; ; $try++) {
+                try {
+                    $response = $this->client->imageEdit($fields, ['image' => $input['path']]);
+                    break;
+                } catch (OpenAIException $e) {
+                    $message = strtolower($e->getMessage());
+                    if ($e->reason !== 'invalid_request' || $try >= 2) {
+                        throw $e;
+                    }
+                    if (isset($fields['input_fidelity']) && str_contains($message, 'input_fidelity')) {
+                        unset($fields['input_fidelity']);
+                    } elseif ($fields['size'] !== 'auto' && str_contains($message, 'size')) {
+                        $fields['size'] = 'auto';
+                    } else {
+                        throw $e;
+                    }
                 }
-                $fields['size'] = 'auto';
-                $response = $this->client->imageEdit($fields, ['image' => $input['path']]);
             }
         } finally {
             @unlink($input['path']);
