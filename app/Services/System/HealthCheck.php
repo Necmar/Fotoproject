@@ -94,6 +94,9 @@ class HealthCheck
             $mail->isEnabled() ? $mailer.($mail->hasSmtp() && $mail->toggle() ? ' ('.config('mail.mailers.smtp.host').')' : '') : __('health.mail.off'));
 
         $this->add('openai', config('services.openai.key') ? self::OK : self::WARNING);
+        if (config('services.openai.key')) {
+            $this->add('openai_calls', ...$this->recentAiCalls());
+        }
 
         $this->add('frontend_build', is_file(public_path('build/manifest.json')) ? self::OK : self::ERROR);
 
@@ -112,6 +115,22 @@ class HealthCheck
         $statuses = array_column($checks, 'status');
 
         return in_array(self::ERROR, $statuses, true) ? self::ERROR : (in_array(self::WARNING, $statuses, true) ? self::WARNING : self::OK);
+    }
+
+    /** OpenAI calls of the last 24 hours: a problem when the latest one failed. */
+    private function recentAiCalls(): array
+    {
+        try {
+            $last = \App\Models\ImageProcessingRecord::query()->where('provider', 'openai')->where('created_at', '>=', now()->subDay())->latest('id')->first();
+        } catch (\Throwable) {
+            return [self::OK, null];
+        }
+
+        if (! $last || $last->status !== \App\Models\ImageProcessingRecord::STATUS_FAILED) {
+            return [self::OK, $last ? __('health.openai_calls.working') : null];
+        }
+
+        return [self::ERROR, mb_substr(trim(($last->error_code ?? '').': '.($last->error_message ?? '')), 0, 200)];
     }
 
     private function add(string $key, string $status, ?string $value = null): void

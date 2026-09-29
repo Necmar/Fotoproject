@@ -59,6 +59,7 @@ return [
         'people_not_removed' => 'Niet alle personen konden betrouwbaar worden verwijderd.',
         'ai_edit_rejected' => 'De AI-bewerking veranderde het product en is daarom afgekeurd. Alleen veilige basiscorrecties zijn toegepast.',
         'ai_unavailable' => 'AI-verwerking was niet beschikbaar. Alleen basiscorrecties zijn toegepast.',
+        'ai_edit_unavailable' => 'De AI-bewerking is niet gelukt. De foto is verbeterd met de AI-analyse en automatische correcties. Probeer "Opnieuw optimaliseren".',
         'too_dark' => 'Deze foto is erg donker. Verbetering is beperkt mogelijk.',
         'too_bright' => 'Deze foto is sterk overbelicht. Uitgebeten delen zijn niet te herstellen.',
         'low_contrast' => 'Deze foto heeft weinig contrast.',

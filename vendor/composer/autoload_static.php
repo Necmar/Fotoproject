@@ -588,6 +588,7 @@ class ComposerStaticInitcf1b226ae4df122956e8d4c852fc15ef
         'App\\Services\\LogoService' => __DIR__ . '/../..' . '/app/Services/LogoService.php',
         'App\\Services\\Mail\\MailSettings' => __DIR__ . '/../..' . '/app/Services/Mail/MailSettings.php',
         'App\\Services\\OpenAI\\AiImageProcessor' => __DIR__ . '/../..' . '/app/Services/OpenAI/AiImageProcessor.php',
+        'App\\Services\\OpenAI\\ConnectionTester' => __DIR__ . '/../..' . '/app/Services/OpenAI/ConnectionTester.php',
         'App\\Services\\OpenAI\\EditInstructionBuilder' => __DIR__ . '/../..' . '/app/Services/OpenAI/EditInstructionBuilder.php',
         'App\\Services\\OpenAI\\EditVerifier' => __DIR__ . '/../..' . '/app/Services/OpenAI/EditVerifier.php',
         'App\\Services\\OpenAI\\ImageAnalyzer' => __DIR__ . '/../..' . '/app/Services/OpenAI/ImageAnalyzer.php',

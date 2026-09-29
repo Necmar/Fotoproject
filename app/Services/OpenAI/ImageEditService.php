@@ -14,17 +14,17 @@ class ImageEditService
     ) {}
 
     /** @return array{path: string, extension: string, usage: Usage} */
-    public function edit(string $workingPath, string $prompt, bool $transparent, string $tempTarget): array
+    public function edit(string $workingPath, string $prompt, bool $transparent, string $tempTarget, ?string $quality = null, ?int $maxSide = null): array
     {
         $model = (string) config('services.openai.image_model');
-        $input = $this->input->editFile($workingPath, (int) config('services.openai.max_side'));
+        $input = $this->input->editFile($workingPath, $maxSide ?? (int) config('services.openai.max_side'));
 
         $fields = [
             'model' => $model,
             'prompt' => $prompt,
             'n' => 1,
             // Set by the Super Admin (Systeem > Verwerking): medium = faster, high = finest detail.
-            'quality' => (string) app(\App\Services\SystemSettings::class)->get('ai_image_quality', config('services.openai.image_quality', 'medium')),
+            'quality' => $quality ?? (string) app(\App\Services\SystemSettings::class)->get('ai_image_quality', config('services.openai.image_quality', 'medium')),
             'output_format' => $transparent ? 'png' : 'jpeg',
         ];
 

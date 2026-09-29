@@ -93,7 +93,8 @@ return [
         // auto = only where PHP-FPM can finish the response first; always/never.
         'web_kick' => env('BORA_WEB_KICK', 'auto'),
         'web_max_time' => (int) env('BORA_WEB_WORKER_MAX_TIME', 25),
-        'job_timeout' => (int) env('BORA_JOB_TIMEOUT', 240),
+        // One photo: analysis (<= 90 s) + edit (<= 300 s) + check (<= 90 s) + margin.
+        'job_timeout' => (int) env('BORA_JOB_TIMEOUT', 600),
         'tries' => (int) env('BORA_JOB_TRIES', 3),
         // Seconds between retries (exponential).
         'backoff' => [30, 120, 300],

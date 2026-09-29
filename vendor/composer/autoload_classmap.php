@@ -109,6 +109,7 @@ return array(
     'App\\Services\\LogoService' => $baseDir . '/app/Services/LogoService.php',
     'App\\Services\\Mail\\MailSettings' => $baseDir . '/app/Services/Mail/MailSettings.php',
     'App\\Services\\OpenAI\\AiImageProcessor' => $baseDir . '/app/Services/OpenAI/AiImageProcessor.php',
+    'App\\Services\\OpenAI\\ConnectionTester' => $baseDir . '/app/Services/OpenAI/ConnectionTester.php',
     'App\\Services\\OpenAI\\EditInstructionBuilder' => $baseDir . '/app/Services/OpenAI/EditInstructionBuilder.php',
     'App\\Services\\OpenAI\\EditVerifier' => $baseDir . '/app/Services/OpenAI/EditVerifier.php',
     'App\\Services\\OpenAI\\ImageAnalyzer' => $baseDir . '/app/Services/OpenAI/ImageAnalyzer.php',

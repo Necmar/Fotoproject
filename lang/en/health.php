@@ -20,4 +20,5 @@ return [
     'openai' => ['label' => 'OpenAI', 'hint' => 'No API key: photos only get local basic corrections. Set OPENAI_API_KEY in .env.'],
     'frontend_build' => ['label' => 'React build', 'hint' => 'public/build is missing: upload the React build (see the installation guide).'],
     'deploy' => ['label' => 'Last update', 'hint' => 'The last update failed. Check storage/logs or run "bora:deploy --force".'],
+    'openai_calls' => ['label' => 'OpenAI requests', 'hint' => 'The latest AI request failed. Use System > OpenAI > "Test connection" for details.', 'working' => 'working'],
 ];

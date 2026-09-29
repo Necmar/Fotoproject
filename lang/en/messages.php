@@ -59,6 +59,7 @@ return [
         'people_not_removed' => 'Not all people could be removed reliably.',
         'ai_edit_rejected' => 'The AI edit changed the product and was rejected. Only safe basic corrections were applied.',
         'ai_unavailable' => 'AI processing was not available. Only basic corrections were applied.',
+        'ai_edit_unavailable' => 'The AI edit did not succeed. The photo was improved using the AI analysis and automatic corrections. Try "Re-optimise".',
         'too_dark' => 'This photo is very dark. Improvement is limited.',
         'too_bright' => 'This photo is heavily overexposed. Blown-out areas cannot be recovered.',
         'low_contrast' => 'This photo has little contrast.',
