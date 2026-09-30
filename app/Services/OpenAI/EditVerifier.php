@@ -22,13 +22,16 @@ class EditVerifier
     Those improvements are the goal and are NEVER a problem, even when they make the product look lighter, cleaner or
     differently lit. A car that looks less blue-tinted after white balance correction has NOT changed colour.
     Small re-rendering differences in fine texture are fine, unless they alter a detail that matters to a buyer.
+    Cleaning is also asked for: removed dust, lint, hairs, fingerprints, smudges, water spots and stray specks are NOT
+    hidden damage. More clarity, crisper edges, deeper blacks and cleaner colours are NOT a changed product.
 
     Only report a real change to the PRODUCT itself, the kind a buyer would call misleading:
     - product_identity_changed: other shape or model, parts added, removed or reshaped (mirrors, wheels, handles, buttons...).
     - product_colour_changed: the actual paint or material colour is different (e.g. silver became white, red became orange),
       beyond what better lighting or white balance explains.
     - damage_hidden_or_changed: a visible scratch, dent, crack, stain, wear or damaged part in A is gone, smaller or different in B.
-    - text_or_logos_altered: letters, digits, logos, labels or displays ON THE PRODUCT are changed, garbled, added or removed.
+    - text_or_logos_altered: letters, digits, logos, labels or displays ON THE PRODUCT that are readable in A are changed,
+      garbled, added or removed in B. Tiny or blurry text that cannot be read in A does not count.
     - license_plate_altered: the licence plate characters differ or became unreadable.
     - product_looks_fake: the product looks clearly artificial (CGI, plastic, painted) instead of a real photo.
     - people_still_visible: people who are not part of the product are still visible in B.
