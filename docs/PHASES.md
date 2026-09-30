@@ -590,3 +590,12 @@ Tests: 135, alles groen. Toegevoegd: `app/Services/Processing/QueueKicker.php`, 
 - **Kwaliteit:** de retouche draait altijd in hoge kwaliteit (`OPENAI_RETOUCH_QUALITY`, standaard `high`), los van de systeeminstelling.
 - **Controle:** schoonmaken (stof, vingerafdrukken) en meer helderheid gelden uitdrukkelijk niet als verborgen schade of productwijziging; kleine onleesbare tekst telt niet mee.
 - Tests: 146, alles groen.
+
+## Vaste retouche-opdracht voor iedere foto
+
+- **Iedere foto** gaat nu door één AI-retouche met de vaste opdracht van de eigenaar (professionele verkoopfotografie voor Marktplaats, AutoScout24 en autobedrijven: schoon, verzorgd, beter belicht, scherper; permanente gebruikssporen, logo's, kentekens en voertuigdetails blijven). Ook bij Subtiel en bij iedere achtergrondoptie.
+- De opdracht staat in `resources/prompts/retouch.txt` en is door de Super Admin aan te passen in **Systeem > Vaste AI-opdracht voor iedere foto** (met "Standaardopdracht herstellen").
+- Automatisch toegevoegd per foto: sterkte (subtiel/normaal/sterk), achtergrond behouden, personen verwijderen (bij originele achtergrond), zichtbare schade en kenteken uit de analyse, en bij een sterk bewogen foto "verzin geen details".
+- **Andere achtergrond:** eerst de retouche, daarna wordt het geretoucheerde product uitgesneden en op de gekozen achtergrond gezet. De tussenversie wordt niet bewaard. De controle achteraf vergelijkt het eindresultaat altijd met de originele foto.
+- Retouche in hoge kwaliteit; een foto zonder AI (uit, niet beschikbaar of afgekeurd) krijgt de lokale finish.
+- Gewijzigd: `EditInstructionBuilder::retouch`, `AiImageProcessor` (plan en volgorde), `EditVerifier`, `config/bora.php`, `UpdateSystemSettingsRequest`, `SystemController`, `resources/js/pages/admin/SystemSettings.jsx`, vertalingen. Nieuw: `resources/prompts/retouch.txt`. Tests: 147, alles groen.

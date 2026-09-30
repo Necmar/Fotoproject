@@ -47,6 +47,8 @@ export default function SystemSettings() {
                 reoptimize_per_image: Number(form.reoptimize_per_image ?? 0),
                 reoptimize_per_company_per_day: Number(form.reoptimize_per_company_per_day ?? 0),
                 maintenance_message: form.maintenance_message || null,
+                // Unchanged default: store nothing, so later improvements of the default apply.
+                retouch_prompt: (form.retouch_prompt ?? '').trim() === (meta.default_retouch_prompt ?? '').trim() ? '' : (form.retouch_prompt ?? ''),
             };
             const { data: res } = await api.put('/admin/settings', payload);
             setForm(res.data);
@@ -141,6 +143,23 @@ export default function SystemSettings() {
                     </dl>
                     <p className="mt-4 text-xs text-stone-400">{t('admin.settings.openai_env_hint')}</p>
                     {meta.openai.configured && <OpenAITest lastError={meta.openai.last_error} />}
+                </Card>
+
+                <Card className="space-y-3">
+                    <h2 className="font-semibold">{t('admin.settings.retouch_prompt')}</h2>
+                    <p className="text-sm text-stone-500">{t('admin.settings.retouch_prompt_hint')}</p>
+                    <textarea
+                        rows={14}
+                        value={form.retouch_prompt || meta.default_retouch_prompt || ''}
+                        onChange={(e) => setForm({ ...form, retouch_prompt: e.target.value })}
+                        className="w-full rounded-xl border-0 px-3 py-2.5 text-base ring-1 ring-stone-300 focus:ring-2 focus:ring-brand-500 sm:text-sm"
+                    />
+                    {errors.retouch_prompt && <p className="text-sm text-red-600">{errors.retouch_prompt}</p>}
+                    {form.retouch_prompt && form.retouch_prompt.trim() !== (meta.default_retouch_prompt ?? '').trim() && (
+                        <button type="button" onClick={() => setForm({ ...form, retouch_prompt: '' })} className="text-sm font-medium text-brand-700 hover:underline">
+                            {t('admin.settings.retouch_prompt_reset')}
+                        </button>
+                    )}
                 </Card>
 
                 <Card className="space-y-5">
