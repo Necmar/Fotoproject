@@ -117,10 +117,69 @@ class EditInstructionBuilder
         };
     }
 
+    /**
+     * Whole-photo retouch (original background, Normal/Strong): the "clean
+     * advertisement" look. Goal first and concrete, so the model really
+     * improves the photo; the integrity rules say what must stay true, without
+     * forbidding the global tone and colour work that makes a photo look clean.
+     */
+    public function retouch(array $analysis, BatchSettings $settings): string
+    {
+        $strong = $settings->strength === OptimizationStrength::Strong;
+        $product = ($analysis['product']['description'] ?? '') ?: 'the main subject of the photo';
+
+        $lines = [
+            'Retouch this photo into a clean, professional, high-end advertisement photo for an online marketplace listing, '
+                .'the way a professional product photographer finishes a photo for a premium brochure. The improvement must be clearly visible.',
+            '',
+            'DO THIS (whole image):',
+            '- Exposure and white balance: correct, neutral and true to life, no colour cast. Recover blown highlights and open up dark shadows where the photo allows.',
+            '- Tone: deep, clean blacks; bright, clean highlights; rich midtones. Crisp contrast, no flat or milky areas.',
+            '- Clarity: add micro-contrast and definition, remove haze and dullness from the whole photo.',
+            '- Sharpness: crisp, well-defined edges and fine detail (stitching, textures, grain of materials); remove noise, grain and compression artefacts.',
+            '- Cleaning: remove dust, lint, hairs, crumbs, fingerprints, smudges, water spots, streaks and small stray specks from all surfaces, screens and glass. These are dirt, not defects.',
+            '- Colour: clean, vivid and natural, like a premium brochure; not oversaturated, not a filter look.',
+            $strong
+                ? '- Presentation: go for a striking, polished result with even, flattering light and controlled reflections.'
+                : '- Presentation: a polished, attractive result that still looks like a real photo of this exact item.',
+            '- Background: '.$this->backgroundText($settings->background, false),
+        ];
+
+        if ($settings->removePeople) {
+            $lines[] = '- People: remove people who are not part of the item and fill that area with plausible background. If a person covers part of the item, do not invent hidden details.';
+        }
+
+        $problems = array_keys(array_filter($analysis['issues'] ?? []));
+        if ($problems) {
+            $lines[] = '- Problems seen in this photo, fix them: '.str_replace('_', ' ', implode(', ', $problems)).'.';
+        }
+        if (($analysis['edit_instructions'] ?? '') !== '') {
+            $lines[] = '- Notes for this photo: '.$analysis['edit_instructions'];
+        }
+
+        array_push($lines, '',
+            'KEEP TRUE (the listing must stay honest):',
+            "- Subject: {$product}. Same object, shape, proportions, parts and materials; same paint/material colour (brightness and clarity may improve, the hue may not change).",
+            '- Every real defect stays visible exactly where it is: scratches, dents, cracks, chips, tears, wear, rust, paint damage, damaged rims.',
+            '- Text, numbers, symbols, icons, logos, displays and licence plates stay identical and legible. Never invent, rewrite or blur characters.',
+            '- Nothing added to or removed from the item; do not invent parts that are not visible.',
+            '- Same camera angle, framing, crop and composition. A real photograph, not a render or illustration.',
+        );
+
+        if ($analysis['visible']['damage'] ?? false) {
+            $lines[] = '- Damage in this photo that must stay: '.(($analysis['visible']['damage_description'] ?? '') ?: 'as photographed').'.';
+        }
+        if ($analysis['visible']['license_plate'] ?? false) {
+            $lines[] = '- A licence plate is visible: keep it unchanged and readable.';
+        }
+
+        return implode("\n", $lines);
+    }
+
     private function backgroundText(BackgroundOption $option, bool $transparent): string
     {
         return match ($option) {
-            BackgroundOption::Keep => 'Keep the original background; only improve its light and image quality. Do not add or remove background objects.',
+            BackgroundOption::Keep => 'keep the original background and setting; improve and clean it together with the rest of the photo, without adding or removing objects.',
             BackgroundOption::CleanSubtle => 'Keep the original background but subtly tidy it: reduce small litter, stains and visual noise.',
             BackgroundOption::RemoveDistractions => 'Keep the setting but reduce or remove distracting background elements (litter, signs, cables, bins, other vehicles partly in view).',
             BackgroundOption::BlurLight => 'Keep the background but apply a light, natural depth-of-field blur to it; the product stays fully sharp.',

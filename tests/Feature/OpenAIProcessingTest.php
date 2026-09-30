@@ -187,7 +187,7 @@ class OpenAIProcessingTest extends TestCase
         // Original background: one whole-photo retouch (the clean advertisement look), verified.
         $this->assertSame(1, $this->sentTo('/images/edits'));
         $edits = Http::recorded(fn (Request $r) => str_ends_with($r->url(), '/images/edits'));
-        $this->assertStringContainsString('Rich deep blacks', (string) $edits->first()[0]->body());
+        $this->assertStringContainsString('deep, clean blacks', (string) $edits->first()[0]->body());
 
         // At the photo's own size (1600 px): never upscaled to 2000.
         $this->assertSame(1600, max($image->output_width, $image->output_height));
@@ -195,10 +195,11 @@ class OpenAIProcessingTest extends TestCase
         $edit = $edits->last()[0];
         $body = (string) $edit->body();
         $this->assertStringContainsString('gpt-image-2', $body);
-        $this->assertStringContainsString('Keep ALL damage visible', $body);
+        $this->assertStringContainsString('Every real defect stays visible', $body);
         $this->assertStringContainsString('licence plate', $body);
         $this->assertStringContainsString('scratch on rear bumper', $body);
         $this->assertStringContainsString('1600x1200', $body, 'size follows the working copy');
+        $this->assertMatchesRegularExpression('/name="quality"\s+(Content-Length: \d+\s+)?high/', $body, 'retouch in high quality');
         $this->assertStringContainsString('input_fidelity', $body, 'stay close to the source photo');
 
         $this->assertSame(3, ImageProcessingRecord::query()->where('provider', 'openai')->count(), 'analysis, retouch, verification');
@@ -359,7 +360,7 @@ class OpenAIProcessingTest extends TestCase
         $codes = array_column($image->warnings, 'code');
         $this->assertContains('person_overlaps_product', $codes);
         $this->assertContains('people_not_removed', $codes);
-        $this->assertStringContainsString('remove people who are not part of the product', (string) Http::recorded(fn ($r) => str_ends_with($r->url(), '/images/edits'))->last()[0]->body());
+        $this->assertStringContainsString('remove people who are not part of the item', (string) Http::recorded(fn ($r) => str_ends_with($r->url(), '/images/edits'))->last()[0]->body());
     }
 
     public function test_unrestorable_photo_gets_warning_and_no_generative_edit(): void

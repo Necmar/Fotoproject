@@ -112,7 +112,7 @@ class AiImageProcessor
         try {
             if ($plan['retouch']) {
                 // Whole-photo retouch (the "clean advertisement" look), checked below.
-                $tmp = $this->aiEdit($image, $type, $this->instructions->build($analysis, $settings, false), $temps, lossless: false);
+                $tmp = $this->aiEdit($image, $type, $this->instructions->retouch($analysis, $settings), $temps, lossless: false, quality: (string) config('services.openai.retouch_quality', 'high'));
                 // Never larger than the photo itself (no upscaling), exact photo proportions.
                 [$pw, $ph] = getimagesize($workingLocal);
                 $retouched = ImageEditor::open($tmp);
@@ -269,12 +269,12 @@ class AiImageProcessor
     }
 
     /** @param list<string> $temps */
-    private function aiEdit(Image $image, ProcessingType $type, string $prompt, array &$temps, bool $lossless = true): string
+    private function aiEdit(Image $image, ProcessingType $type, string $prompt, array &$temps, bool $lossless = true, ?string $quality = null): string
     {
         $started = microtime(true);
 
         try {
-            $edit = $this->editor->edit($image->working_path, $prompt, false, $this->files->tempPath('img'), lossless: $lossless);
+            $edit = $this->editor->edit($image->working_path, $prompt, false, $this->files->tempPath('img'), $quality ?: null, lossless: $lossless);
         } catch (OpenAIException $e) {
             $this->record($image, $type, $started, null, $e);
             throw $e;

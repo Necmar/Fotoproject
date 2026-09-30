@@ -52,6 +52,8 @@ return [
         'image_quality' => env('OPENAI_IMAGE_QUALITY', 'medium'),
         // How closely the edit follows the source photo; left out automatically if a model refuses it.
         'input_fidelity' => env('OPENAI_INPUT_FIDELITY', 'high'),
+        // The whole-photo retouch is what the customer sees: always the finest detail.
+        'retouch_quality' => env('OPENAI_RETOUCH_QUALITY', 'high'),
 
         // "match": ask for the photo's own aspect ratio (multiple of 16, long side <= max_side);
         // falls back to "auto" if the model refuses the size.
