@@ -227,8 +227,9 @@ class OpenAIProcessingTest extends TestCase
         $this->assertEqualsWithDelta(0.06525, (float) $editRecord->estimated_cost_usd, 0.00001);
     }
 
-    public function test_edit_that_changes_the_product_is_rejected(): void
+    public function test_edit_that_changes_the_product_is_rejected_when_configured(): void
     {
+        config(['services.openai.on_product_change' => 'reject']);
         $this->fakeOpenAI($this->analysis(), $this->verification(ok: false));
         $batch = $this->batch(['strength' => 'strong']);
 
@@ -566,5 +567,59 @@ class OpenAIProcessingTest extends TestCase
         // analysis once + a verification per result; no second analysis
         $this->assertSame(3, $this->sentTo('/responses'));
         $this->assertSame(2, ImageProcessingRecord::query()->where('type', 'reoptimize')->count());
+    }
+
+    public function test_changed_text_is_restored_from_the_original_instead_of_rejecting(): void
+    {
+        // The retouch "rewrites" a block of text on the product (dark rectangle); the check points at it.
+        $verification = array_replace($this->verification(), [
+            'text_or_logos_altered' => true, 'notes' => 'screen text differs',
+            'reason_nl' => 'de tekst op het scherm is veranderd', 'reason_en' => 'the text on the screen changed',
+            'regions' => [['kind' => 'display', 'x' => 900 / 2048, 'y' => 700 / 1536, 'width' => 200 / 2048, 'height' => 100 / 1536]],
+        ]);
+        $this->fakeOpenAI($this->analysis(), $verification, function (Request $r) {
+            $img = imagecreatetruecolor(2048, 1536);
+            imagefill($img, 0, 0, imagecolorallocate($img, 150, 160, 170));
+            imagefilledrectangle($img, 512, 384, 1536, 1152, imagecolorallocate($img, 200, 30, 30));
+            imagefilledrectangle($img, 900, 700, 1100, 800, imagecolorallocate($img, 20, 20, 20));
+            ob_start();
+            imagepng($img);
+
+            return Http::response(['data' => [['b64_json' => base64_encode(ob_get_clean())]], 'usage' => ['input_tokens' => 10, 'output_tokens' => 10]]);
+        });
+        $batch = $this->batch(['strength' => 'normal']);
+
+        $this->artisan('bora:work')->assertSuccessful();
+
+        $image = $batch->images()->first();
+        $this->assertSame('completed', $image->status->value);
+        $this->assertSame('edited', $image->ai_status, 'the retouch is kept');
+        $this->assertNotNull($image->ai_path);
+        $this->assertNotContains('ai_edit_rejected_reason', array_column($image->warnings ?? [], 'code'));
+        $this->assertNotContains('ai_edit_differs_reason', array_column($image->warnings ?? [], 'code'));
+        $this->assertSame(1, $image->analysis['repair']['restored']);
+
+        // The changed block has the original (red) pixels again; the retouched background stays.
+        $out = imagecreatefromstring(Storage::disk('local')->get($image->ai_path));
+        $scale = imagesx($out) / 2048;
+        $c = imagecolorat($out, (int) (1000 * $scale), (int) (750 * $scale));
+        $this->assertGreaterThan(150, ($c >> 16) & 0xFF);
+        $this->assertLessThan(80, ($c >> 8) & 0xFF);
+        $bg = imagecolorat($out, 40, 40);
+        $this->assertEqualsWithDelta(150, ($bg >> 16) & 0xFF, 12);
+    }
+
+    public function test_a_change_that_cannot_be_located_keeps_the_edit_with_a_note(): void
+    {
+        $this->fakeOpenAI($this->analysis(), $this->verification(ok: false));
+        $batch = $this->batch(['strength' => 'strong']);
+
+        $this->artisan('bora:work')->assertSuccessful();
+
+        $image = $batch->images()->first();
+        $this->assertSame('edited', $image->ai_status);
+        $this->assertNotNull($image->ai_path);
+        $this->assertContains('ai_edit_differs_reason', array_column($image->warnings, 'code'));
+        $this->assertStringContainsString('de lakkleur is veranderd', collect($this->getJson("/api/company/batches/{$image->batch_id}")->json('data.images.0.warnings'))->pluck('message')->implode(' '));
     }
 }

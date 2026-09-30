@@ -8,6 +8,7 @@ use App\Enums\OptimizationStrength;
 use App\Enums\ProcessingType;
 use App\Models\Image;
 use App\Models\ImageProcessingRecord;
+use App\Services\Images\DetailRestorer;
 use App\Services\Images\ImageEditor;
 use App\Services\Images\ImagePreparer;
 use App\Services\Images\ProductCompositor;
@@ -19,7 +20,9 @@ use Illuminate\Support\Str;
 
 /**
  * Orchestrates the AI part for one image:
- *   analyse (once, cached) -> decide -> edit (only when needed) -> verify.
+ *   analyse (once, cached) -> decide -> edit (only when needed) -> verify -> repair.
+ * An edit is never thrown away: where the check finds a changed product
+ * detail, the original pixels are put back (DetailRestorer).
  * Returns what the renderer should use. Every OpenAI call is recorded with
  * tokens and estimated cost. Throws OpenAIException for the pipeline to
  * retry or fall back.
@@ -37,6 +40,7 @@ class AiImageProcessor
         private readonly StorageAccounting $storage,
         private readonly SystemSettings $system,
         private readonly ProductCompositor $compositor,
+        private readonly DetailRestorer $restorer,
     ) {}
 
     public function isActive(): bool
@@ -109,6 +113,7 @@ class AiImageProcessor
         $workingLocal = $this->files->localPath($image->working_path);
         $sourceLocal = null;
         $intermediate = null; // retouch used as input for a new background: removed afterwards
+        $mask = null;
         $temps = [];
 
         try {
@@ -219,14 +224,25 @@ class AiImageProcessor
             $image->forceFill(['analysis' => array_replace($image->analysis ?? [], ['verification' => $check['result']])])->save();
 
             if (! $check['accepted']) {
-                $this->files->disk()->delete($diskPath);
-                $this->storage->add($image->batch, -$bytes);
                 $reason = trim((string) ($check['result'][app()->getLocale() === 'en' ? 'reason_en' : 'reason_nl'] ?? ''));
-                $this->addWarnings($image, 'ai_edit', [$reason !== ''
-                    ? ['code' => 'ai_edit_rejected_reason', 'params' => ['reason' => rtrim($reason, '.')]]
-                    : ['code' => 'ai_edit_rejected']]);
 
-                return ['status' => AiStatus::EditRejected] + $local;
+                if (config('services.openai.on_product_change', 'repair') === 'reject') {
+                    $this->files->disk()->delete($diskPath);
+                    $this->storage->add($image->batch, -$bytes);
+                    $this->addWarnings($image, 'ai_edit', [$reason !== ''
+                        ? ['code' => 'ai_edit_rejected_reason', 'params' => ['reason' => rtrim($reason, '.')]]
+                        : ['code' => 'ai_edit_rejected']]);
+
+                    return ['status' => AiStatus::EditRejected] + $local;
+                }
+
+                // Keep the retouch; put the original details back where the product changed.
+                [$bytes, $repaired] = $this->repair($image, $diskPath, $bytes, $check, $mask);
+                if (! $repaired) {
+                    $warnings[] = $reason !== ''
+                        ? ['code' => 'ai_edit_differs_reason', 'params' => ['reason' => rtrim($reason, '.')]]
+                        : ['code' => 'ai_edit_differs'];
+                }
             }
 
             if ($check['result']['people_remaining'] ?? false) {
@@ -247,6 +263,54 @@ class AiImageProcessor
         return ['source' => $diskPath, 'adjustments' => $rotateOnly, 'focus' => $focus, 'status' => AiStatus::Edited]
             // A retouched photo is already finished; without retouch the local finish is applied.
             + ($plan['retouch'] ? ['finish' => null] : []);
+    }
+
+    /**
+     * Original pixels back in the changed regions of the edit.
+     * Whether every reported change was covered: a colour or look change
+     * without a region cannot be repaired locally.
+     *
+     * @return array{0: int, 1: bool} new size in bytes, fully repaired
+     */
+    private function repair(Image $image, string $diskPath, int $bytes, array $check, ?\GdImage $mask): array
+    {
+        $regions = $check['regions'] ?? [];
+        $result = $check['result'];
+        $restored = 0;
+
+        if ($regions !== []) {
+            $editedLocal = $this->files->localPath($diskPath);
+            $workingLocal = $this->files->localPath($image->working_path);
+
+            try {
+                $edited = ImageEditor::open($editedLocal);
+                $restored = $this->restorer->restore($edited, ImageEditor::open($workingLocal), $regions, $mask);
+
+                if ($restored > 0) {
+                    $png = str_ends_with($diskPath, '.png');
+                    $tmp = $this->files->tempPath($png ? 'png' : 'jpg');
+                    $png ? $edited->savePng($tmp) : $edited->saveJpeg($tmp, 95);
+                    $this->storage->add($image->batch, -$bytes);
+                    $this->files->disk()->delete($diskPath);
+                    $bytes = $this->commit($image, $tmp, $diskPath);
+                }
+            } finally {
+                $this->files->release($editedLocal);
+                $this->files->release($workingLocal);
+            }
+        }
+
+        $kinds = array_column($regions, 'kind');
+        // Colour or look of the whole product: a region patch does not fix that.
+        $uncovered = ($result['product_looks_fake'] ?? false)
+            || (($result['product_colour_changed'] ?? false) && ! in_array('colour', $kinds, true));
+        $repaired = $restored > 0 && ! $uncovered;
+
+        $image->forceFill(['analysis' => array_replace($image->analysis ?? [], ['repair' => [
+            'regions' => $regions, 'restored' => $restored, 'complete' => $repaired,
+        ]])])->save();
+
+        return [$bytes, $repaired];
     }
 
     /**

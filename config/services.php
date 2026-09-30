@@ -71,6 +71,10 @@ return [
         'edit_policy' => env('OPENAI_EDIT_POLICY', 'auto'),
         // Second look after every edit: reject edits that changed the product.
         'verify_edits' => (bool) env('OPENAI_VERIFY_EDITS', true),
+        // What happens when the check finds a changed product detail.
+        // repair: keep the edit and put the original pixels back in the changed places (text, logos, plate, damage).
+        // reject: throw the edit away and use safe local corrections.
+        'on_product_change' => env('OPENAI_ON_PRODUCT_CHANGE', 'repair'),
 
         'timeouts' => [
             'analysis' => (int) env('OPENAI_ANALYSIS_TIMEOUT', 90),
