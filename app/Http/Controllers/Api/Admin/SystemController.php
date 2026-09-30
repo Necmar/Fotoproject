@@ -71,6 +71,7 @@ class SystemController extends Controller
             'data' => $this->settings->all(),
             'meta' => [
                 'limits' => config('bora.limits'),
+                'default_retouch_prompt' => \App\Services\OpenAI\EditInstructionBuilder::defaultRetouchPrompt(),
                 // Read-only; configured in .env. Never includes the key itself.
                 'openai' => [
                     'configured' => app(OpenAIClient::class)->isConfigured(),

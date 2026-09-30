@@ -36,6 +36,8 @@ return [
         // AI edit quality: "medium" is roughly twice as fast (and cheaper) as "high".
         'ai_image_quality' => env('OPENAI_IMAGE_QUALITY', 'medium'),
         // "Opnieuw optimaliseren" costs AI edits. 0 = no limit. Set in Super Admin > Systeem.
+        // Fixed AI retouch prompt for every photo; empty = resources/prompts/retouch.txt.
+        'retouch_prompt' => '',
         'reoptimize_per_image' => 0, // not from .env: older installs had 5 there
         'reoptimize_per_company_per_day' => (int) env('BORA_REOPTIMIZE_PER_DAY', 300),
         'maintenance_message' => null,

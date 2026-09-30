@@ -143,7 +143,7 @@ class OpenAIProcessingTest extends TestCase
         return count(Http::recorded(fn (Request $r) => str_ends_with($r->url(), $endpoint)));
     }
 
-    public function test_subtle_keep_background_uses_analysis_and_local_corrections_only(): void
+    public function test_every_photo_gets_the_fixed_retouch_prompt_even_when_subtle(): void
     {
         $this->fakeOpenAI($this->analysis());
         $batch = $this->batch(['strength' => 'subtle']);
@@ -152,9 +152,13 @@ class OpenAIProcessingTest extends TestCase
 
         $image = $batch->images()->first();
         $this->assertSame('completed', $image->status->value);
-        $this->assertSame('analyzed', $image->ai_status);
-        $this->assertSame(1, $this->sentTo('/responses'));
-        $this->assertSame(0, $this->sentTo('/images/edits'));
+        $this->assertSame('edited', $image->ai_status);
+        $this->assertSame(2, $this->sentTo('/responses'), 'analysis + verification');
+        $this->assertSame(1, $this->sentTo('/images/edits'));
+        $body = (string) Http::recorded(fn (Request $r) => str_ends_with($r->url(), '/images/edits'))->first()[0]->body();
+        $this->assertStringContainsString('Bewerk deze originele autofoto naar professionele verkoopfotografie', $body);
+        $this->assertStringContainsString('Geen verwijdering van permanente beschadigingen.', $body);
+        $this->assertStringContainsString('Sterkte: subtiel', $body);
         $this->assertSame('red hatchback car', $image->analysis['ai']['product']['description']);
 
         // Key only in the Authorization header; the photo is sent as a data URL; structured output requested.
@@ -169,6 +173,20 @@ class OpenAIProcessingTest extends TestCase
         $this->assertSame(1200, $record->input_tokens);
         // 1200 * 0.75 + 300 * 4.50 per million
         $this->assertEqualsWithDelta(0.00225, (float) $record->estimated_cost_usd, 0.00001);
+    }
+
+    public function test_super_admin_can_replace_the_fixed_prompt(): void
+    {
+        app(\App\Services\SystemSettings::class)->update(['retouch_prompt' => 'Eigen vaste opdracht van de beheerder.']);
+        $this->fakeOpenAI($this->analysis());
+        $this->batch(['strength' => 'normal']);
+
+        $this->artisan('bora:work')->assertSuccessful();
+
+        $body = (string) Http::recorded(fn (Request $r) => str_ends_with($r->url(), '/images/edits'))->first()[0]->body();
+        $this->assertStringContainsString('Eigen vaste opdracht van de beheerder.', $body);
+        $this->assertStringNotContainsString('Bewerk deze originele autofoto', $body);
+        $this->assertStringContainsString('Sterkte: normaal', $body);
     }
 
     public function test_strong_strength_edits_verifies_and_uses_the_ai_result(): void
@@ -187,7 +205,7 @@ class OpenAIProcessingTest extends TestCase
         // Original background: one whole-photo retouch (the clean advertisement look), verified.
         $this->assertSame(1, $this->sentTo('/images/edits'));
         $edits = Http::recorded(fn (Request $r) => str_ends_with($r->url(), '/images/edits'));
-        $this->assertStringContainsString('deep, clean blacks', (string) $edits->first()[0]->body());
+        $this->assertStringContainsString('Bewerk deze originele autofoto', (string) $edits->first()[0]->body());
 
         // At the photo's own size (1600 px): never upscaled to 2000.
         $this->assertSame(1600, max($image->output_width, $image->output_height));
@@ -195,8 +213,9 @@ class OpenAIProcessingTest extends TestCase
         $edit = $edits->last()[0];
         $body = (string) $edit->body();
         $this->assertStringContainsString('gpt-image-2', $body);
-        $this->assertStringContainsString('Every real defect stays visible', $body);
-        $this->assertStringContainsString('licence plate', $body);
+        $this->assertStringContainsString('Behoud permanente gebruikssporen', $body);
+        $this->assertStringContainsString('Er is een kenteken zichtbaar', $body);
+        $this->assertStringContainsString('Sterkte: sterk', $body);
         $this->assertStringContainsString('scratch on rear bumper', $body);
         $this->assertStringContainsString('1600x1200', $body, 'size follows the working copy');
         $this->assertMatchesRegularExpression('/name="quality"\s+(Content-Length: \d+\s+)?high/', $body, 'retouch in high quality');
@@ -224,13 +243,13 @@ class OpenAIProcessingTest extends TestCase
         $this->assertStringContainsString('de lakkleur is veranderd', collect($this->getJson("/api/company/batches/{$image->batch_id}")->json('data.images.0.warnings'))->pluck('message')->implode(' '));
     }
 
-    public function test_the_product_always_keeps_its_original_pixels(): void
+    public function test_a_background_edit_never_repaints_the_retouched_product(): void
     {
-        // The background edit "repaints" the product blue; the result must still show the original red product.
+        // The background edit "repaints" the product blue; the result must still show the (retouched) red product.
         $this->fakeOpenAI(
             $this->analysis(['corrections' => array_fill_keys(['exposure', 'contrast', 'warmth', 'tint', 'sharpen', 'denoise', 'rotate_degrees'], 0)]),
             null,
-            fn (Request $r) => Http::response($this->editBody($r, [30, 60, 220])),
+            fn (Request $r) => Http::response(str_contains((string) $r->body(), 'autofoto') ? $this->editBody($r) : $this->editBody($r, [30, 60, 220])),
         );
         $batch = $this->batch(['strength' => 'strong', 'background' => 'remove_distractions']);
 
@@ -256,7 +275,9 @@ class OpenAIProcessingTest extends TestCase
 
         $image = $batch->images()->first();
         $this->assertSame('edited', $image->ai_status);
-        $this->assertSame(1, $this->sentTo('/images/edits'), 'only the cut-out');
+        $this->assertSame(2, $this->sentTo('/images/edits'), 'retouch + cut-out');
+        // The intermediate retouch is not kept.
+        $this->assertCount(1, Storage::disk('local')->files($batch->storageDirectory().'/ai'));
         $png = imagecreatefromstring(Storage::disk('local')->get($image->ai_path));
         $this->assertSame(127, (imagecolorat($png, 50, 50) >> 24) & 0x7F, 'transparent background');
         $this->assertSame(0, (imagecolorat($png, 800, 600) >> 24) & 0x7F, 'opaque product');
@@ -332,18 +353,19 @@ class OpenAIProcessingTest extends TestCase
 
         $this->artisan('bora:work')->assertSuccessful();
 
-        $this->assertSame(1, $this->sentTo('/images/edits'));
+        $this->assertSame(2, $this->sentTo('/images/edits'), 'retouch + cut-out');
         $this->assertSame('edited', $batch->images()->first()->ai_status);
     }
 
-    public function test_remove_people_without_people_does_not_edit(): void
+    public function test_remove_people_without_people_needs_no_extra_edit(): void
     {
         $this->fakeOpenAI($this->analysis());
-        $batch = $this->batch(['strength' => 'subtle', 'remove_people' => true]);
+        $batch = $this->batch(['strength' => 'subtle', 'remove_people' => true, 'background' => 'blur_light']);
 
         $this->artisan('bora:work')->assertSuccessful();
 
-        $this->assertSame(0, $this->sentTo('/images/edits'));
+        // Retouch + cut-out, but no AI background for people that are not there.
+        $this->assertSame(2, $this->sentTo('/images/edits'));
     }
 
     public function test_person_in_front_of_product_gives_a_warning(): void
@@ -360,10 +382,10 @@ class OpenAIProcessingTest extends TestCase
         $codes = array_column($image->warnings, 'code');
         $this->assertContains('person_overlaps_product', $codes);
         $this->assertContains('people_not_removed', $codes);
-        $this->assertStringContainsString('remove people who are not part of the item', (string) Http::recorded(fn ($r) => str_ends_with($r->url(), '/images/edits'))->last()[0]->body());
+        $this->assertStringContainsString('verwijder personen die geen deel van de auto of het product zijn', (string) Http::recorded(fn ($r) => str_ends_with($r->url(), '/images/edits'))->last()[0]->body());
     }
 
-    public function test_unrestorable_photo_gets_warning_and_no_generative_edit(): void
+    public function test_unrestorable_photo_gets_warning_and_a_careful_retouch(): void
     {
         $this->fakeOpenAI($this->analysis(['restorable' => false, 'severity' => 'major', 'issues' => ['motion_blur' => true], 'needs_generative_edit' => true]));
         $batch = $this->batch(['strength' => 'normal']);
@@ -371,7 +393,8 @@ class OpenAIProcessingTest extends TestCase
         $this->artisan('bora:work')->assertSuccessful();
 
         $image = $batch->images()->first();
-        $this->assertSame(0, $this->sentTo('/images/edits'));
+        $this->assertSame(1, $this->sentTo('/images/edits'));
+        $this->assertStringContainsString('verzin geen details', (string) Http::recorded(fn ($r) => str_ends_with($r->url(), '/images/edits'))->first()[0]->body());
         $this->assertContains('motion_blur', array_column($image->warnings, 'code'));
 
         $this->getJson("/api/company/batches/{$batch->id}")
@@ -386,6 +409,7 @@ class OpenAIProcessingTest extends TestCase
                 ? Http::response(['error' => ['message' => 'Rate limit', 'type' => 'requests', 'code' => 'rate_limit_exceeded']], 429)
                 : Http::response($this->responsesBody($this->analysis()));
         });
+        config(['services.openai.edit_policy' => 'never']); // analysis only
         $batch = $this->batch(['strength' => 'subtle']);
 
         $this->artisan('bora:work')->assertSuccessful();
@@ -475,7 +499,9 @@ class OpenAIProcessingTest extends TestCase
         $image->forceFill(['status' => 'queued'])->save();
         app(ImagePipeline::class)->process($image);
 
-        $this->assertSame(1, $this->sentTo('/responses'));
+        // One analysis and one verification: nothing is sent again.
+        $this->assertSame(2, $this->sentTo('/responses'));
+        $this->assertSame(1, $this->sentTo('/images/edits'));
     }
 
     public function test_ai_switched_off_by_super_admin_sends_nothing(): void
@@ -528,7 +554,7 @@ class OpenAIProcessingTest extends TestCase
         $batch = $this->batch(['strength' => 'subtle']);
         $this->artisan('bora:work')->assertSuccessful();
         $image = $batch->images()->first();
-        $this->assertSame(0, $this->sentTo('/images/edits'));
+        $this->assertSame(1, $this->sentTo('/images/edits'));
 
         $this->postJson("/api/company/images/{$image->id}/reoptimize", ['strength' => 'subtle', 'background' => 'neutral', 'remove_people' => false])
             ->assertStatus(202);
@@ -536,9 +562,9 @@ class OpenAIProcessingTest extends TestCase
 
         $image->refresh();
         $this->assertSame('edited', $image->ai_status);
-        $this->assertSame(1, $this->sentTo('/images/edits'));
-        // analysis once + verification of the new edit; no second analysis
-        $this->assertSame(2, $this->sentTo('/responses'));
-        $this->assertSame(1, ImageProcessingRecord::query()->where('type', 'reoptimize')->count());
+        $this->assertSame(3, $this->sentTo('/images/edits'), 'retouch, then retouch + cut-out');
+        // analysis once + a verification per result; no second analysis
+        $this->assertSame(3, $this->sentTo('/responses'));
+        $this->assertSame(2, ImageProcessingRecord::query()->where('type', 'reoptimize')->count());
     }
 }

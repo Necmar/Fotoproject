@@ -4,6 +4,7 @@ namespace App\Services\OpenAI;
 
 use App\Enums\BackgroundOption;
 use App\Enums\OptimizationStrength;
+use App\Services\SystemSettings;
 use App\Support\BatchSettings;
 
 /**
@@ -117,60 +118,44 @@ class EditInstructionBuilder
         };
     }
 
-    /**
-     * Whole-photo retouch (original background, Normal/Strong): the "clean
-     * advertisement" look. Goal first and concrete, so the model really
-     * improves the photo; the integrity rules say what must stay true, without
-     * forbidding the global tone and colour work that makes a photo look clean.
-     */
-    public function retouch(array $analysis, BatchSettings $settings): string
+    /** The fixed retouch prompt (Super Admin can replace it in Systeem; empty = this default). */
+    public static function defaultRetouchPrompt(): string
     {
-        $strong = $settings->strength === OptimizationStrength::Strong;
-        $product = ($analysis['product']['description'] ?? '') ?: 'the main subject of the photo';
+        return trim((string) file_get_contents(resource_path('prompts/retouch.txt')));
+    }
 
-        $lines = [
-            'Retouch this photo into a clean, professional, high-end advertisement photo for an online marketplace listing, '
-                .'the way a professional product photographer finishes a photo for a premium brochure. The improvement must be clearly visible.',
-            '',
-            'DO THIS (whole image):',
-            '- Exposure and white balance: correct, neutral and true to life, no colour cast. Recover blown highlights and open up dark shadows where the photo allows.',
-            '- Tone: deep, clean blacks; bright, clean highlights; rich midtones. Crisp contrast, no flat or milky areas.',
-            '- Clarity: add micro-contrast and definition, remove haze and dullness from the whole photo.',
-            '- Sharpness: crisp, well-defined edges and fine detail (stitching, textures, grain of materials); remove noise, grain and compression artefacts.',
-            '- Cleaning: remove dust, lint, hairs, crumbs, fingerprints, smudges, water spots, streaks and small stray specks from all surfaces, screens and glass. These are dirt, not defects.',
-            '- Colour: clean, vivid and natural, like a premium brochure; not oversaturated, not a filter look.',
-            $strong
-                ? '- Presentation: go for a striking, polished result with even, flattering light and controlled reflections.'
-                : '- Presentation: a polished, attractive result that still looks like a real photo of this exact item.',
-            '- Background: '.$this->backgroundText($settings->background, false),
-        ];
+    /**
+     * Whole-photo retouch, run for EVERY photo: the fixed prompt, followed by
+     * what is specific to this photo and these settings.
+     */
+    public function retouch(array $analysis, BatchSettings $settings, bool $keepBackground = true): string
+    {
+        $base = trim((string) app(SystemSettings::class)->get('retouch_prompt', ''));
+        $lines = [$base !== '' ? $base : self::defaultRetouchPrompt(), ''];
 
-        if ($settings->removePeople) {
-            $lines[] = '- People: remove people who are not part of the item and fill that area with plausible background. If a person covers part of the item, do not invent hidden details.';
+        $lines[] = match ($settings->strength) {
+            OptimizationStrength::Subtle => 'Sterkte: subtiel. Houd alle verbeteringen licht en blijf zo dicht mogelijk bij de bronfoto.',
+            OptimizationStrength::Normal => 'Sterkte: normaal. De verbetering moet duidelijk zichtbaar zijn.',
+            OptimizationStrength::Strong => 'Sterkte: sterk. Maak de verbetering van licht, schaduwen en presentatie duidelijk krachtiger, binnen alle regels hierboven.',
+        };
+
+        $lines[] = 'Achtergrond: behoud de originele achtergrond en omgeving. Maak die mee schoon en helder, zonder objecten toe te voegen of te verwijderen.';
+
+        if ($keepBackground && $settings->removePeople) {
+            $lines[] = 'Personen: verwijder personen die geen deel van de auto of het product zijn en vul die plek met passende achtergrond. Staat iemand deels voor de auto, verzin dan geen verborgen details.';
         }
 
-        $problems = array_keys(array_filter($analysis['issues'] ?? []));
-        if ($problems) {
-            $lines[] = '- Problems seen in this photo, fix them: '.str_replace('_', ' ', implode(', ', $problems)).'.';
+        if (! ($analysis['restorable'] ?? true)) {
+            $lines[] = 'Deze foto is sterk onscherp of bewogen: verscherp niet meer dan de foto toelaat en verzin geen details.';
         }
-        if (($analysis['edit_instructions'] ?? '') !== '') {
-            $lines[] = '- Notes for this photo: '.$analysis['edit_instructions'];
-        }
-
-        array_push($lines, '',
-            'KEEP TRUE (the listing must stay honest):',
-            "- Subject: {$product}. Same object, shape, proportions, parts and materials; same paint/material colour (brightness and clarity may improve, the hue may not change).",
-            '- Every real defect stays visible exactly where it is: scratches, dents, cracks, chips, tears, wear, rust, paint damage, damaged rims.',
-            '- Text, numbers, symbols, icons, logos, displays and licence plates stay identical and legible. Never invent, rewrite or blur characters.',
-            '- Nothing added to or removed from the item; do not invent parts that are not visible.',
-            '- Same camera angle, framing, crop and composition. A real photograph, not a render or illustration.',
-        );
-
         if ($analysis['visible']['damage'] ?? false) {
-            $lines[] = '- Damage in this photo that must stay: '.(($analysis['visible']['damage_description'] ?? '') ?: 'as photographed').'.';
+            $lines[] = 'Zichtbare schade die moet blijven: '.(($analysis['visible']['damage_description'] ?? '') ?: 'zoals gefotografeerd').'.';
         }
         if ($analysis['visible']['license_plate'] ?? false) {
-            $lines[] = '- A licence plate is visible: keep it unchanged and readable.';
+            $lines[] = 'Er is een kenteken zichtbaar: laat het exact gelijk en leesbaar.';
+        }
+        if (($analysis['product']['description'] ?? '') !== '') {
+            $lines[] = 'Onderwerp van de foto: '.$analysis['product']['description'].'.';
         }
 
         return implode("\n", $lines);

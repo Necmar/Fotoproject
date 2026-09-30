@@ -95,24 +95,28 @@ class AiImageProcessor
         $local = ['source' => null, 'adjustments' => $adjustments, 'focus' => $focus, 'status' => AiStatus::Analyzed];
         $plan = $this->editPlan($analysis, $settings);
 
-        if (! $plan['mask']) {
+        if (! $plan['retouch'] && ! $plan['mask']) {
             return $local;
         }
 
         $rotateOnly = ($adjustments['rotate'] ?? 0) != 0 ? ['rotate' => $adjustments['rotate']] : null;
 
-        // A previous attempt already paid for the composite: reuse it.
+        // A previous attempt already paid for the result: reuse it (already finished).
         if ($image->ai_path && $this->files->disk()->exists($image->ai_path)) {
             return ['source' => $image->ai_path, 'adjustments' => $rotateOnly, 'focus' => $focus, 'status' => AiStatus::Edited] + ($plan['retouch'] ? ['finish' => null] : []);
         }
 
         $workingLocal = $this->files->localPath($image->working_path);
+        $sourceLocal = null;
+        $intermediate = null; // retouch used as input for a new background: removed afterwards
         $temps = [];
 
         try {
+            $source = $image->working_path;
+
             if ($plan['retouch']) {
-                // Whole-photo retouch (the "clean advertisement" look), checked below.
-                $tmp = $this->aiEdit($image, $type, $this->instructions->retouch($analysis, $settings), $temps, lossless: false, quality: (string) config('services.openai.retouch_quality', 'high'));
+                // 1. The fixed retouch prompt, for every photo.
+                $tmp = $this->aiEdit($image, $type, $this->instructions->retouch($analysis, $settings, ! $plan['mask']), $temps, lossless: false, quality: (string) config('services.openai.retouch_quality', 'high'));
                 // Never larger than the photo itself (no upscaling), exact photo proportions.
                 [$pw, $ph] = getimagesize($workingLocal);
                 $retouched = ImageEditor::open($tmp);
@@ -123,14 +127,23 @@ class AiImageProcessor
                 $extension = 'jpg';
                 $diskPath = $image->batch->storageDirectory().'/ai/'.Str::ulid()->toBase32().'.'.$extension;
                 $bytes = $this->commit($image, $tmp, $diskPath);
-            } else {
-                $original = ImageEditor::open($workingLocal)->fitWithin((int) config('services.openai.composite_max_side', 2560));
+
+                if ($plan['mask']) {
+                    $intermediate = [$diskPath, $bytes];
+                    $source = $diskPath;
+                }
+            }
+
+            if ($plan['mask']) {
+                // 2. New background: the (retouched) product is cut out and placed on it.
+                $sourceLocal = $source === $image->working_path ? null : $this->files->localPath($source);
+                $original = ImageEditor::open($sourceLocal ?? $workingLocal)->fitWithin((int) config('services.openai.composite_max_side', 2560));
                 $w = $original->width();
                 $h = $original->height();
 
-                // 1. Cut-out on the key colour least present in this photo -> mask.
+                // Cut-out on the key colour least present in this photo -> mask.
                 [$keyName, $key] = $this->compositor->keyColourFor($original);
-                $cutout = $this->aiEdit($image, $type, $this->instructions->cutout($analysis, $keyName, $key), $temps);
+                $cutout = $this->aiEdit($image, $type, $this->instructions->cutout($analysis, $keyName, $key), $temps, source: $source);
                 // A model that answers with a transparent PNG anyway: transparent = key colour.
                 $cut = ImageEditor::open($cutout)->flatten($key);
                 // The model rarely hits the exact key colour or keeps the exact frame: measure both.
@@ -151,10 +164,10 @@ class AiImageProcessor
                     return ['status' => AiStatus::EditRejected] + $local;
                 }
 
-                // 2. Background layer for the chosen option.
-                $product = $original->copy()->adjust(array_diff_key($adjustments, ['rotate' => true]));
+                // Background layer for the chosen option.
+                $product = $intermediate ? $original->copy() : $original->copy()->adjust(array_diff_key($adjustments, ['rotate' => true]));
                 $background = match (true) {
-                    $plan['ai_background'] => $this->aiBackground($image, $type, $analysis, $settings, $w, $h, $temps),
+                    $plan['ai_background'] => $this->aiBackground($image, $type, $analysis, $settings, $w, $h, $temps, $source),
                     $settings->background === BackgroundOption::BlurLight => $this->compositor->blurred($product, $mask),
                     $settings->background === BackgroundOption::Neutral => 'neutral',
                     default => null, // remove: transparent (JPG output gets white when saved)
@@ -163,7 +176,7 @@ class AiImageProcessor
                     $background = $this->compositor->blurred(ImageEditor::fromGd($background), $mask);
                 }
 
-                // 3. Original product on the new background.
+                // The product itself on the new background.
                 $composite = $this->compositor->compose($product, $mask, $background);
                 $transparent = $background === null;
                 $extension = $transparent ? 'png' : 'jpg';
@@ -176,6 +189,13 @@ class AiImageProcessor
             }
         } finally {
             $this->files->release($workingLocal);
+            if ($sourceLocal) {
+                $this->files->release($sourceLocal);
+            }
+            if ($intermediate) {
+                $this->files->disk()->delete($intermediate[0]);
+                $this->storage->add($image->batch, -$intermediate[1]);
+            }
             foreach ($temps as $t) {
                 @unlink($t);
             }
@@ -224,7 +244,9 @@ class AiImageProcessor
         $this->addWarnings($image, 'ai_edit', $warnings);
 
         // An AI retouch is already finished; a composite still gets the local finish.
-        return ['source' => $diskPath, 'adjustments' => $rotateOnly, 'focus' => $focus, 'status' => AiStatus::Edited] + ($plan['retouch'] ? ['finish' => null] : []);
+        return ['source' => $diskPath, 'adjustments' => $rotateOnly, 'focus' => $focus, 'status' => AiStatus::Edited]
+            // A retouched photo is already finished; without retouch the local finish is applied.
+            + ($plan['retouch'] ? ['finish' => null] : []);
     }
 
     /**
@@ -241,40 +263,30 @@ class AiImageProcessor
 
         $option = $settings->background;
         $people = $settings->removePeople && ($analysis['people']['present'] ?? false);
-        // Unrecoverable photos: no generative work on the setting either.
-        $restorable = $analysis['restorable'] ?? true;
-        $byStrength = $policy === 'always' || ($restorable && match ($settings->strength) {
-            OptimizationStrength::Subtle => false,
-            OptimizationStrength::Normal => (bool) ($analysis['needs_generative_edit'] ?? false),
-            OptimizationStrength::Strong => true,
-        });
 
-        // Original background: one whole-photo retouch for the clean advertisement
-        // look (Normal and Strong), verified afterwards. Subtle stays local.
-        if ($option === BackgroundOption::Keep && $restorable && ($policy === 'always' || $settings->strength !== OptimizationStrength::Subtle)) {
-            return ['mask' => true, 'ai_background' => false, 'retouch' => true];
-        }
-
+        // Every photo gets the fixed retouch. Another background than the
+        // original: the retouched product is cut out and placed on it.
         $aiBackground = in_array($option, [BackgroundOption::CleanSubtle, BackgroundOption::RemoveDistractions], true)
-            || ($people && $option !== BackgroundOption::Remove && $option !== BackgroundOption::Neutral)
-            || ($option === BackgroundOption::Keep && $byStrength);
+            || ($people && in_array($option, [BackgroundOption::BlurLight], true));
 
-        return ['mask' => $option !== BackgroundOption::Keep || $aiBackground, 'ai_background' => $aiBackground, 'retouch' => false];
+        return ['mask' => $option !== BackgroundOption::Keep, 'ai_background' => $aiBackground, 'retouch' => true];
     }
 
     /** Whether this photo gets any work from the image model. */
     public function needsEdit(array $analysis, BatchSettings $settings): bool
     {
-        return $this->editPlan($analysis, $settings)['mask'];
+        $plan = $this->editPlan($analysis, $settings);
+
+        return $plan['retouch'] || $plan['mask'];
     }
 
     /** @param list<string> $temps */
-    private function aiEdit(Image $image, ProcessingType $type, string $prompt, array &$temps, bool $lossless = true, ?string $quality = null): string
+    private function aiEdit(Image $image, ProcessingType $type, string $prompt, array &$temps, bool $lossless = true, ?string $quality = null, ?string $source = null): string
     {
         $started = microtime(true);
 
         try {
-            $edit = $this->editor->edit($image->working_path, $prompt, false, $this->files->tempPath('img'), $quality ?: null, lossless: $lossless);
+            $edit = $this->editor->edit($source ?? $image->working_path, $prompt, false, $this->files->tempPath('img'), $quality ?: null, lossless: $lossless);
         } catch (OpenAIException $e) {
             $this->record($image, $type, $started, null, $e);
             throw $e;
@@ -287,9 +299,9 @@ class AiImageProcessor
     }
 
     /** The whole photo with an improved background from the image model, at the composite size. */
-    private function aiBackground(Image $image, ProcessingType $type, array $analysis, BatchSettings $settings, int $w, int $h, array &$temps): \GdImage
+    private function aiBackground(Image $image, ProcessingType $type, array $analysis, BatchSettings $settings, int $w, int $h, array &$temps, ?string $source = null): \GdImage
     {
-        $path = $this->aiEdit($image, $type, $this->instructions->build($analysis, $settings, false), $temps, lossless: false);
+        $path = $this->aiEdit($image, $type, $this->instructions->build($analysis, $settings, false), $temps, lossless: false, source: $source);
 
         return ImageEditor::open($path)->resize($w, $h)->gd();
     }
