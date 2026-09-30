@@ -57,6 +57,8 @@ return [
         'low_quality' => 'Deze foto heeft een lage kwaliteit. Verbetering is beperkt mogelijk.',
         'person_overlaps_product' => 'Een persoon staat deels voor het product. Dat deel is niet betrouwbaar te herstellen en is zo veel mogelijk origineel gelaten.',
         'people_not_removed' => 'Niet alle personen konden betrouwbaar worden verwijderd.',
+        'ai_edit_differs' => 'De AI-bewerking wijkt mogelijk op details af van het origineel. Vergelijk het resultaat met Voor/na; met "Opnieuw optimaliseren" maak je een nieuwe versie.',
+        'ai_edit_differs_reason' => 'Let op: :reason. Vergelijk het resultaat met Voor/na; met "Opnieuw optimaliseren" maak je een nieuwe versie.',
         'ai_edit_rejected' => 'De AI-bewerking week te veel af van het origineel en is afgekeurd. Voor de betrouwbaarheid is de foto alleen verbeterd met veilige correcties.',
         'ai_cutout_failed' => 'De AI kon het product niet betrouwbaar uitsnijden. Voor de betrouwbaarheid is de foto alleen verbeterd met veilige correcties; de achtergrond is niet aangepast. Probeer "Opnieuw optimaliseren".',
         'ai_edit_rejected_reason' => 'De AI-bewerking is afgekeurd omdat :reason. Voor de betrouwbaarheid is de foto alleen verbeterd met veilige correcties. Probeer eventueel "Opnieuw optimaliseren" met sterkte Subtiel.',

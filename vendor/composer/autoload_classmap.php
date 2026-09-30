@@ -94,6 +94,7 @@ return array(
     'App\\Services\\CompanyService' => $baseDir . '/app/Services/CompanyService.php',
     'App\\Services\\CompanyStatsService' => $baseDir . '/app/Services/CompanyStatsService.php',
     'App\\Services\\DownloadService' => $baseDir . '/app/Services/DownloadService.php',
+    'App\\Services\\Images\\DetailRestorer' => $baseDir . '/app/Services/Images/DetailRestorer.php',
     'App\\Services\\Images\\DuplicateDetector' => $baseDir . '/app/Services/Images/DuplicateDetector.php',
     'App\\Services\\Images\\ExifOrientation' => $baseDir . '/app/Services/Images/ExifOrientation.php',
     'App\\Services\\Images\\HeicConverter' => $baseDir . '/app/Services/Images/HeicConverter.php',

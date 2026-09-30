@@ -6,13 +6,16 @@ namespace App\Services\OpenAI;
  * Integrity check after a generative edit: a second vision call compares the
  * original and the edited photo. A real change to the product (other shape or
  * parts, other paint/material colour, damage hidden, text/logos/plate altered,
- * product looking fake) rejects the edit; the photo then gets the analysis
- * corrections instead. Better light, white balance, contrast, sharpness, less
- * noise and a cleaner background are the purpose of the edit and never count.
+ * product looking fake) is reported together with WHERE it changed (regions),
+ * so the original details can be put back instead of rejecting the edit.
+ * Better light, white balance, contrast, sharpness, less noise and a cleaner
+ * background are the purpose of the edit and never count.
  * Enabled by default (OPENAI_VERIFY_EDITS).
  */
 class EditVerifier
 {
+    public const REGION_KINDS = ['text', 'logo', 'license_plate', 'display', 'damage', 'part', 'colour', 'other'];
+
     public const CHECKS = ['product_identity_changed', 'product_colour_changed', 'damage_hidden_or_changed', 'text_or_logos_altered', 'license_plate_altered', 'product_looks_fake', 'people_still_visible'];
 
     private const SYSTEM = <<<'TXT'
@@ -40,7 +43,10 @@ class EditVerifier
 
     private const QUESTION = 'Answer each check. In notes, describe briefly (English) what differs. '
         .'In reason_nl and reason_en give ONE short sentence (Dutch and English) naming the most important product change '
-        .'if any check (except people_still_visible) is true, for example "de tekst op het label is veranderd"; otherwise an empty string.';
+        .'if any check (except people_still_visible) is true, for example "de tekst op het label is veranderd"; otherwise an empty string. '
+        .'In regions list every area of the product that changed (one box per text block, display, logo, plate, damage spot or part), '
+        .'as a tight box in fractions (0..1) of image B: x and y are the top-left corner, width and height the size. '
+        .'Empty list when nothing on the product changed.';
 
     public function __construct(
         private readonly OpenAIClient $client,
@@ -79,6 +85,7 @@ class EditVerifier
 
         return [
             'accepted' => ! $productChanged,
+            'regions' => $result['regions'],
             'result' => $result + ['people_remaining' => $peopleShouldBeGone && $result['people_still_visible']],
             'usage' => Usage::from($model, $response['usage'] ?? null),
         ];
@@ -91,11 +98,21 @@ class EditVerifier
         return [
             'type' => 'object',
             'additionalProperties' => false,
-            'required' => [...$keys, 'notes', 'reason_nl', 'reason_en'],
+            'required' => [...$keys, 'notes', 'reason_nl', 'reason_en', 'regions'],
             'properties' => array_fill_keys($keys, ['type' => 'boolean']) + [
                 'notes' => ['type' => 'string'],
                 'reason_nl' => ['type' => 'string'],
                 'reason_en' => ['type' => 'string'],
+                'regions' => ['type' => 'array', 'items' => [
+                    'type' => 'object',
+                    'additionalProperties' => false,
+                    'required' => ['kind', 'x', 'y', 'width', 'height'],
+                    'properties' => [
+                        'kind' => ['type' => 'string', 'enum' => self::REGION_KINDS],
+                        'x' => ['type' => 'number'], 'y' => ['type' => 'number'],
+                        'width' => ['type' => 'number'], 'height' => ['type' => 'number'],
+                    ],
+                ]],
             ],
         ];
     }
@@ -107,7 +124,11 @@ class EditVerifier
                 if (($content['type'] ?? null) === 'output_text' && is_array($data = json_decode((string) $content['text'], true))) {
                     $out = [];
                     foreach (array_keys(self::schema()['properties']) as $key) {
-                        $out[$key] = in_array($key, self::CHECKS, true) ? (bool) ($data[$key] ?? true) : mb_substr((string) ($data[$key] ?? ''), 0, 300);
+                        $out[$key] = match (true) {
+                            $key === 'regions' => $this->regions($data['regions'] ?? []),
+                            in_array($key, self::CHECKS, true) => (bool) ($data[$key] ?? true),
+                            default => mb_substr((string) ($data[$key] ?? ''), 0, 300),
+                        };
                     }
 
                     return $out;
@@ -116,5 +137,24 @@ class EditVerifier
         }
 
         throw new OpenAIException('invalid_response', 'No JSON in verification response', true);
+    }
+
+    /** @return list<array{kind: string, x: float, y: float, width: float, height: float}> */
+    private function regions(mixed $regions): array
+    {
+        $out = [];
+        foreach (is_array($regions) ? array_slice($regions, 0, 12) : [] as $r) {
+            if (! is_array($r)) {
+                continue;
+            }
+            $clamp = fn ($v) => round(max(0.0, min(1.0, (float) $v)), 4);
+            $box = ['kind' => in_array($r['kind'] ?? '', self::REGION_KINDS, true) ? $r['kind'] : 'other',
+                'x' => $clamp($r['x'] ?? 0), 'y' => $clamp($r['y'] ?? 0), 'width' => $clamp($r['width'] ?? 0), 'height' => $clamp($r['height'] ?? 0)];
+            if ($box['width'] > 0 && $box['height'] > 0) {
+                $out[] = $box;
+            }
+        }
+
+        return $out;
     }
 }

@@ -573,6 +573,7 @@ class ComposerStaticInitcf1b226ae4df122956e8d4c852fc15ef
         'App\\Services\\CompanyService' => __DIR__ . '/../..' . '/app/Services/CompanyService.php',
         'App\\Services\\CompanyStatsService' => __DIR__ . '/../..' . '/app/Services/CompanyStatsService.php',
         'App\\Services\\DownloadService' => __DIR__ . '/../..' . '/app/Services/DownloadService.php',
+        'App\\Services\\Images\\DetailRestorer' => __DIR__ . '/../..' . '/app/Services/Images/DetailRestorer.php',
         'App\\Services\\Images\\DuplicateDetector' => __DIR__ . '/../..' . '/app/Services/Images/DuplicateDetector.php',
         'App\\Services\\Images\\ExifOrientation' => __DIR__ . '/../..' . '/app/Services/Images/ExifOrientation.php',
         'App\\Services\\Images\\HeicConverter' => __DIR__ . '/../..' . '/app/Services/Images/HeicConverter.php',
