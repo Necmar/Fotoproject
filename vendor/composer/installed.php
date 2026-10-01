@@ -3,7 +3,7 @@
         'name' => 'bora/foto-optimalisatie',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'dcc16307429896e3625dad9788ac5a7fe8b5d621',
+        'reference' => '61adb56e27d293ee14f0e1f8535ab485583011a6',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         'bora/foto-optimalisatie' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => 'dcc16307429896e3625dad9788ac5a7fe8b5d621',
+            'reference' => '61adb56e27d293ee14f0e1f8535ab485583011a6',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
