@@ -36,6 +36,10 @@ class ImagePreparer
     public function prepare(Image $image): Image
     {
         $image->loadMissing('batch');
+        // The original is removed once a working copy exists; without either there is nothing to work from.
+        if (! $image->original_path || ! $this->files->disk()->exists($image->original_path)) {
+            throw new \App\Exceptions\DomainRuleException('file_missing', [], 404);
+        }
         $original = $this->files->localPath($image->original_path);
         $converted = null;
 

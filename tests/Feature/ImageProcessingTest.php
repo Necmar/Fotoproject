@@ -105,12 +105,12 @@ class ImageProcessingTest extends TestCase
         $this->assertArrayHasKey('sharpness', $image->analysis['local']);
     }
 
-    public function test_working_copy_is_limited_to_3072_px(): void
+    public function test_working_copy_is_limited_to_2560_px(): void
     {
         $image = $this->upload($this->jpeg(4000, 3000));
 
         [$w, $h] = getimagesizefromstring($this->disk()->get($image->working_path));
-        $this->assertSame([3072, 2304], [$w, $h]);
+        $this->assertSame([2560, 1920], [$w, $h]);
         $this->assertSame([4000, 3000], [$image->width, $image->height]);
     }
 

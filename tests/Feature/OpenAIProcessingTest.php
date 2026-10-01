@@ -772,4 +772,39 @@ class OpenAIProcessingTest extends TestCase
         $this->assertFalse($batch->auto_named);
         $this->assertSame('mijn-auto-01.jpg', $batch->images()->first()->output_filename);
     }
+
+    public function test_hourly_trim_keeps_only_what_is_still_needed(): void
+    {
+        $this->fakeOpenAI($this->analysis());
+        $batch = $this->batch(['strength' => 'strong'], photos: 2);
+        $this->artisan('bora:work')->assertSuccessful();
+        $this->get("/api/company/batches/{$batch->id}/download")->assertOk();
+
+        $image = $batch->images()->orderBy('position')->first();
+        [$original, $ai, $zip] = [$image->original_path, $image->ai_path, $batch->fresh()->zip_path];
+        $this->assertNotNull($ai);
+        $before = $batch->fresh()->storage_bytes;
+
+        // Within the hour nothing is touched (a rerun must still find the AI result).
+        $this->artisan('bora:trim-storage')->assertSuccessful();
+        $this->assertNotNull($image->fresh()->ai_path);
+
+        $this->travel(7)->hours();
+        $this->artisan('bora:trim-storage')->assertSuccessful();
+
+        $image->refresh();
+        $disk = Storage::disk('local');
+        $this->assertNull($image->original_path);
+        $this->assertNull($image->ai_path);
+        $disk->assertMissing($original);
+        $disk->assertMissing($ai);
+        $disk->assertMissing($zip);
+        $disk->assertExists($image->working_path);
+        $this->assertLessThan($before, $batch->fresh()->storage_bytes);
+
+        // Before/after, single download and ZIP still work.
+        $this->get("/api/company/images/{$image->id}/working")->assertOk();
+        $this->get("/api/company/images/{$image->id}/download")->assertOk();
+        $this->get("/api/company/batches/{$batch->id}/download")->assertOk();
+    }
 }
