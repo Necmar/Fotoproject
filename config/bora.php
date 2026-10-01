@@ -110,11 +110,19 @@ return [
         'stuck_after_minutes' => 20,
     ],
 
+    'storage' => [
+        // The uploaded original is deleted once the working copy exists (the app never shows it).
+        'keep_originals' => (bool) env('BORA_KEEP_ORIGINALS', false),
+        // ZIP downloads are removed after this many hours and rebuilt on request.
+        'zip_hours' => (int) env('BORA_ZIP_HOURS', 6),
+    ],
+
     'processing' => [
         // Internal working copy: orientation fixed, metadata stripped, JPEG.
         // Large enough for the 2560 px output and as AI input.
-        'working_max_side' => (int) env('BORA_WORKING_MAX_SIDE', 3072),
-        'working_quality' => 92,
+        // The largest output is 2560 px: a bigger working copy only costs disk space.
+        'working_max_side' => (int) env('BORA_WORKING_MAX_SIDE', 2560),
+        'working_quality' => 90,
         'thumbnail_side' => 480,
         'preview_side' => 720,
         'thumbnail_quality' => 80,

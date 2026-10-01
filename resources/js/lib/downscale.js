@@ -11,10 +11,10 @@
  * of a 48 MP photo fails there; drawing straight to the target size avoids that.
  */
 
-export const MAX_SIDE = 4096;
+export const MAX_SIDE = 2560; // the largest output; more only costs upload time and disk space
 
 /** Files below this size are never decoded here: they cannot be much larger than MAX_SIDE. */
-export const PREPARE_MIN_BYTES = 2.5 * 1024 * 1024;
+export const PREPARE_MIN_BYTES = 1.5 * 1024 * 1024;
 
 const JPEG_QUALITY = 0.92;
 
