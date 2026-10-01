@@ -513,7 +513,10 @@
                 }
             },
             "change": "Aanpassen",
-            "collapse": "Inklappen"
+            "collapse": "Inklappen",
+            "watermark_switch": "Logo op foto's aan of uit",
+            "no_logo_inline": "Je hebt nog geen bedrijfslogo. Upload het hier (PNG met transparante achtergrond werkt het mooist); daarna staat de watermark aan.",
+            "upload_logo": "Logo uploaden"
         },
         "ai_status": {
             "skipped": "Lokaal verbeterd",

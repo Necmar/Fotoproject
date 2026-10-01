@@ -41,15 +41,16 @@ class OpenAIProcessingTest extends TestCase
         $this->user = User::factory()->create();
     }
 
-    private function batch(array $settings = [], int $photos = 1): Batch
+    private function batch(array $settings = [], int $photos = 1, int $width = 400): Batch
     {
         $id = $this->actingAs($this->user)->postJson('/api/company/batches', ['name' => 'Golf 8'] + $settings)->json('data.id');
 
         for ($i = 0; $i < $photos; $i++) {
             // Small photos keep the tests fast; proportions as a real 4:3 photo.
-            $img = imagecreatetruecolor(400, 300);
+            $h = intdiv($width * 3, 4);
+            $img = imagecreatetruecolor($width, $h);
             imagefill($img, 0, 0, imagecolorallocate($img, 90 + 30 * $i, 110, 130));
-            imagefilledrectangle($img, 100, 75, 300, 225, imagecolorallocate($img, 200, 30, 30));
+            imagefilledrectangle($img, intdiv($width, 4), intdiv($h, 4), intdiv($width * 3, 4), intdiv($h * 3, 4), imagecolorallocate($img, 200, 30, 30));
             ob_start();
             imagejpeg($img, null, 90);
             $this->postJson("/api/company/batches/{$id}/images", ['file' => UploadedFile::fake()->createWithContent("{$i}.jpg", ob_get_clean())])->assertCreated();
@@ -724,5 +725,24 @@ class OpenAIProcessingTest extends TestCase
         $this->assertNotNull($image->ai_path);
         $this->assertContains('ai_edit_differs_reason', array_column($image->warnings, 'code'));
         $this->assertStringContainsString('de lakkleur is veranderd', collect($this->getJson("/api/company/batches/{$image->batch_id}")->json('data.images.0.warnings'))->pluck('message')->implode(' '));
+    }
+
+    public function test_small_ai_result_still_reaches_the_chosen_resolution_but_never_beyond_the_photo(): void
+    {
+        $this->fakeOpenAI($this->analysis());
+        // Photo of 1600 px; the AI answers at 512 px (OPENAI_MAX_SIDE in tests).
+        $batch = $this->batch(['strength' => 'strong', 'resolution' => '2000'], width: 1600);
+        $this->artisan('bora:work')->assertSuccessful();
+
+        $image = $batch->images()->first();
+        $this->assertSame('edited', $image->ai_status);
+        // 2000 asked, but the photo itself only has 1600 px: enlarged to 1600, not to 2000.
+        $this->assertSame(1600, max($image->output_width, $image->output_height));
+
+        $batch = $this->batch(['strength' => 'strong', 'resolution' => '1600', 'aspect_ratio' => '1:1'], width: 1600);
+        $this->artisan('bora:work')->assertSuccessful();
+        $image = $batch->images()->first();
+        // Square crop of a 1600 x 1200 photo: at most 1200 px.
+        $this->assertSame([1200, 1200], [$image->output_width, $image->output_height]);
     }
 }
