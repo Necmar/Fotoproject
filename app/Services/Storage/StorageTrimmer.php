@@ -10,10 +10,10 @@ use Throwable;
 
 /**
  * Keeps only the files the app still needs, so large photos don't fill the disk:
- *  - the uploaded original, an hour after the working copy exists (that copy is what the
+ *  - the uploaded original, a few hours (BORA_TRIM_GRACE_HOURS, 5) after the working copy exists (that copy is what the
  *    before/after view, the AI and the renderer use; the original is never shown);
- *  - the AI result, an hour after the final photo is rendered from it (re-optimise makes a new one);
- *  - ZIP downloads after a few hours (rebuilt on request in seconds).
+ *  - the AI result, a few hours after the final photo is rendered from it (re-optimise makes a new one);
+ *  - ZIP downloads after BORA_ZIP_HOURS (48) (rebuilt on request in seconds).
  */
 class StorageTrimmer
 {
@@ -76,13 +76,13 @@ class StorageTrimmer
     }
 
     /**
-     * Hourly. Only files that are an hour old: a job that is retried or run twice
-     * in that hour still finds them (and never pays OpenAI twice).
+     * Hourly. Only files older than the grace period: a job that is retried or run
+     * twice in that time still finds them (and never pays OpenAI twice).
      */
-    public function trimExisting(bool $dry = false, int $graceMinutes = 60): int
+    public function trimExisting(bool $dry = false): int
     {
         $count = 0;
-        $before = now()->subMinutes($graceMinutes);
+        $before = now()->subHours(max(1, (int) config('bora.storage.trim_grace_hours', 5)));
         $originals = fn ($q) => $q->whereNotNull('original_path')->whereNotNull('working_path')->where('created_at', '<', $before);
         $aiResults = fn ($q) => $q->whereNotNull('ai_path')->where('status', ImageStatus::Completed)->where('processed_at', '<', $before);
 

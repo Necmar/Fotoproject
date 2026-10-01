@@ -16,7 +16,7 @@ class TrimStorage extends Command
     {
         $dry = (bool) $this->option('dry-run');
         $images = $trimmer->trimExisting($dry);
-        $zips = $trimmer->trimZips((int) config('bora.storage.zip_hours', 6), $dry);
+        $zips = $trimmer->trimZips((int) config('bora.storage.zip_hours', 48), $dry);
 
         $this->info(($dry ? '[dry-run] ' : '')."Foto's opgeschoond: {$images}, ZIP-bestanden verwijderd: {$zips}");
 

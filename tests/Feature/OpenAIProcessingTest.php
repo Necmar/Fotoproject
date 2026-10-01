@@ -785,11 +785,17 @@ class OpenAIProcessingTest extends TestCase
         $this->assertNotNull($ai);
         $before = $batch->fresh()->storage_bytes;
 
-        // Within the hour nothing is touched (a rerun must still find the AI result).
+        // Within the 5-hour grace period nothing is touched (a rerun must still find the AI result).
+        $this->travel(4)->hours();
         $this->artisan('bora:trim-storage')->assertSuccessful();
         $this->assertNotNull($image->fresh()->ai_path);
+        Storage::disk('local')->assertExists($original);
 
-        $this->travel(7)->hours();
+        // After 6 hours: original and AI result gone, the ZIP stays for 48 hours.
+        $this->travel(2)->hours();
+        $this->artisan('bora:trim-storage')->assertSuccessful();
+        Storage::disk('local')->assertExists($zip);
+        $this->travel(43)->hours();
         $this->artisan('bora:trim-storage')->assertSuccessful();
 
         $image->refresh();

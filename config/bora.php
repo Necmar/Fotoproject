@@ -113,8 +113,10 @@ return [
     'storage' => [
         // The uploaded original is deleted once the working copy exists (the app never shows it).
         'keep_originals' => (bool) env('BORA_KEEP_ORIGINALS', false),
+        // Original and AI result are removed this many hours after they were last needed.
+        'trim_grace_hours' => (int) env('BORA_TRIM_GRACE_HOURS', 5),
         // ZIP downloads are removed after this many hours and rebuilt on request.
-        'zip_hours' => (int) env('BORA_ZIP_HOURS', 6),
+        'zip_hours' => (int) env('BORA_ZIP_HOURS', 48),
     ],
 
     'processing' => [
