@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
-    'company_id', 'user_id', 'name', 'filename_base', 'status', 'settings',
+    'company_id', 'user_id', 'name', 'filename_base', 'auto_named', 'status', 'settings',
     'images_count', 'completed_count', 'failed_count', 'storage_bytes',
     'zip_path', 'zip_generated_at', 'started_at', 'completed_at', 'notified_at', 'expires_at',
 ])]
@@ -26,6 +26,7 @@ class Batch extends Model
         return [
             'status' => BatchStatus::class,
             'settings' => 'array',
+            'auto_named' => 'boolean',
             'zip_generated_at' => 'datetime',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',

@@ -38,6 +38,7 @@ class ImagePipeline
         private readonly ImagePreparer $preparer,
         private readonly LocalEnhancer $enhancer,
         private readonly OutputRenderer $renderer,
+        private readonly BatchNamer $namer,
         private readonly LocalFiles $files,
         private readonly BatchProgress $progress,
         private readonly ActivityLogger $activity,
@@ -68,6 +69,7 @@ class ImagePipeline
             if ($this->ai->isActive()) {
                 try {
                     $analysis = $this->ai->analyze($image, $settings);
+                    $this->namer->fromAnalysis($image, $analysis);
                     // The AI's judgement replaces the simple local check (no double or false warnings).
                     $this->setLocalWarnings($image, []);
                     $this->status($image, ImageStatus::Processing);

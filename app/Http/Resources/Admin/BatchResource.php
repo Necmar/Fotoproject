@@ -23,6 +23,7 @@ class BatchResource extends JsonResource
             'storage_bytes' => $this->storage_bytes,
             'settings' => $this->settings,
             'created_at' => $this->created_at?->toIso8601String(),
+            'started_at' => $this->started_at?->toIso8601String(),
             'completed_at' => $this->completed_at?->toIso8601String(),
             'expires_at' => $this->expires_at?->toIso8601String(),
         ];

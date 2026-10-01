@@ -125,6 +125,7 @@ return array(
     'App\\Services\\OpenAI\\OpenAIException' => $baseDir . '/app/Services/OpenAI/OpenAIException.php',
     'App\\Services\\OpenAI\\Usage' => $baseDir . '/app/Services/OpenAI/Usage.php',
     'App\\Services\\Processing\\BatchCompletionNotifier' => $baseDir . '/app/Services/Processing/BatchCompletionNotifier.php',
+    'App\\Services\\Processing\\BatchNamer' => $baseDir . '/app/Services/Processing/BatchNamer.php',
     'App\\Services\\Processing\\BatchProgress' => $baseDir . '/app/Services/Processing/BatchProgress.php',
     'App\\Services\\Processing\\ImagePipeline' => $baseDir . '/app/Services/Processing/ImagePipeline.php',
     'App\\Services\\Processing\\QueueHealth' => $baseDir . '/app/Services/Processing/QueueHealth.php',

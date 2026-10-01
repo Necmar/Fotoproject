@@ -4,7 +4,7 @@ import { ChevronRight, ImageIcon, ImagePlus, Images, Settings } from 'lucide-rea
 import { useAuth } from '../../auth/AuthContext';
 import { useFetch } from '../../lib/useFetch';
 import { usePolling } from '../../lib/usePolling';
-import { formatBytes, formatDate, formatNumber } from '../../lib/format';
+import { batchTiming, batchTitle, formatBytes, formatDate, formatNumber } from '../../lib/format';
 import BatchStatusBadge, { ACTIVE_STATUSES } from '../../components/batch/BatchStatusBadge';
 import { Button, Card, EmptyState, StatCard } from '../../components/ui';
 
@@ -64,11 +64,11 @@ export default function Dashboard() {
                                         </div>
                                         <div className="min-w-0 flex-1">
                                             <div className="flex flex-wrap items-center gap-2">
-                                                <span className="truncate font-medium">{b.name || t('batch.unnamed')}</span>
+                                                <span className="truncate font-medium">{batchTitle(b, t, l)}</span>
                                                 <BatchStatusBadge status={b.status} />
                                             </div>
                                             <p className="text-sm text-stone-500">
-                                                {t('batch.photo_count_short', { count: b.images_count })} · {formatDate(b.created_at, l)}
+                                                {t('batch.photo_count_short', { count: b.images_count })} · {batchTiming(b, t, l)}
                                             </p>
                                         </div>
                                         <ChevronRight className="size-5 shrink-0 text-stone-300" aria-hidden />

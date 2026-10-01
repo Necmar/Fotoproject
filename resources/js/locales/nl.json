@@ -550,7 +550,17 @@
         "leave_text": "Als je deze pagina nu verlaat, stoppen de uploads die nog bezig zijn. Foto's die al zijn geüpload blijven bewaard.",
         "leave_confirm": "Toch verlaten",
         "leave_stay": "Blijven",
-        "poll_failed": "De voortgang kon even niet worden bijgewerkt. We proberen het automatisch opnieuw."
+        "poll_failed": "De voortgang kon even niet worden bijgewerkt. We proberen het automatisch opnieuw.",
+        "unnamed_dated": "Batch van {{date}}",
+        "auto_named": "Naam gekozen door de AI",
+        "timing": {
+            "created": "Aangemaakt {{date}}",
+            "running": "Gestart {{date}} · bezig",
+            "done": "Gestart {{date}} · klaar om {{end}} ({{duration}})",
+            "under_minute": "minder dan 1 min",
+            "minutes": "{{count}} min",
+            "hours": "{{hours}} u {{minutes}} min"
+        }
     },
     "upload": {
         "title": "Foto's toevoegen",

@@ -5,7 +5,7 @@ import { AlertTriangle, BellRing, CheckCircle2, Cloud, Download, Stamp, Trash2, 
 import api, { errorMessage } from '../../lib/api';
 import { useFetch } from '../../lib/useFetch';
 import { usePolling } from '../../lib/usePolling';
-import { formatDate } from '../../lib/format';
+import { batchTiming, batchTitle, formatDate } from '../../lib/format';
 import { useDownload } from '../../lib/download';
 import Stepper from '../../components/batch/Stepper';
 import BatchStatusBadge, { ACTIVE_STATUSES } from '../../components/batch/BatchStatusBadge';
@@ -110,12 +110,13 @@ export default function BatchDetail() {
             <div className="mb-6 flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-3">
-                        <h1 className="truncate text-2xl font-semibold tracking-tight">{batch.name || t('batch.unnamed')}</h1>
+                        <h1 className="truncate text-2xl font-semibold tracking-tight">{batchTitle(batch, t, i18n.language)}</h1>
                         <BatchStatusBadge status={batch.status} />
                     </div>
                     <p className="mt-1 text-sm text-stone-500">
-                        {formatDate(batch.started_at ?? batch.created_at, i18n.language)} · {t('batch.expires', { date: formatDate(batch.expires_at, i18n.language, false) })}
+                        {batchTiming(batch, t, i18n.language)} · {t('batch.expires', { date: formatDate(batch.expires_at, i18n.language, false) })}
                     </p>
+                    {batch.auto_named && <p className="mt-0.5 text-xs text-stone-400">{t('batch.auto_named')}</p>}
                 </div>
                 <button type="button" onClick={() => setConfirmDelete(true)} className="grid size-10 shrink-0 place-items-center rounded-xl text-stone-400 hover:bg-red-50 hover:text-red-600" aria-label={t('common.delete')}>
                     <Trash2 className="size-5" />

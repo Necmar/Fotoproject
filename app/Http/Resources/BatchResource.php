@@ -25,6 +25,7 @@ class BatchResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'filename_base' => $this->filename_base,
+            'auto_named' => (bool) $this->auto_named,
             'status' => $this->status->value,
             'settings' => $this->settings,
             'images_count' => $this->images_count,

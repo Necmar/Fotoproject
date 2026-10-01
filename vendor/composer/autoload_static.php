@@ -604,6 +604,7 @@ class ComposerStaticInitcf1b226ae4df122956e8d4c852fc15ef
         'App\\Services\\OpenAI\\OpenAIException' => __DIR__ . '/../..' . '/app/Services/OpenAI/OpenAIException.php',
         'App\\Services\\OpenAI\\Usage' => __DIR__ . '/../..' . '/app/Services/OpenAI/Usage.php',
         'App\\Services\\Processing\\BatchCompletionNotifier' => __DIR__ . '/../..' . '/app/Services/Processing/BatchCompletionNotifier.php',
+        'App\\Services\\Processing\\BatchNamer' => __DIR__ . '/../..' . '/app/Services/Processing/BatchNamer.php',
         'App\\Services\\Processing\\BatchProgress' => __DIR__ . '/../..' . '/app/Services/Processing/BatchProgress.php',
         'App\\Services\\Processing\\ImagePipeline' => __DIR__ . '/../..' . '/app/Services/Processing/ImagePipeline.php',
         'App\\Services\\Processing\\QueueHealth' => __DIR__ . '/../..' . '/app/Services/Processing/QueueHealth.php',
