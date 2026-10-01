@@ -78,12 +78,18 @@ class ImagePipeline
                     if ($e->retryable && ! $finalAttempt) {
                         throw $e;
                     }
+                    $aiError = $e;
 
+                    // An edit that was already paid for is still used (marked as not checked).
+                    $plan = isset($analysis) ? $this->ai->salvage($image, $analysis, $settings) : null;
+                    $aiStatus = $plan['status'] ?? AiStatus::Fallback;
+                }
+
+                if ($plan === null && $aiStatus === AiStatus::Fallback) {
                     // Otherwise the photo still gets local corrections (never stuck on AI).
-                    $aiStatus = AiStatus::Fallback;
                     // Analysis done but the edit failed: the photo still gets the AI's own corrections.
                     $code = isset($analysis) ? 'ai_edit_unavailable' : 'ai_unavailable';
-                    $image->forceFill(['warnings' => $this->preparer->mergeWarnings($image->warnings ?? [], 'ai_edit', [['code' => $code, 'params' => ['reason' => $e->reason]]])])->save();
+                    $image->forceFill(['warnings' => $this->preparer->mergeWarnings($image->warnings ?? [], 'ai_edit', [['code' => $code, 'params' => ['reason' => $aiError->reason]]])])->save();
                     if (! isset($analysis)) {
                         $this->setLocalWarnings($image, $this->enhancer->warnings($image->analysis['local'] ?? $this->analyzeWorking($image)));
                     }

@@ -95,8 +95,12 @@ return [
         // auto = only where PHP-FPM can finish the response first; always/never.
         'web_kick' => env('BORA_WEB_KICK', 'auto'),
         'web_max_time' => (int) env('BORA_WEB_WORKER_MAX_TIME', 25),
-        // One photo: analysis (<= 90 s) + edit (<= 300 s) + check (<= 90 s) + margin.
-        'job_timeout' => (int) env('BORA_JOB_TIMEOUT', 600),
+        // Seconds the short-lived worker waits when the queue is empty before it stops.
+        'worker_sleep' => (int) env('BORA_WORKER_SLEEP', 1),
+        // Worst case for one photo: analysis (90 s) + up to 3 edits (3 x 180 s:
+        // retouch, cut-out, background) + check (90 s) + margin for local work.
+        // The queue's retry_after (DB_QUEUE_RETRY_AFTER) must stay larger: +120 s.
+        'job_timeout' => (int) env('BORA_JOB_TIMEOUT', 840),
         'tries' => (int) env('BORA_JOB_TRIES', 3),
         // Seconds between retries (exponential).
         'backoff' => [30, 120, 300],
@@ -109,7 +113,7 @@ return [
     'processing' => [
         // Internal working copy: orientation fixed, metadata stripped, JPEG.
         // Large enough for the 2560 px output and as AI input.
-        'working_max_side' => 3072,
+        'working_max_side' => (int) env('BORA_WORKING_MAX_SIDE', 3072),
         'working_quality' => 92,
         'thumbnail_side' => 480,
         'preview_side' => 720,

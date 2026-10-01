@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, CheckCircle2, Columns2, Download, RefreshCw, ImageIcon, Loader2, RotateCcw, Trash2, XCircle } from 'lucide-react';
 import { formatBytes } from '../../lib/format';
+import { useDownload } from '../../lib/download';
 import { Badge, cx } from '../ui';
 
 const ACTION = 'flex h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[11px] leading-tight font-medium text-stone-700 hover:bg-stone-100';
@@ -119,9 +120,10 @@ function StageOverlay({ status }) {
     );
 }
 
-/** A photo stored on the server. */
-export function ServerPhotoTile({ image, onRemove, removing, showStatus = false, onOpen, watermarkSelectable = false, onToggleWatermark }) {
+/** A photo stored on the server. Memoised: polling replaces every image object, but only changed tiles re-render. */
+export const ServerPhotoTile = memo(function ServerPhotoTile({ image, onRemove, removing, showStatus = false, onOpen, watermarkSelectable = false, onToggleWatermark }) {
     const { t, i18n } = useTranslation();
+    const { download, busy: downloading, error: downloadError } = useDownload();
     const warnings = image.warnings ?? [];
     const result = image.urls.preview ?? image.urls.optimized;
     const [original, setOriginal] = useState(false);
@@ -227,16 +229,25 @@ export function ServerPhotoTile({ image, onRemove, removing, showStatus = false,
                                 <Columns2 className="size-4" aria-hidden /> {t('viewer.compare_short')}
                             </button>
                         )}
-                        <button type="button" onClick={() => onOpen(image, 'reoptimize')} className={ACTION}>
-                            <RefreshCw className="size-4" aria-hidden /> {t('viewer.reoptimize_short')}
-                        </button>
+                        {image.reoptimize_left !== 0 && (
+                            <button type="button" onClick={() => onOpen(image, 'reoptimize')} className={ACTION}>
+                                <RefreshCw className="size-4" aria-hidden /> {t('viewer.reoptimize_short')}
+                            </button>
+                        )}
                         {image.urls.download && (
-                            <a href={image.urls.download} className={ACTION} aria-label={t('download.single', { name: image.output_filename })}>
-                                <Download className="size-4" aria-hidden /> {t('download.short')}
-                            </a>
+                            <button
+                                type="button"
+                                onClick={() => download(image.urls.download)}
+                                disabled={!!downloading}
+                                className={cx(ACTION, 'disabled:opacity-50')}
+                                aria-label={t('download.single', { name: image.output_filename })}
+                            >
+                                {downloading ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Download className="size-4" aria-hidden />} {t('download.short')}
+                            </button>
                         )}
                     </div>
                 )}
+                {downloadError && <p className="text-xs text-red-600" role="alert">{downloadError}</p>}
                 {watermarkSelectable && image.status === 'completed' && (
                     <label className="flex cursor-pointer items-center gap-2 pt-1 text-xs text-stone-700">
                         <input type="checkbox" className="size-4 rounded border-stone-300 text-brand-600" checked={!!image.apply_watermark} onChange={(e) => onToggleWatermark(image, e.target.checked)} />
@@ -245,5 +256,38 @@ export function ServerPhotoTile({ image, onRemove, removing, showStatus = false,
                 )}
             </div>
         </div>
+    );
+}, sameTile);
+
+const URL_KEYS = ['thumbnail', 'preview', 'optimized', 'download', 'before'];
+
+function sameWarnings(a = [], b = []) {
+    return a.length === b.length && a.every((w, i) => (w?.code ?? w) === (b[i]?.code ?? b[i]) && (w?.message ?? w) === (b[i]?.message ?? b[i]));
+}
+
+/** Re-render only when something the tile shows (or a handler) changed. */
+function sameTile(prev, next) {
+    const a = prev.image;
+    const b = next.image;
+    return (
+        prev.removing === next.removing &&
+        prev.showStatus === next.showStatus &&
+        prev.watermarkSelectable === next.watermarkSelectable &&
+        prev.onOpen === next.onOpen &&
+        prev.onRemove === next.onRemove &&
+        prev.onToggleWatermark === next.onToggleWatermark &&
+        (a === b ||
+            (a.id === b.id &&
+                a.status === b.status &&
+                a.ai_status === b.ai_status &&
+                a.error === b.error &&
+                a.position === b.position &&
+                a.original_filename === b.original_filename &&
+                a.output_filename === b.output_filename &&
+                a.original_size === b.original_size &&
+                a.apply_watermark === b.apply_watermark &&
+                a.reoptimize_left === b.reoptimize_left &&
+                URL_KEYS.every((k) => a.urls?.[k] === b.urls?.[k]) &&
+                sameWarnings(a.warnings, b.warnings)))
     );
 }

@@ -16,9 +16,19 @@ export default function CompanyDetail() {
     const location = useLocation();
     const navigate = useNavigate();
     const { body, loading, error, reload } = useFetch(`/admin/companies/${id}`);
-    const [notice, setNotice] = useState(location.state?.created ? { type: 'success', text: t('admin.companies.created') } : null);
+    const [notice, setNotice] = useState(() => {
+        if (!location.state?.created) return null;
+        const text = location.state.warning ? `${t('admin.companies.created_plain')} ${location.state.warning}` : t(location.state.invited ? 'admin.companies.created' : 'admin.companies.created_plain');
+        return { type: location.state.warning ? 'warning' : 'success', text };
+    });
     const [dialog, setDialog] = useState(null);
+    const [busy, setBusy] = useState(null);
     const l = i18n.language;
+
+    // Shown once: a reload or "back" must not show the "created" notice again.
+    useEffect(() => {
+        if (location.state?.created) navigate(location.pathname, { replace: true, state: null });
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     if (loading && !body) return <Spinner />;
     if (error) return <Alert type="error">{error}</Alert>;
@@ -26,7 +36,8 @@ export default function CompanyDetail() {
     const company = body.data;
     const stats = body.meta.stats;
 
-    const run = async (fn, successText) => {
+    const run = async (key, fn, successText) => {
+        setBusy(key);
         try {
             const res = await fn();
             setNotice({ type: 'success', text: successText ?? res.data.message ?? t('common.saved') });
@@ -35,6 +46,8 @@ export default function CompanyDetail() {
         } catch (err) {
             setNotice({ type: 'error', text: errorMessage(err) });
             setDialog(null);
+        } finally {
+            setBusy(null);
         }
     };
 
@@ -91,16 +104,16 @@ export default function CompanyDetail() {
                     <Card className="space-y-2">
                         <h2 className="mb-3 font-semibold">{t('admin.companies.actions')}</h2>
                         {meta?.mail_enabled !== false && (
-                            <Button variant="secondary" icon={KeyRound} className="w-full justify-start" onClick={() => run(() => api.post(`/admin/companies/${id}/password-reset`))}>
+                            <Button variant="secondary" icon={KeyRound} className="w-full justify-start" loading={busy === 'reset'} disabled={!!busy} onClick={() => run('reset', () => api.post(`/admin/companies/${id}/password-reset`))}>
                                 {t('admin.companies.send_reset')}
                             </Button>
                         )}
                         {company.status === 'active' ? (
-                            <Button variant="secondary" icon={Ban} className="w-full justify-start" onClick={() => setDialog('block')}>
+                            <Button variant="secondary" icon={Ban} className="w-full justify-start" disabled={!!busy} onClick={() => setDialog('block')}>
                                 {t('admin.companies.block')}
                             </Button>
                         ) : (
-                            <Button variant="secondary" icon={CheckCircle2} className="w-full justify-start" onClick={() => run(() => api.post(`/admin/companies/${id}/unblock`), t('admin.companies.unblocked'))}>
+                            <Button variant="secondary" icon={CheckCircle2} className="w-full justify-start" loading={busy === 'unblock'} disabled={!!busy} onClick={() => run('unblock', () => api.post(`/admin/companies/${id}/unblock`), t('admin.companies.unblocked'))}>
                                 {t('admin.companies.unblock')}
                             </Button>
                         )}
@@ -114,20 +127,20 @@ export default function CompanyDetail() {
                 </div>
             </div>
 
-            <BlockDialog open={dialog === 'block'} onClose={() => setDialog(null)} onConfirm={(reason) => run(() => api.post(`/admin/companies/${id}/block`, { reason }), t('admin.companies.blocked'))} />
+            <BlockDialog open={dialog === 'block'} busy={busy === 'block'} onClose={() => busy !== 'block' && setDialog(null)} onConfirm={(reason) => run('block', () => api.post(`/admin/companies/${id}/block`, { reason }), t('admin.companies.blocked'))} />
             <ConfirmDialog
                 open={dialog === 'purge'}
                 title={t('admin.companies.purge')}
                 text={t('admin.companies.purge_text')}
                 confirmLabel={t('admin.companies.purge_confirm')}
                 onClose={() => setDialog(null)}
-                onConfirm={() => run(() => api.delete(`/admin/companies/${id}/storage`))}
+                onConfirm={() => run('purge', () => api.delete(`/admin/companies/${id}/storage`))}
             />
             <DeleteDialog
                 open={dialog === 'delete'}
                 company={company}
                 onClose={() => setDialog(null)}
-                onDeleted={() => navigate('/admin/companies', { replace: true })}
+                onDeleted={(message) => navigate('/admin/companies', { replace: true, state: { notice: message || t('admin.companies.deleted', { name: company.name }) } })}
             />
         </div>
     );
@@ -202,9 +215,14 @@ function EditForm({ company, onSaved }) {
     );
 }
 
-function BlockDialog({ open, onClose, onConfirm }) {
+function BlockDialog({ open, busy, onClose, onConfirm }) {
     const { t } = useTranslation();
     const [reason, setReason] = useState('');
+
+    useEffect(() => {
+        if (open) setReason('');
+    }, [open]);
+
     return (
         <Modal
             open={open}
@@ -212,10 +230,10 @@ function BlockDialog({ open, onClose, onConfirm }) {
             title={t('admin.companies.block')}
             footer={
                 <>
-                    <Button variant="ghost" onClick={onClose}>
+                    <Button variant="ghost" disabled={busy} onClick={onClose}>
                         {t('common.cancel')}
                     </Button>
-                    <Button variant="danger" onClick={() => onConfirm(reason)}>
+                    <Button variant="danger" loading={busy} onClick={() => onConfirm(reason)}>
                         {t('admin.companies.block')}
                     </Button>
                 </>
@@ -261,8 +279,8 @@ function DeleteDialog({ open, company, onClose, onDeleted }) {
         setBusy(true);
         setError(null);
         try {
-            await api.delete(`/admin/companies/${company.id}`, { data: { confirm_name: name } });
-            onDeleted();
+            const res = await api.delete(`/admin/companies/${company.id}`, { data: { confirm_name: name } });
+            onDeleted(res.data?.message);
         } catch (err) {
             setError(fieldErrors(err).confirm_name ?? errorMessage(err));
         } finally {

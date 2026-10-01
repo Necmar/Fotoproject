@@ -7,6 +7,7 @@ import { useAuth } from '../../auth/AuthContext';
 import { useFetch } from '../../lib/useFetch';
 import { usePolling } from '../../lib/usePolling';
 import { formatDate } from '../../lib/format';
+import { useDownload } from '../../lib/download';
 import BatchStatusBadge, { ACTIVE_STATUSES } from '../../components/batch/BatchStatusBadge';
 import { Alert, Button, Card, EmptyState, Modal, PageHeader, Pagination, Spinner } from '../../components/ui';
 
@@ -15,20 +16,23 @@ export default function History() {
     const { t, i18n } = useTranslation();
     const { meta } = useAuth();
     const [page, setPage] = useState(1);
-    const { data, meta: pageMeta, loading, error, reload } = useFetch('/company/batches', { per_page: 12, page });
+    const { data, meta: pageMeta, loading, error, reload, refetch } = useFetch('/company/batches', { per_page: 12, page });
+    const zip = useDownload();
     const [target, setTarget] = useState(null);
     const [notice, setNotice] = useState(null);
     const [busy, setBusy] = useState(false);
     const l = i18n.language;
 
-    usePolling(reload, 5000, !!data?.some((b) => ACTIVE_STATUSES.includes(b.status)));
+    usePolling(refetch, 5000, !!data?.some((b) => ACTIVE_STATUSES.includes(b.status)));
 
     const remove = async () => {
         setBusy(true);
         try {
             const res = await api.delete(`/company/batches/${target.id}`);
             setNotice({ type: 'success', text: res.data.message });
-            reload();
+            // The last card of a later page is gone: show the previous page instead of an empty one.
+            if (data?.length === 1 && page > 1) setPage(page - 1);
+            else reload();
         } catch (err) {
             setNotice({ type: 'error', text: errorMessage(err) });
         } finally {
@@ -58,6 +62,11 @@ export default function History() {
                 </Alert>
             )}
             <Alert type="error">{error}</Alert>
+            {zip.error && (
+                <Alert type="error" onClose={zip.clearError} className="mb-5">
+                    {zip.error}
+                </Alert>
+            )}
 
             {loading && !data ? (
                 <Spinner />
@@ -94,7 +103,7 @@ export default function History() {
                                             {t('history.open')}
                                         </Button>
                                         {b.download_url && (
-                                            <Button size="sm" variant="secondary" icon={Download} onClick={() => (window.location.href = b.download_url)}>
+                                            <Button size="sm" variant="secondary" icon={Download} loading={zip.busy === b.download_url} disabled={!!zip.busy} onClick={() => zip.download(b.download_url)}>
                                                 ZIP
                                             </Button>
                                         )}
@@ -121,7 +130,7 @@ export default function History() {
                 title={t('batch.delete_title')}
                 footer={
                     <>
-                        <Button variant="ghost" onClick={() => setTarget(null)}>
+                        <Button variant="ghost" disabled={busy} onClick={() => setTarget(null)}>
                             {t('common.cancel')}
                         </Button>
                         <Button variant="danger" loading={busy} onClick={remove}>

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Navigate, useBlocker, useNavigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ArrowRight, Clock, ImagePlus, ShieldCheck, Sparkles, Trash2 } from 'lucide-react';
 import api, { errorMessage, fieldErrors } from '../../lib/api';
@@ -41,6 +41,10 @@ function Wizard({ initial }) {
     const [errors, setErrors] = useState({});
     const [starting, setStarting] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
+    const [discarding, setDiscarding] = useState(false);
+    const [discardError, setDiscardError] = useState(null);
+    const hasLogo = !!user.company?.has_logo;
+    const leaving = useRef(false);
 
     const maxFiles = meta?.max_images_per_batch ?? 30;
     const maxMb = meta?.max_upload_mb ?? 25;
@@ -64,12 +68,31 @@ function Wizard({ initial }) {
         return () => window.removeEventListener('beforeunload', handler);
     }, [queue.busy]);
 
+    // In-app navigation (menu, back button) while uploads run: ask first.
+    const blocker = useBlocker(({ currentLocation, nextLocation }) => queue.busy && !leaving.current && currentLocation.pathname !== nextLocation.pathname);
+
+    // Without a logo there is no watermark: never send a mode the server rejects (watermark_needs_logo).
+    useEffect(() => {
+        if (!hasLogo && form.settings?.watermark_mode && form.settings.watermark_mode !== 'none') {
+            setForm((f) => ({ ...f, settings: { ...f.settings, watermark_mode: 'none' } }));
+        }
+    }, [hasLogo, form.settings?.watermark_mode]);
+
     // Step 1: drop photos anywhere on the page, or paste them (e.g. a screenshot) with Ctrl/Cmd+V.
     const [dragging, setDragging] = useState(false);
     useEffect(() => {
-        if (step !== 1) return undefined;
-        let depth = 0;
         const hasFiles = (e) => Array.from(e.dataTransfer?.types ?? []).includes('Files');
+        if (step !== 1) {
+            // Other steps: a dropped file must not make the browser open it (and leave the app).
+            const block = (e) => hasFiles(e) && e.preventDefault();
+            window.addEventListener('dragover', block);
+            window.addEventListener('drop', block);
+            return () => {
+                window.removeEventListener('dragover', block);
+                window.removeEventListener('drop', block);
+            };
+        }
+        let depth = 0;
         const enter = (e) => {
             if (!hasFiles(e)) return;
             depth += 1;
@@ -122,7 +145,8 @@ function Wizard({ initial }) {
         setErrors({});
         setNotice(null);
         try {
-            await api.patch(`/company/batches/${initial.id}`, { name: form.name || null, ...form.settings });
+            const settings = hasLogo ? form.settings : { ...form.settings, watermark_mode: 'none' };
+            await api.patch(`/company/batches/${initial.id}`, { name: form.name || null, ...settings });
             await api.post(`/company/batches/${initial.id}/start`);
             navigate(`/batches/${initial.id}`, { replace: true });
         } catch (err) {
@@ -133,8 +157,21 @@ function Wizard({ initial }) {
     };
 
     const discard = async () => {
-        await api.delete(`/company/batches/${initial.id}`).catch(() => null);
-        navigate('/', { replace: true });
+        setDiscarding(true);
+        setDiscardError(null);
+        try {
+            await api.delete(`/company/batches/${initial.id}`);
+            leaving.current = true;
+            navigate('/', { replace: true });
+        } catch (err) {
+            if (err.response?.status === 404) {
+                leaving.current = true;
+                navigate('/', { replace: true });
+                return;
+            }
+            setDiscardError(errorMessage(err));
+            setDiscarding(false);
+        }
     };
 
     return (
@@ -214,7 +251,7 @@ function Wizard({ initial }) {
                     <p className="mb-6 text-stone-500">{t('batch.settings_intro', { count: images.length })}</p>
 
                     <div className="lg:grid lg:grid-cols-[1fr_20rem] lg:items-start lg:gap-6">
-                        <BatchSettingsForm value={form} onChange={setForm} hasLogo={!!user.company?.has_logo} errors={errors} />
+                        <BatchSettingsForm value={form} onChange={setForm} hasLogo={hasLogo} errors={errors} />
 
                         {/* Desktop: summary with the start button always in view. */}
                         <aside className="hidden lg:sticky lg:top-24 lg:block">
@@ -259,20 +296,37 @@ function Wizard({ initial }) {
 
             <Modal
                 open={confirmDelete}
-                onClose={() => setConfirmDelete(false)}
+                onClose={() => !discarding && setConfirmDelete(false)}
                 title={t('batch.discard')}
                 footer={
                     <>
-                        <Button variant="ghost" onClick={() => setConfirmDelete(false)}>
+                        <Button variant="ghost" disabled={discarding} onClick={() => setConfirmDelete(false)}>
                             {t('common.cancel')}
                         </Button>
-                        <Button variant="danger" onClick={discard}>
+                        <Button variant="danger" loading={discarding} onClick={discard}>
                             {t('batch.discard_confirm')}
                         </Button>
                     </>
                 }
             >
                 <p className="text-sm text-stone-600">{t('batch.discard_text')}</p>
+                <Alert type="error">{discardError}</Alert>
+            </Modal>
+
+            <Modal
+                open={blocker.state === 'blocked'}
+                onClose={() => blocker.reset?.()}
+                title={t('batch.leave_title')}
+                footer={
+                    <>
+                        <Button variant="ghost" onClick={() => blocker.proceed?.()}>
+                            {t('batch.leave_confirm')}
+                        </Button>
+                        <Button onClick={() => blocker.reset?.()}>{t('batch.leave_stay')}</Button>
+                    </>
+                }
+            >
+                <p className="text-sm text-stone-600">{t('batch.leave_text')}</p>
             </Modal>
         </div>
     );
@@ -281,7 +335,7 @@ function Wizard({ initial }) {
 /** Primary actions stay reachable at the bottom of the screen on phones. */
 function StickyActions({ children, className }) {
     return (
-        <div className={`sticky bottom-0 z-10 -mx-4 mt-8 border-t border-stone-200/70 bg-stone-50/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pt-0 sm:pb-0 ${className ?? ''}`}>
+        <div className={`sticky bottom-0 z-10 -mx-4 mt-8 border-t border-stone-200/70 bg-stone-50 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pt-0 sm:pb-0 ${className ?? ''}`}>
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">{children}</div>
         </div>
     );

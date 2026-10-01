@@ -6,7 +6,7 @@ import { formatDate } from '../../lib/format';
 import { Alert, Button, cx } from '../ui';
 
 /** Super Admin: last OpenAI error, and a live connection test with OpenAI's own messages. */
-export default function OpenAITest({ lastError }) {
+export default function OpenAITest({ lastError, onTested }) {
     const { t, i18n } = useTranslation();
     const [results, setResults] = useState(null);
     const [busy, setBusy] = useState(null);
@@ -23,6 +23,7 @@ export default function OpenAITest({ lastError }) {
             setError(errorMessage(err));
         } finally {
             setBusy(null);
+            onTested?.();
         }
     };
 
@@ -45,6 +46,7 @@ export default function OpenAITest({ lastError }) {
                     {t('admin.openai_test.run_edit')}
                 </Button>
             </div>
+            <p className="text-xs text-stone-400">{t('admin.openai_test.edit_note')}</p>
             {busy && <p className="text-sm text-stone-500">{t('admin.openai_test.busy')}</p>}
             <Alert type="error">{error}</Alert>
 

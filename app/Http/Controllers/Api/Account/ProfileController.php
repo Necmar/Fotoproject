@@ -36,13 +36,20 @@ class ProfileController extends Controller
 
         $user->save();
 
-        if ($emailChanged) {
-            $user->sendEmailVerificationNotification();
-        }
+        $mailFailed = $emailChanged
+            && ! app(\App\Services\Mail\SafeMailer::class)->send(fn () => $user->sendEmailVerificationNotification(), 'profile_email_changed');
 
         $this->activity->log(ActivityAction::ProfileUpdated, $user, ['email_changed' => $emailChanged]);
 
-        return UserResource::make($user->load('company'))->response();
+        $response = UserResource::make($user->load('company'))->response();
+        if ($mailFailed) {
+            // Saved; only the confirmation e-mail failed (it can be requested again).
+            $response->setData(array_replace((array) $response->getData(true), [
+                'warning' => __('messages.domain.mail_send_failed'), 'code' => 'mail_failed', 'mail_failed' => true,
+            ]));
+        }
+
+        return $response;
     }
 
     public function updatePassword(UpdatePasswordRequest $request): JsonResponse

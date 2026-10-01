@@ -10,8 +10,8 @@ import { Alert, Button, Card, Input, PageHeader, Spinner, Toggle } from '../../c
 
 export default function SystemSettings() {
     const { t } = useTranslation();
-    const { refresh } = useAuth();
-    const { data, meta, loading, error } = useFetch('/admin/settings');
+    const { refresh, reloadMeta } = useAuth();
+    const { data, meta, loading, error, setBody } = useFetch('/admin/settings');
     const [form, setForm] = useState(null);
     const [errors, setErrors] = useState({});
     const [status, setStatus] = useState(null);
@@ -54,6 +54,7 @@ export default function SystemSettings() {
             setForm(res.data);
             setStatus({ type: 'success', text: t('common.saved') });
             refresh();
+            reloadMeta();
         } catch (err) {
             setErrors(fieldErrors(err));
             setStatus({ type: 'error', text: errorMessage(err) });
@@ -142,7 +143,13 @@ export default function SystemSettings() {
                         ))}
                     </dl>
                     <p className="mt-4 text-xs text-stone-400">{t('admin.settings.openai_env_hint')}</p>
-                    {meta.openai.configured && <OpenAITest lastError={meta.openai.last_error} />}
+                    {meta.openai.configured && (
+                        <OpenAITest
+                            lastError={meta.openai.last_error}
+                            // After a test the stored "last error" may have changed: fetch it again (the form is left alone).
+                            onTested={() => api.get('/admin/settings').then(({ data: res }) => setBody((b) => ({ ...b, meta: res.meta }))).catch(() => null)}
+                        />
+                    )}
                 </Card>
 
                 <Card className="space-y-3">

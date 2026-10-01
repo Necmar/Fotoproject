@@ -12,6 +12,7 @@ use App\Models\Company;
 use App\Services\ActivityLogger;
 use App\Services\CompanyService;
 use App\Services\CompanyStatsService;
+use App\Services\Mail\SafeMailer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -24,6 +25,7 @@ class CompanyController extends Controller
         private readonly CompanyService $companies,
         private readonly CompanyStatsService $stats,
         private readonly ActivityLogger $activity,
+        private readonly SafeMailer $mailer,
     ) {}
 
     public function index(Request $request): AnonymousResourceCollection
@@ -62,7 +64,7 @@ class CompanyController extends Controller
             'invited' => empty($data['password']),
         ]);
 
-        return CompanyResource::make($this->reloadWithStats($company))->response()->setStatusCode(201);
+        return $this->withMailWarning(CompanyResource::make($this->reloadWithStats($company))->response()->setStatusCode(201));
     }
 
     public function show(Company $company): JsonResponse
@@ -85,7 +87,7 @@ class CompanyController extends Controller
             'password_changed' => ! empty($data['password']),
         ]);
 
-        return CompanyResource::make($this->reloadWithStats($company))->response();
+        return $this->withMailWarning(CompanyResource::make($this->reloadWithStats($company))->response());
     }
 
     public function destroy(Request $request, Company $company): JsonResponse
@@ -125,10 +127,15 @@ class CompanyController extends Controller
         abort_unless($owner !== null, 422, __('messages.admin.no_owner'));
 
         // Owners who never set a password get a fresh invitation instead.
-        if ($owner->last_login_at === null && ! $owner->hasVerifiedEmail()) {
-            $this->companies->sendInvitation($owner);
-        } else {
-            $this->companies->sendPasswordReset($owner);
+        $invite = $owner->last_login_at === null && ! $owner->hasVerifiedEmail();
+        if (! app(\App\Services\Mail\MailSettings::class)->isEnabled()) {
+            throw new \App\Exceptions\DomainRuleException('mail_disabled');
+        }
+
+        $sent = $this->mailer->send(fn () => $invite ? $this->companies->sendInvitation($owner) : $this->companies->sendPasswordReset($owner), 'admin_password_reset');
+        if (! $sent) {
+            // Never the SMTP error itself: details are in the log.
+            return response()->json(['message' => __('messages.admin.mail_send_failed'), 'code' => 'mail_failed'], 422);
         }
 
         $this->activity->log(ActivityAction::AdminPasswordResetSent, $company, ['email' => $owner->email]);
@@ -144,6 +151,20 @@ class CompanyController extends Controller
         $this->activity->log(ActivityAction::AdminStorageDeleted, $company, ['batches' => $count], company: $company);
 
         return response()->json(['message' => __('messages.admin.storage_deleted', ['count' => $count])]);
+    }
+
+    /** The account was saved, but its e-mail (invitation/verification) could not be sent. */
+    private function withMailWarning(JsonResponse $response): JsonResponse
+    {
+        if ($this->companies->mailFailed) {
+            $response->setData(array_replace((array) $response->getData(true), [
+                'warning' => __('messages.admin.company_mail_failed'),
+                'code' => 'mail_failed',
+                'mail_failed' => true,
+            ]));
+        }
+
+        return $response;
     }
 
     private function reloadWithStats(Company $company): Company

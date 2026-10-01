@@ -59,6 +59,8 @@ class InstallController extends Controller
             Log::warning('Installer failed', ['reason' => $e->getMessage()]);
             $message = match (true) {
                 $e->getMessage() === 'db_connect' => 'Kan geen verbinding maken met de database. Controleer databasenaam, gebruiker en wachtwoord (zoals aangemaakt in Plesk > Databases).',
+                $e->getMessage() === 'install_busy' => 'De installatie is al bezig. Wacht even en vernieuw daarna de pagina.',
+                $e->getMessage() === 'already_installed' => 'De installatie is al voltooid. Ga naar de inlogpagina.',
                 $e->getMessage() === 'env_write' => 'Het instellingenbestand (.env) kon niet worden opgeslagen. Controleer de schrijfrechten van de projectmap.',
                 str_starts_with($e->getMessage(), 'migrate') => 'De database kon niet worden ingericht. Probeer het opnieuw of kies een lege database.',
                 default => 'Installatie mislukt. Probeer het opnieuw.',

@@ -1,8 +1,10 @@
+import { Suspense } from 'react';
 import { Outlet } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Sparkles } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useAuth } from '../auth/AuthContext';
+import { PageLoading } from '../components/ui';
 
 export function Logo() {
     const { meta } = useAuth();
@@ -27,7 +29,9 @@ export default function AuthLayout() {
                 <LanguageSwitcher />
             </header>
             <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-10">
-                <Outlet />
+                <Suspense fallback={<PageLoading />}>
+                    <Outlet />
+                </Suspense>
             </main>
             <footer className="text-center text-xs text-stone-400">{t('auth.footer')}</footer>
         </div>

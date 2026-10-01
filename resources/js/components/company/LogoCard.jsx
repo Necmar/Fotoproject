@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ImageUp, Trash2 } from 'lucide-react';
 import api, { errorMessage } from '../../lib/api';
 import { useAuth } from '../../auth/AuthContext';
-import { Alert, Button, Card } from '../ui';
+import { Alert, Button, Card, Modal } from '../ui';
 
 /** Company logo for watermarks: upload, replace, remove. */
 export default function LogoCard({ logoUrl, onChange }) {
@@ -12,6 +12,7 @@ export default function LogoCard({ logoUrl, onChange }) {
     const input = useRef(null);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState(null);
+    const [confirmRemove, setConfirmRemove] = useState(false);
 
     const run = async (request) => {
         setBusy(true);
@@ -20,11 +21,18 @@ export default function LogoCard({ logoUrl, onChange }) {
             const { data } = await request();
             onChange?.(data.data);
             refresh();
+            return true;
         } catch (err) {
             setError(err.response?.data?.errors?.logo?.[0] ?? errorMessage(err));
+            return false;
         } finally {
             setBusy(false);
         }
+    };
+
+    const remove = async () => {
+        await run(() => api.delete('/company/logo'));
+        setConfirmRemove(false);
     };
 
     const upload = (e) => {
@@ -50,7 +58,7 @@ export default function LogoCard({ logoUrl, onChange }) {
                         {logoUrl ? t('logo.replace') : t('logo.upload')}
                     </Button>
                     {logoUrl && (
-                        <Button variant="danger-ghost" icon={Trash2} disabled={busy} onClick={() => run(() => api.delete('/company/logo'))}>
+                        <Button variant="danger-ghost" icon={Trash2} disabled={busy} onClick={() => setConfirmRemove(true)}>
                             {t('logo.remove')}
                         </Button>
                     )}
@@ -60,6 +68,23 @@ export default function LogoCard({ logoUrl, onChange }) {
                 {error}
             </Alert>
             <input ref={input} type="file" accept="image/png,image/jpeg" hidden onChange={upload} />
+            <Modal
+                open={confirmRemove}
+                onClose={() => !busy && setConfirmRemove(false)}
+                title={t('logo.remove_title')}
+                footer={
+                    <>
+                        <Button variant="ghost" disabled={busy} onClick={() => setConfirmRemove(false)}>
+                            {t('common.cancel')}
+                        </Button>
+                        <Button variant="danger" loading={busy} onClick={remove}>
+                            {t('logo.remove')}
+                        </Button>
+                    </>
+                }
+            >
+                <p className="text-sm text-stone-600">{t('logo.remove_text')}</p>
+            </Modal>
         </Card>
     );
 }

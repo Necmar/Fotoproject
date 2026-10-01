@@ -78,11 +78,13 @@ return [
 
         'timeouts' => [
             'analysis' => (int) env('OPENAI_ANALYSIS_TIMEOUT', 90),
-            // An edit of a large photo can take several minutes at high quality.
-            'edit' => (int) env('OPENAI_EDIT_TIMEOUT', 300),
+            // One edit (retouch, cut-out or background). Up to 3 per photo must fit in
+            // bora.queue.job_timeout together with analysis and check.
+            'edit' => (int) env('OPENAI_EDIT_TIMEOUT', 180),
         ],
-        // Retries inside one job for 429/5xx/timeouts (seconds, exponential); the
-        // queue retries the whole job on top of this.
+        // Retries inside one job for 429/5xx (seconds, exponential). Timeouts are
+        // never retried inside the job (that could double the time): the queue
+        // retries the whole job later, reusing what was already paid for.
         'retry_delays' => [2, 6],
 
         // USD per 1M tokens, for the cost estimate in the Super Admin.

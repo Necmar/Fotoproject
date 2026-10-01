@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api, { errorMessage, fieldErrors } from '../../lib/api';
 import { useAuth } from '../../auth/AuthContext';
@@ -28,6 +28,11 @@ function ProfileForm() {
     const [status, setStatus] = useState(null);
     const [busy, setBusy] = useState(false);
 
+    // The header language switcher saves the language on the account too: follow it, never send a stale one.
+    useEffect(() => {
+        setForm((f) => (f.locale === user.locale ? f : { ...f, locale: user.locale }));
+    }, [user.locale]);
+
     const submit = async (e) => {
         e.preventDefault();
         setBusy(true);
@@ -37,10 +42,14 @@ function ProfileForm() {
             const { data } = await api.put('/account/profile', form);
             setUser(data.data);
             setForm((f) => ({ ...f, email: data.data.email, current_password: '' }));
-            setStatus({
-                type: 'success',
-                text: data.data.email_verified ? t('common.saved') : t('account.email_changed'),
-            });
+            setStatus(
+                data.warning
+                    ? { type: 'warning', text: data.warning }
+                    : {
+                          type: 'success',
+                          text: data.data.email_verified ? t('common.saved') : t('account.email_changed'),
+                      },
+            );
         } catch (err) {
             setErrors(fieldErrors(err));
             if (err.response?.status !== 422) setStatus({ type: 'error', text: errorMessage(err) });

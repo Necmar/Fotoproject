@@ -1,25 +1,45 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { RefreshCw } from 'lucide-react';
 import { Link } from 'react-router';
 import { useFetch } from '../../lib/useFetch';
 import HealthCard from '../../components/admin/HealthCard';
 import { formatBytes, formatDate, formatNumber, formatUsd } from '../../lib/format';
-import { Alert, Badge, Card, PageHeader, Spinner, StatCard } from '../../components/ui';
+import { Alert, Badge, Button, Card, PageHeader, Spinner, StatCard } from '../../components/ui';
 
 export default function AdminDashboard() {
     const { t, i18n } = useTranslation();
-    const { data, loading, error } = useFetch('/admin/dashboard');
+    const { data, loading, error, refetch } = useFetch('/admin/dashboard');
+    const [healthKey, setHealthKey] = useState(0);
+    const [refreshing, setRefreshing] = useState(false);
     const l = i18n.language;
 
-    if (loading) return <Spinner />;
+    // Refreshes the health and queue cards without a full-page spinner.
+    const refreshCards = async () => {
+        setRefreshing(true);
+        setHealthKey((k) => k + 1);
+        await refetch().catch(() => null);
+        setRefreshing(false);
+    };
+
+    if (loading && !data) return <Spinner />;
     if (error) return <Alert type="error">{error}</Alert>;
 
     const s = data.totals;
 
     return (
         <div>
-            <PageHeader title={t('admin.dashboard.title')} description={t('admin.dashboard.subtitle')} />
+            <PageHeader
+                title={t('admin.dashboard.title')}
+                description={t('admin.dashboard.subtitle')}
+                actions={
+                    <Button variant="secondary" size="sm" icon={RefreshCw} loading={refreshing} onClick={refreshCards}>
+                        {t('admin.dashboard.refresh')}
+                    </Button>
+                }
+            />
 
-            <HealthCard />
+            <HealthCard key={healthKey} />
             <QueueCard queue={data.queue} />
 
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

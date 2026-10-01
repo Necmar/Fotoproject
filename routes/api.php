@@ -34,15 +34,18 @@ Route::middleware('guest')->group(function () {
     Route::post('auth/login', [SessionController::class, 'store'])->middleware('throttle:login')->name('api.login');
     Route::post('auth/register', [RegisterController::class, 'store'])->middleware('throttle:auth')->name('api.register');
     Route::post('auth/forgot-password', [PasswordResetController::class, 'sendLink'])->middleware('throttle:password-reset')->name('api.password.email');
-    Route::post('auth/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:password-reset')->name('api.password.store');
 });
+
+// Token-based, so also allowed while signed in (e.g. the Super Admin opening an
+// invitation link): it never signs anyone in or out of the current session.
+Route::post('auth/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:password-reset')->name('api.password.store');
 
 // Signed-in users (company owners and Super Admin)
 Route::middleware(['auth', 'account.active', 'throttle:api'])->group(function () {
     Route::post('auth/logout', [SessionController::class, 'destroy'])->name('api.logout');
     Route::get('auth/me', [ProfileController::class, 'show'])->name('api.me');
     Route::post('auth/email/verification-notification', [EmailVerificationController::class, 'resend'])
-        ->middleware('throttle:6,1')->name('api.verification.send');
+        ->middleware('throttle:6,1,verify-mail')->name('api.verification.send');
 
     Route::put('account/profile', [ProfileController::class, 'update'])->name('api.profile.update');
     Route::put('account/password', [ProfileController::class, 'updatePassword'])->name('api.password.update');
@@ -67,16 +70,16 @@ Route::middleware(['auth', 'account.active', 'throttle:api'])->group(function ()
         Route::get('images/{image}/{variant}', [ImageController::class, 'file'])
             ->whereIn('variant', ['original', 'working', 'thumbnail', 'optimized', 'preview'])->name('images.file');
         Route::get('logo', [LogoController::class, 'show'])->name('logo.show');
-        Route::post('logo', [LogoController::class, 'store'])->middleware('throttle:10,1')->name('logo.store');
+        Route::post('logo', [LogoController::class, 'store'])->middleware('throttle:10,1,logo')->name('logo.store');
         Route::delete('logo', [LogoController::class, 'destroy'])->name('logo.destroy');
 
         Route::put('batches/{batch}/watermark', [DownloadController::class, 'watermark'])->name('batches.watermark');
         Route::patch('images/{image}/watermark', [DownloadController::class, 'toggle'])->name('images.watermark');
-        Route::get('images/{image}/download', [DownloadController::class, 'image'])->middleware('throttle:120,1')->name('images.download');
-        Route::get('batches/{batch}/download', [DownloadController::class, 'batch'])->middleware('throttle:20,1')->name('batches.download');
+        Route::get('images/{image}/download', [DownloadController::class, 'image'])->middleware('throttle:120,1,image-download')->name('images.download');
+        Route::get('batches/{batch}/download', [DownloadController::class, 'batch'])->middleware('throttle:20,1,zip-download')->name('batches.download');
 
         Route::post('images/{image}/reoptimize', [ImageController::class, 'reoptimize'])
-            ->middleware('throttle:30,1')->name('images.reoptimize');
+            ->middleware('throttle:30,1,reoptimize')->name('images.reoptimize');
     });
 
     // Super Admin area
@@ -84,9 +87,9 @@ Route::middleware(['auth', 'account.active', 'throttle:api'])->group(function ()
         Route::get('dashboard', [AdminSystemController::class, 'dashboard'])->name('dashboard');
         Route::get('mail', [AdminMailController::class, 'show'])->name('mail.show');
         Route::put('mail', [AdminMailController::class, 'update'])->name('mail.update');
-        Route::post('mail/test', [AdminMailController::class, 'test'])->middleware('throttle:5,1')->name('mail.test');
-        Route::post('openai/test', [AdminSystemController::class, 'testOpenAI'])->middleware('throttle:6,1')->name('openai.test');
-        Route::get('health', [AdminSystemController::class, 'health'])->middleware('throttle:20,1')->name('health');
+        Route::post('mail/test', [AdminMailController::class, 'test'])->middleware('throttle:5,1,mail-test')->name('mail.test');
+        Route::post('openai/test', [AdminSystemController::class, 'testOpenAI'])->middleware('throttle:6,1,openai-test')->name('openai.test');
+        Route::get('health', [AdminSystemController::class, 'health'])->middleware('throttle:20,1,health')->name('health');
         Route::get('settings', [AdminSystemController::class, 'showSettings'])->name('settings.show');
         Route::put('settings', [AdminSystemController::class, 'updateSettings'])->name('settings.update');
         Route::get('activity', [AdminSystemController::class, 'activity'])->name('activity');
@@ -94,7 +97,7 @@ Route::middleware(['auth', 'account.active', 'throttle:api'])->group(function ()
         Route::apiResource('companies', AdminCompanyController::class);
         Route::post('companies/{company}/block', [AdminCompanyController::class, 'block'])->name('companies.block');
         Route::post('companies/{company}/unblock', [AdminCompanyController::class, 'unblock'])->name('companies.unblock');
-        Route::post('companies/{company}/password-reset', [AdminCompanyController::class, 'sendPasswordReset'])->name('companies.password-reset');
+        Route::post('companies/{company}/password-reset', [AdminCompanyController::class, 'sendPasswordReset'])->middleware('throttle:5,1,admin-reset')->name('companies.password-reset');
         Route::delete('companies/{company}/storage', [AdminCompanyController::class, 'purgeStorage'])->name('companies.storage.destroy');
 
         Route::get('batches', [AdminBatchController::class, 'index'])->name('batches.index');

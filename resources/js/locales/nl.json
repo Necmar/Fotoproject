@@ -21,7 +21,8 @@
         "crash_title": "Er ging iets mis",
         "crash_text": "Deze pagina kon niet worden weergegeven. Laad de pagina opnieuw; je foto's en batches blijven bewaard.",
         "reload": "Pagina opnieuw laden",
-        "home": "Naar het dashboard"
+        "home": "Naar het dashboard",
+        "unexpected_response": "De server gaf een onverwacht antwoord. Laad de pagina opnieuw en probeer het nog eens."
     },
     "nav": {
         "main": "Hoofdmenu",
@@ -102,7 +103,8 @@
             "submit": "Account aanmaken",
             "link": "Registreren"
         },
-        "session_expired": "Je sessie is verlopen. Log opnieuw in."
+        "session_expired": "Je sessie is verlopen. Log opnieuw in.",
+        "already_signed_in": "Je bent al ingelogd in deze browser."
     },
     "account": {
         "title": "Mijn account",
@@ -147,7 +149,8 @@
             "title": "Overzicht",
             "subtitle": "Status van het platform.",
             "failures": "Recente mislukte verwerkingen",
-            "no_failures": "Geen mislukte verwerkingen."
+            "no_failures": "Geen mislukte verwerkingen.",
+            "refresh": "Vernieuwen"
         },
         "stats": {
             "companies": "Bedrijven",
@@ -213,7 +216,11 @@
             "delete_text": "Dit verwijdert {{name}}, het eigenaar-account en alle bestanden definitief. Dit kan niet ongedaan worden gemaakt.",
             "type_name": "Typ de bedrijfsnaam ter bevestiging",
             "delete_confirm": "Definitief verwijderen",
-            "password_no_mail": "E-mail staat uit: stel hier het wachtwoord in en geef het zelf door aan de eigenaar."
+            "password_no_mail": "E-mail staat uit: stel hier het wachtwoord in en geef het zelf door aan de eigenaar.",
+            "created_plain": "Het bedrijf is aangemaakt.",
+            "deleted": "{{name}} is verwijderd.",
+            "password_required": "Vul een wachtwoord in, of zet \"Wachtwoord zelf instellen\" uit om een uitnodiging te sturen.",
+            "check_fields": "Controleer de ingevulde gegevens."
         },
         "batches": {
             "title": "Batches",
@@ -223,12 +230,14 @@
             "unnamed": "Naamloze batch",
             "images": "{{done}} van {{total}} klaar",
             "delete_title": "Batch verwijderen",
-            "delete_text": "De batch en alle bijbehorende bestanden worden definitief verwijderd."
+            "delete_text": "De batch en alle bijbehorende bestanden worden definitief verwijderd.",
+            "delete_active": "Deze batch wordt nog verwerkt. Verwijderen stopt de verwerking."
         },
         "activity": {
             "title": "Activiteit",
             "subtitle": "Belangrijke acties op het platform.",
-            "empty": "Nog geen activiteit"
+            "empty": "Nog geen activiteit",
+            "deleted_company": "verwijderd bedrijf"
         },
         "settings": {
             "title": "Systeeminstellingen",
@@ -325,7 +334,9 @@
             "password_none": "Nog geen wachtwoord opgeslagen.",
             "from_address": "Afzenderadres",
             "from_name": "Afzendernaam",
-            "test": "Testmail naar mij sturen"
+            "test": "Testmail naar mij sturen",
+            "password_clear": "Opgeslagen wachtwoord verwijderen",
+            "password_cleared": "Het opgeslagen wachtwoord is verwijderd."
         },
         "openai_test": {
             "last_error": "Laatste mislukte AI-aanvraag ({{date}})",
@@ -338,7 +349,8 @@
                 "image_model": "Toegang tot bewerkingsmodel",
                 "analysis": "Proef-analyse van een testfoto",
                 "edit": "Proef-bewerking van een testfoto"
-            }
+            },
+            "edit_note": "De test van beeldbewerking kan enkele minuten duren. Laat deze pagina open."
         }
     },
     "enums": {
@@ -529,7 +541,13 @@
             "failed_other": "{{count}} foto's zijn mislukt",
             "attention_one": "{{count}} foto met een aandachtspunt",
             "attention_other": "{{count}} foto's met een aandachtspunt"
-        }
+        },
+        "gone": "Deze batch bestaat niet meer. Hij is verwijderd of verlopen.",
+        "leave_title": "Uploads zijn nog bezig",
+        "leave_text": "Als je deze pagina nu verlaat, stoppen de uploads die nog bezig zijn. Foto's die al zijn geüpload blijven bewaard.",
+        "leave_confirm": "Toch verlaten",
+        "leave_stay": "Blijven",
+        "poll_failed": "De voortgang kon even niet worden bijgewerkt. We proberen het automatisch opnieuw."
     },
     "upload": {
         "title": "Foto's toevoegen",
@@ -584,7 +602,9 @@
         "none_dashboard": "Nog geen logo voor watermarks",
         "upload": "Logo uploaden",
         "replace": "Logo vervangen",
-        "remove": "Verwijderen"
+        "remove": "Verwijderen",
+        "remove_title": "Logo verwijderen",
+        "remove_text": "Het logo wordt verwijderd. Downloads krijgen daarna geen watermerk meer tot je een nieuw logo uploadt."
     },
     "download": {
         "title": "Downloaden",
@@ -597,7 +617,13 @@
         "short": "Download",
         "more_coming": "er komen er nog bij",
         "zip_count_one": "Download ({{count}})",
-        "zip_count_other": "Alles downloaden ({{count}})"
+        "zip_count_other": "Alles downloaden ({{count}})",
+        "errors": {
+            "nothing": "Er is (nog) niets om te downloaden.",
+            "too_many": "Te veel downloads achter elkaar. Wacht een minuut en probeer het opnieuw.",
+            "missing": "Dit bestand is niet (meer) beschikbaar.",
+            "server": "De download kon niet worden gemaakt. Probeer het later opnieuw."
+        }
     },
     "history": {
         "title": "Mijn verwerkingen",

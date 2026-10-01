@@ -28,7 +28,16 @@ export default function ActivityLog() {
                                 <span className="w-40 shrink-0 text-xs text-stone-400">{formatDate(log.created_at, i18n.language)}</span>
                                 <span className="flex-1 text-sm">
                                     <span className="font-medium text-stone-800">{t(`enums.activity_action.${log.action}`, log.action_label)}</span>
-                                    {log.company && <span className="text-stone-500"> · {log.company.name}</span>}
+                                    {log.company ? (
+                                        <span className="text-stone-500"> · {log.company.name}</span>
+                                    ) : (
+                                        log.properties?.company_name && (
+                                            <span className="text-stone-500">
+                                                {' '}
+                                                · {log.properties.company_name} ({t('admin.activity.deleted_company')})
+                                            </span>
+                                        )
+                                    )}
                                     {log.user && <span className="text-stone-500"> · {log.user.email}</span>}
                                     {!log.user && log.properties?.email && <span className="text-stone-500"> · {log.properties.email}</span>}
                                 </span>

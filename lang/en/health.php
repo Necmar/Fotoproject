@@ -16,6 +16,7 @@ return [
     'storage' => ['label' => 'Write permissions', 'hint' => 'storage/ and bootstrap/cache/ must be writable for PHP.'],
     'disk_space' => ['label' => 'Free disk space', 'hint' => 'Free up space or shorten the retention period.'],
     'cron' => ['label' => 'Cron job', 'hint' => 'The scheduled task is not running: photos are not processed. Check the task in Plesk (every minute).'],
+    'queue_retry_after' => ['label' => 'Queue retry_after', 'hint' => 'DB_QUEUE_RETRY_AFTER must be larger than BORA_JOB_TIMEOUT (at least 120 s more), otherwise a photo can be processed twice and OpenAI is paid twice. Set e.g. DB_QUEUE_RETRY_AFTER=960 in .env.', 'value' => 'retry_after :retry s / job timeout :timeout s'],
     'mail' => ['label' => 'E-mail', 'hint' => 'E-mail is on, but no mail server is configured. Fill in SMTP under System > E-mail, or switch e-mail off.', 'off' => 'off (not needed)'],
     'openai' => ['label' => 'OpenAI', 'hint' => 'No API key: photos only get local basic corrections. Set OPENAI_API_KEY in .env.'],
     'frontend_build' => ['label' => 'React build', 'hint' => 'public/build is missing: upload the React build (see the installation guide).'],

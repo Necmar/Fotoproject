@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Company;
 
 use App\Services\Processing\QueueKicker;
 
+use App\Http\Controllers\Concerns\ServesStoredFiles;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Batch\ReoptimizeImageRequest;
 use App\Http\Requests\Batch\UploadImageRequest;
@@ -13,11 +14,14 @@ use App\Models\Image;
 use App\Services\Images\ImageUploadService;
 use App\Services\Processing\ReoptimizeService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 class ImageController extends Controller
 {
+    use ServesStoredFiles;
+
     public function __construct(private readonly ImageUploadService $uploads) {}
 
     public function store(UploadImageRequest $request, Batch $batch): JsonResponse
@@ -47,7 +51,7 @@ class ImageController extends Controller
      * Streams a stored file through Laravel after an ownership check. Files
      * live on a private disk and never have a public, predictable URL.
      */
-    public function file(Image $image, string $variant): StreamedResponse
+    public function file(Request $request, Image $image, string $variant): Response
     {
         $this->authorize('view', $image);
 
@@ -63,9 +67,11 @@ class ImageController extends Controller
         $disk = Storage::disk(config('bora.disk'));
         abort_if($path === null || ! $disk->exists($path), 404);
 
-        return $disk->response($path, null, [
-            'Cache-Control' => 'private, max-age=3600',
-            'X-Content-Type-Options' => 'nosniff',
+        // Original, working copy and thumbnail never change for an image. Results do,
+        // but their URLs carry a version (?v=) that changes with every new result.
+        $immutable = in_array($variant, ['original', 'working', 'thumbnail'], true) || $request->filled('v');
+
+        return $this->cachedFile($request, $disk, $path, $immutable ? 'private, max-age=604800, immutable' : 'private, max-age=60', [
             'Content-Disposition' => 'inline',
         ]);
     }

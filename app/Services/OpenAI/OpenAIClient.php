@@ -96,10 +96,11 @@ class OpenAIClient
                 'message' => mb_substr($error->getMessage(), 0, 300),
             ]);
 
-            // A timed-out edit already took minutes: retry it in a later job, not right away.
-            $slowTimeout = $endpoint === 'images/edits' && $error->reason === 'timeout';
+            // A timed-out request already used its whole budget: retry it in a later
+            // job (queue backoff), never right away, so a job stays within job_timeout.
+            $slow = $error->reason === 'timeout';
 
-            if (! $error->retryable || $slowTimeout || $attempt > count($delays)) {
+            if (! $error->retryable || $slow || $attempt > count($delays)) {
                 throw $error;
             }
 

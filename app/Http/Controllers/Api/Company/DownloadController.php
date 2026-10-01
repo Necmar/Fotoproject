@@ -28,6 +28,9 @@ class DownloadController extends Controller
     public function image(Image $image): BinaryFileResponse
     {
         $this->authorize('download', $image);
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(180);
+        }
         $file = $this->downloads->single($image);
 
         return $this->send($file['path'], $file['name'], $file['temporary']);
@@ -36,6 +39,10 @@ class DownloadController extends Controller
     public function batch(Batch $batch): BinaryFileResponse
     {
         $this->authorize('download', $batch);
+        // A ZIP with watermarks renders every photo: more than the default 30-60 s.
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(180);
+        }
         $file = $this->downloads->zip($batch);
 
         return $this->send($file['path'], $file['name'], false);
