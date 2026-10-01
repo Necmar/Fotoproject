@@ -51,11 +51,17 @@ class ImageResource extends JsonResource
                     : ($browserCanShowOriginal ? $originalUrl : null),
                 'before' => $this->working_path ? route('api.company.images.file', [$this->id, 'working']) : ($browserCanShowOriginal ? $originalUrl : null),
                 'download' => $this->optimized_path ? route('api.company.images.download', $this->id) : null,
-                'optimized' => $this->optimized_path ? route('api.company.images.file', [$this->id, 'optimized']) : null,
+                // The version in the URL changes with every new result, so the browser (which may cache a file for an hour) never shows an old one.
+                'optimized' => $this->optimized_path ? route('api.company.images.file', [$this->id, 'optimized', 'v' => $this->resultVersion()]) : null,
 
-                'preview' => $this->optimized_path ? route('api.company.images.file', [$this->id, 'preview']) : null,
+                'preview' => $this->optimized_path ? route('api.company.images.file', [$this->id, 'preview', 'v' => $this->resultVersion()]) : null,
             ],
             'processed_at' => $this->processed_at?->toIso8601String(),
         ];
+    }
+
+    private function resultVersion(): string
+    {
+        return substr(md5($this->optimized_path.'|'.$this->preview_path.'|'.$this->processed_at?->timestamp), 0, 10);
     }
 }

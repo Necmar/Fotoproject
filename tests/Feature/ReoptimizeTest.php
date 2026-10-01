@@ -71,6 +71,8 @@ class ReoptimizeTest extends TestCase
     {
         $image = $this->processedImage();
         $oldResult = $image->optimized_path;
+        $urls = fn () => $this->getJson("/api/company/batches/{$image->batch_id}")->json('data.images.0.urls');
+        $before = $urls();
 
         $this->postJson("/api/company/images/{$image->id}/reoptimize", $this->choices(['background' => 'keep', 'remove_people' => false]))->assertStatus(202);
         $this->artisan('bora:work')->assertSuccessful();
@@ -78,6 +80,11 @@ class ReoptimizeTest extends TestCase
         $image->refresh();
         $this->assertSame('completed', $image->status->value);
         $this->assertNotSame($oldResult, $image->optimized_path);
+        // A new URL per result: a browser that cached the old file for an hour must fetch the new one.
+        $after = $urls();
+        $this->assertNotSame($before['preview'], $after['preview']);
+        $this->assertNotSame($before['optimized'], $after['optimized']);
+        $this->assertSame($after['preview'], $urls()['preview'], 'stable while nothing changes');
         Storage::disk('local')->assertMissing($oldResult);
         Storage::disk('local')->assertExists($image->optimized_path);
         $this->assertSame('completed', $image->batch->fresh()->status->value);
