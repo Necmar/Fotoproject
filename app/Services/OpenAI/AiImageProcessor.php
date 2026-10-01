@@ -90,189 +90,356 @@ class AiImageProcessor
      * ORIGINAL product, with global light/colour corrections from the analysis,
      * on the chosen background. Without background work: analysis corrections only.
      *
+     * Never pays twice for the same edit: every paid result is stored right away
+     * (analysis.ai_edit) and a retry of the job only does the missing steps.
+     *
      * @return array{source: ?string, adjustments: ?array, focus: ?array, status: AiStatus}
      */
     public function optimize(Image $image, array $analysis, BatchSettings $settings, ProcessingType $type = ProcessingType::Edit): array
     {
         $adjustments = $this->adjustmentsFrom($analysis, $settings->strength);
-        $focus = $analysis['product_box'] ?? null;
-        $local = ['source' => null, 'adjustments' => $adjustments, 'focus' => $focus, 'status' => AiStatus::Analyzed];
+        $local = ['source' => null, 'adjustments' => $adjustments, 'focus' => $analysis['product_box'] ?? null, 'status' => AiStatus::Analyzed];
         $plan = $this->editPlan($analysis, $settings);
 
         if (! $plan['retouch'] && ! $plan['mask']) {
             return $local;
         }
 
-        $rotateOnly = ($adjustments['rotate'] ?? 0) != 0 ? ['rotate' => $adjustments['rotate']] : null;
-
-        // A previous attempt already paid for the result: reuse it (already finished).
+        // A previous attempt already paid for the result: reuse it; only a missing check is redone.
         if ($image->ai_path && $this->files->disk()->exists($image->ai_path)) {
-            return ['source' => $image->ai_path, 'adjustments' => $rotateOnly, 'focus' => $focus, 'status' => AiStatus::Edited] + ($plan['retouch'] ? ['finish' => null] : []);
+            if (($image->analysis['ai_edit']['verified'] ?? true) === false) {
+                $rejected = $this->verify($image, $image->ai_path, $settings, null, $local);
+                if ($rejected !== null) {
+                    return $rejected;
+                }
+            }
+            $this->discardIntermediate($image);
+
+            return $this->resultPlan($image->ai_path, $analysis, $settings);
         }
 
-        $workingLocal = $this->files->localPath($image->working_path);
-        $sourceLocal = null;
-        $intermediate = null; // retouch used as input for a new background: removed afterwards
-        $mask = null;
         $temps = [];
+        $mask = null;
 
         try {
-            $source = $image->working_path;
+            // 1. The fixed retouch prompt, for every photo (stored at once: a retry reuses it).
+            $retouch = $plan['retouch'] ? $this->retouch($image, $analysis, $settings, $plan, $type, $temps) : null;
 
-            if ($plan['retouch']) {
-                // 1. The fixed retouch prompt, for every photo.
-                $tmp = $this->aiEdit($image, $type, $this->instructions->retouch($analysis, $settings, ! $plan['mask']), $temps, lossless: false, quality: (string) config('services.openai.retouch_quality', 'high'));
-                // Never larger than the photo itself (no upscaling), exact photo proportions.
-                [$pw, $ph] = getimagesize($workingLocal);
-                $retouched = ImageEditor::open($tmp);
-                if ($retouched->width() !== $pw || $retouched->height() !== $ph) {
-                    $scale = min(1, max($retouched->width(), $retouched->height()) / max($pw, $ph));
-                    $retouched->resize((int) round($pw * $scale), (int) round($ph * $scale))->saveJpeg($tmp, 95);
-                }
-                $extension = 'jpg';
-                $diskPath = $image->batch->storageDirectory().'/ai/'.Str::ulid()->toBase32().'.'.$extension;
-                $bytes = $this->commit($image, $tmp, $diskPath);
-
-                if ($plan['mask']) {
-                    $intermediate = [$diskPath, $bytes];
-                    $source = $diskPath;
-                }
-            }
-
-            if ($plan['mask']) {
+            if (! $plan['mask']) {
+                $diskPath = $retouch;
+            } else {
                 // 2. New background: the (retouched) product is cut out and placed on it.
-                $sourceLocal = $source === $image->working_path ? null : $this->files->localPath($source);
-                $original = ImageEditor::open($sourceLocal ?? $workingLocal)->fitWithin((int) config('services.openai.composite_max_side', 2560));
-                $w = $original->width();
-                $h = $original->height();
-
-                // Cut-out on the key colour least present in this photo -> mask.
-                [$keyName, $key] = $this->compositor->keyColourFor($original);
-                $cutout = $this->aiEdit($image, $type, $this->instructions->cutout($analysis, $keyName, $key), $temps, source: $source);
-                // A model that answers with a transparent PNG anyway: transparent = key colour.
-                $cut = ImageEditor::open($cutout)->flatten($key);
-                // The model rarely hits the exact key colour or keeps the exact frame: measure both.
-                $key = $this->compositor->measuredKey($cut, $key);
-                $placement = $this->compositor->register($original, $cut, $key);
-                ['mask' => $mask, 'coverage' => $coverage] = $this->compositor->maskFromCutout($cut, $key, $w, $h, $placement);
-
-                $image->forceFill(['analysis' => array_replace($image->analysis ?? [], ['cutout' => [
-                    'key' => $keyName, 'measured_key' => $key, 'coverage' => round($coverage, 4),
-                    'placement' => array_map(fn ($v) => round($v, 4), $placement),
-                    'cutout_size' => [$cut->width(), $cut->height()], 'photo_size' => [$w, $h],
-                ]])])->save();
-
-                if ($coverage < 0.01 || $coverage > 0.97 || $placement['error'] > (float) config('services.openai.cutout_max_error', 0.16)) {
-                    // No usable cut-out (product not found or moved): safe corrections only.
-                    $this->addWarnings($image, 'ai_edit', [['code' => 'ai_cutout_failed']]);
-
-                    return ['status' => AiStatus::EditRejected] + $local;
+                try {
+                    $composite = $this->composite($image, $type, $analysis, $settings, $plan, $retouch, $adjustments, $temps);
+                } catch (OpenAIException $e) {
+                    // Temporary: the queue retries later (the retouch is kept). Otherwise keep the retouch.
+                    if ($retouch === null || $e->retryable) {
+                        throw $e;
+                    }
+                    $composite = null;
                 }
 
-                // Background layer for the chosen option.
-                $product = $intermediate ? $original->copy() : $original->copy()->adjust(array_diff_key($adjustments, ['rotate' => true]));
-                $background = match (true) {
-                    $plan['ai_background'] => $this->aiBackground($image, $type, $analysis, $settings, $w, $h, $temps, $source),
-                    $settings->background === BackgroundOption::BlurLight => $this->compositor->blurred($product, $mask),
-                    $settings->background === BackgroundOption::Neutral => 'neutral',
-                    default => null, // remove: transparent (JPG output gets white when saved)
-                };
-                if ($plan['ai_background'] && $settings->background === BackgroundOption::BlurLight) {
-                    $background = $this->compositor->blurred(ImageEditor::fromGd($background), $mask);
+                if ($composite === null) {
+                    if ($retouch === null) {
+                        // No usable cut-out (product not found or moved): safe corrections only.
+                        $this->addWarnings($image, 'ai_edit', [['code' => 'ai_cutout_failed']]);
+
+                        return ['status' => AiStatus::EditRejected] + $local;
+                    }
+
+                    // The paid retouch is never thrown away: the photo on its own background.
+                    $this->editState($image, ['notes' => [['code' => 'ai_background_failed']]]);
+                    $diskPath = $retouch;
+                } else {
+                    ['path' => $diskPath, 'mask' => $mask] = $composite;
                 }
-
-                // The product itself on the new background.
-                $composite = $this->compositor->compose($product, $mask, $background);
-                $transparent = $background === null;
-                $extension = $transparent ? 'png' : 'jpg';
-                $tmp = $this->files->tempPath($extension);
-                $temps[] = $tmp;
-                $transparent ? $composite->savePng($tmp) : $composite->saveJpeg($tmp, 95);
-
-                $diskPath = $image->batch->storageDirectory().'/ai/'.Str::ulid()->toBase32().'.'.$extension;
-                $bytes = $this->commit($image, $tmp, $diskPath);
             }
+
+            $this->storeResult($image, $diskPath);
         } finally {
-            $this->files->release($workingLocal);
-            if ($sourceLocal) {
-                $this->files->release($sourceLocal);
-            }
-            if ($intermediate) {
-                $this->files->disk()->delete($intermediate[0]);
-                $this->storage->add($image->batch, -$intermediate[1]);
-            }
             foreach ($temps as $t) {
                 @unlink($t);
             }
         }
 
-        // 4. Integrity check of the result (a mask could have cut off a part).
-        $warnings = [];
-        if (config('services.openai.verify_edits')) {
-            $started = microtime(true);
+        // 3. Integrity check of the result (a mask could have cut off a part).
+        $rejected = $this->verify($image, $diskPath, $settings, $mask, $local);
+        if ($rejected !== null) {
+            return $rejected;
+        }
 
-            try {
-                $check = $this->verifier->verify($image->working_path, $diskPath, $settings->removePeople);
-            } catch (OpenAIException $e) {
-                $this->record($image, ProcessingType::Analysis, $started, null, $e);
-                $this->files->disk()->delete($diskPath);
-                $this->storage->add($image->batch, -$bytes);
+        $this->discardIntermediate($image);
+
+        return $this->resultPlan($diskPath, $analysis, $settings);
+    }
+
+    /**
+     * Last resort when OpenAI stays unavailable after all job attempts: a paid
+     * edit (final result, or the retouch made before a failed background step)
+     * is still used, marked as not checked. Null when nothing was paid for.
+     */
+    public function salvage(Image $image, array $analysis, BatchSettings $settings): ?array
+    {
+        $disk = $this->files->disk();
+        $state = $image->analysis['ai_edit'] ?? [];
+        $notes = $state['notes'] ?? [];
+
+        if ($image->ai_path && $disk->exists($image->ai_path)) {
+            $path = $image->ai_path;
+        } elseif (($state['retouch'] ?? null) && $disk->exists($state['retouch'])) {
+            $path = $state['retouch'];
+            $notes[] = ['code' => 'ai_background_failed'];
+            $this->storeResult($image, $path);
+        } else {
+            return null;
+        }
+
+        if (($image->analysis['ai_edit']['verified'] ?? true) === false) {
+            $notes[] = ['code' => 'ai_edit_unverified'];
+        }
+
+        $this->editState($image, ['verified' => ($image->analysis['ai_edit']['verified'] ?? true) === false ? 'failed' : true, 'notes' => $notes]);
+        $this->addWarnings($image, 'ai_edit', $notes);
+        $this->discardIntermediate($image);
+
+        return $this->resultPlan($path, $analysis, $settings);
+    }
+
+    /** The retouch on disk: reused from an earlier attempt, or made now and stored right away. */
+    private function retouch(Image $image, array $analysis, BatchSettings $settings, array $plan, ProcessingType $type, array &$temps): string
+    {
+        $stored = $image->analysis['ai_edit']['retouch'] ?? null;
+        if ($stored && $this->files->disk()->exists($stored)) {
+            return $stored;
+        }
+
+        $tmp = $this->aiEdit($image, $type, $this->instructions->retouch($analysis, $settings, ! $plan['mask']), $temps, lossless: false, quality: (string) config('services.openai.retouch_quality', 'high'));
+
+        // Never larger than the photo itself (no upscaling), exact photo proportions.
+        $workingLocal = $this->files->localPath($image->working_path);
+        try {
+            [$pw, $ph] = getimagesize($workingLocal);
+        } finally {
+            $this->files->release($workingLocal);
+        }
+        [$rw, $rh] = getimagesize($tmp);
+        $scale = min(1, max($rw, $rh) / max($pw, $ph));
+        $tw = (int) round($pw * $scale);
+        $th = (int) round($ph * $scale);
+        // Already the expected size (the model answers at the requested size): no resample + re-encode.
+        if (abs($rw - $tw) > 2 || abs($rh - $th) > 2) {
+            ImageEditor::open($tmp)->resize($tw, $th)->saveJpeg($tmp, 95);
+        }
+
+        $diskPath = $image->batch->storageDirectory().'/ai/'.Str::ulid()->toBase32().'.jpg';
+        $bytes = $this->commit($image, $tmp, $diskPath);
+        $this->editState($image, ['retouch' => $diskPath, 'retouch_bytes' => $bytes]);
+
+        return $diskPath;
+    }
+
+    /**
+     * Cut-out -> mask -> product on the new background, stored on disk.
+     * Null when the cut-out is unusable.
+     *
+     * @return array{path: string, mask: \GdImage}|null
+     */
+    private function composite(Image $image, ProcessingType $type, array $analysis, BatchSettings $settings, array $plan, ?string $retouch, array $adjustments, array &$temps): ?array
+    {
+        $source = $retouch ?? $image->working_path;
+        $sourceLocal = $this->files->localPath($source);
+
+        try {
+            $original = ImageEditor::open($sourceLocal)->fitWithin((int) config('services.openai.composite_max_side', 2560));
+        } finally {
+            $this->files->release($sourceLocal);
+        }
+        $w = $original->width();
+        $h = $original->height();
+
+        // Cut-out on the key colour least present in this photo -> mask.
+        [$keyName, $key] = $this->compositor->keyColourFor($original);
+        $cutout = $this->aiEdit($image, $type, $this->instructions->cutout($analysis, $keyName, $key), $temps, source: $source);
+        // A model that answers with a transparent PNG anyway: transparent = key colour.
+        $cut = ImageEditor::open($cutout)->flatten($key);
+        // The model rarely hits the exact key colour or keeps the exact frame: measure both.
+        $key = $this->compositor->measuredKey($cut, $key);
+        $placement = $this->compositor->register($original, $cut, $key);
+        ['mask' => $mask, 'coverage' => $coverage] = $this->compositor->maskFromCutout($cut, $key, $w, $h, $placement);
+
+        $image->forceFill(['analysis' => array_replace($image->analysis ?? [], ['cutout' => [
+            'key' => $keyName, 'measured_key' => $key, 'coverage' => round($coverage, 4),
+            'placement' => array_map(fn ($v) => round($v, 4), $placement),
+            'cutout_size' => [$cut->width(), $cut->height()], 'photo_size' => [$w, $h],
+        ]])])->save();
+
+        if ($coverage < 0.01 || $coverage > 0.97 || $placement['error'] > (float) config('services.openai.cutout_max_error', 0.16)) {
+            return null;
+        }
+
+        // Background layer for the chosen option.
+        $product = $retouch ? $original->copy() : $original->copy()->adjust(array_diff_key($adjustments, ['rotate' => true]));
+        $background = match (true) {
+            $plan['ai_background'] => $this->aiBackground($image, $type, $analysis, $settings, $w, $h, $temps, $source),
+            $settings->background === BackgroundOption::BlurLight => $this->compositor->blurred($product, $mask),
+            $settings->background === BackgroundOption::Neutral => 'neutral',
+            default => null, // remove: transparent (JPG output gets white when saved)
+        };
+        if ($plan['ai_background'] && $settings->background === BackgroundOption::BlurLight) {
+            $background = $this->compositor->blurred(ImageEditor::fromGd($background), $mask);
+        }
+
+        // The product itself on the new background.
+        $composite = $this->compositor->compose($product, $mask, $background);
+        $transparent = $background === null;
+        $extension = $transparent ? 'png' : 'jpg';
+        $tmp = $this->files->tempPath($extension);
+        $temps[] = $tmp;
+        $transparent ? $composite->savePng($tmp) : $composite->saveJpeg($tmp, 95);
+
+        $diskPath = $image->batch->storageDirectory().'/ai/'.Str::ulid()->toBase32().'.'.$extension;
+        $this->commit($image, $tmp, $diskPath);
+
+        return ['path' => $diskPath, 'mask' => $mask];
+    }
+
+    /**
+     * Integrity check and repair of the stored result. Null when the result is
+     * kept; the fallback plan when it was rejected (only with on_product_change=reject).
+     * A temporary check failure is thrown (the edit stays stored, a retry only checks);
+     * a permanent one keeps the edit with a note.
+     */
+    private function verify(Image $image, string $diskPath, BatchSettings $settings, ?\GdImage $mask, array $local): ?array
+    {
+        $warnings = $image->analysis['ai_edit']['notes'] ?? [];
+
+        if (! config('services.openai.verify_edits')) {
+            $this->finishVerification($image, true, $warnings);
+
+            return null;
+        }
+
+        $started = microtime(true);
+
+        try {
+            $check = $this->verifier->verify($image->working_path, $diskPath, $settings->removePeople);
+        } catch (OpenAIException $e) {
+            $this->record($image, ProcessingType::Analysis, $started, null, $e);
+            if ($e->retryable) {
                 throw $e;
             }
 
-            $this->record($image, ProcessingType::Analysis, $started, $check['usage']);
-            $image->forceFill(['analysis' => array_replace($image->analysis ?? [], ['verification' => $check['result']])])->save();
+            $warnings[] = ['code' => 'ai_edit_unverified'];
+            $this->finishVerification($image, 'failed', $warnings);
 
-            if (! $check['accepted']) {
-                $reason = trim((string) ($check['result'][app()->getLocale() === 'en' ? 'reason_en' : 'reason_nl'] ?? ''));
+            return null;
+        }
 
-                if (config('services.openai.on_product_change', 'repair') === 'reject') {
-                    $this->files->disk()->delete($diskPath);
-                    $this->storage->add($image->batch, -$bytes);
-                    $this->addWarnings($image, 'ai_edit', [$reason !== ''
-                        ? ['code' => 'ai_edit_rejected_reason', 'params' => ['reason' => rtrim($reason, '.')]]
-                        : ['code' => 'ai_edit_rejected']]);
+        $this->record($image, ProcessingType::Analysis, $started, $check['usage']);
+        $image->forceFill(['analysis' => array_replace($image->analysis ?? [], ['verification' => $check['result']])])->save();
 
-                    return ['status' => AiStatus::EditRejected] + $local;
-                }
+        if (! $check['accepted']) {
+            $reason = trim((string) ($check['result'][app()->getLocale() === 'en' ? 'reason_en' : 'reason_nl'] ?? ''));
 
-                // Keep the retouch; put the original details back where the product changed.
-                [$bytes, $repaired] = $this->repair($image, $diskPath, $bytes, $check, $mask);
-                if (! $repaired) {
-                    $warnings[] = $reason !== ''
-                        ? ['code' => 'ai_edit_differs_reason', 'params' => ['reason' => rtrim($reason, '.')]]
-                        : ['code' => 'ai_edit_differs'];
-                }
+            if (config('services.openai.on_product_change', 'repair') === 'reject') {
+                $this->deleteStored($image, $diskPath);
+                $image->forceFill(['ai_path' => null])->save();
+                $this->discardIntermediate($image);
+                $this->editState($image, null);
+                $this->addWarnings($image, 'ai_edit', [$reason !== ''
+                    ? ['code' => 'ai_edit_rejected_reason', 'params' => ['reason' => rtrim($reason, '.')]]
+                    : ['code' => 'ai_edit_rejected']]);
+
+                return ['status' => AiStatus::EditRejected] + $local;
             }
 
-            if ($check['result']['people_remaining'] ?? false) {
-                $warnings[] = ['code' => 'people_not_removed'];
+            // Keep the retouch; put the original details back where the product changed.
+            if (! $this->repair($image, $diskPath, $check, $mask)) {
+                $warnings[] = $reason !== ''
+                    ? ['code' => 'ai_edit_differs_reason', 'params' => ['reason' => rtrim($reason, '.')]]
+                    : ['code' => 'ai_edit_differs'];
             }
         }
 
+        if ($check['result']['people_remaining'] ?? false) {
+            $warnings[] = ['code' => 'people_not_removed'];
+        }
+
+        $this->finishVerification($image, true, $warnings);
+
+        return null;
+    }
+
+    private function finishVerification(Image $image, bool|string $verified, array $warnings): void
+    {
+        $this->editState($image, ['verified' => $verified]);
+        $this->addWarnings($image, 'ai_edit', $warnings);
+    }
+
+    /** The paid result becomes the image's AI result at once (still to be checked). */
+    private function storeResult(Image $image, string $diskPath): void
+    {
         $previous = $image->ai_path;
         $image->forceFill(['ai_path' => $diskPath])->save();
         if ($previous && $previous !== $diskPath) {
-            $this->storage->add($image->batch, -$this->size($previous));
-            $this->files->disk()->delete($previous);
+            $this->deleteStored($image, $previous);
         }
 
-        $this->addWarnings($image, 'ai_edit', $warnings);
+        $state = ['verified' => (bool) config('services.openai.verify_edits') ? false : true];
+        // The retouch is the result itself: no longer an intermediate.
+        if (($image->analysis['ai_edit']['retouch'] ?? null) === $diskPath) {
+            $state['retouch'] = null;
+            $state['retouch_bytes'] = null;
+        }
+        $this->editState($image, $state);
+    }
 
-        // An AI retouch is already finished; a composite still gets the local finish.
-        return ['source' => $diskPath, 'adjustments' => $rotateOnly, 'focus' => $focus, 'status' => AiStatus::Edited]
+    /** Remove the retouch that was only an input for the new background (once the image is done). */
+    private function discardIntermediate(Image $image): void
+    {
+        $retouch = $image->analysis['ai_edit']['retouch'] ?? null;
+        if ($retouch && $retouch !== $image->ai_path) {
+            $this->deleteStored($image, $retouch);
+        }
+        if ($retouch) {
+            $this->editState($image, ['retouch' => null, 'retouch_bytes' => null]);
+        }
+    }
+
+    /** @param array<string, mixed>|null $changes null clears the state */
+    private function editState(Image $image, ?array $changes): void
+    {
+        $analysis = $image->analysis ?? [];
+        if ($changes === null) {
+            unset($analysis['ai_edit']);
+        } else {
+            $analysis['ai_edit'] = array_filter(array_replace($analysis['ai_edit'] ?? [], $changes), fn ($v) => $v !== null);
+        }
+        $image->forceFill(['analysis' => $analysis])->save();
+    }
+
+    private function deleteStored(Image $image, string $path): void
+    {
+        $this->storage->add($image->batch, -$this->size($path));
+        $this->files->disk()->delete($path);
+    }
+
+    /** What the renderer gets for a finished AI result. */
+    private function resultPlan(string $path, array $analysis, BatchSettings $settings): array
+    {
+        $rotate = $this->adjustmentsFrom($analysis, $settings->strength)['rotate'] ?? 0;
+
+        return ['source' => $path, 'adjustments' => $rotate != 0 ? ['rotate' => $rotate] : null, 'focus' => $analysis['product_box'] ?? null, 'status' => AiStatus::Edited]
             // A retouched photo is already finished; without retouch the local finish is applied.
-            + ($plan['retouch'] ? ['finish' => null] : []);
+            + ($this->editPlan($analysis, $settings)['retouch'] ? ['finish' => null] : []);
     }
 
     /**
      * Original pixels back in the changed regions of the edit.
      * Whether every reported change was covered: a colour or look change
      * without a region cannot be repaired locally.
-     *
-     * @return array{0: int, 1: bool} new size in bytes, fully repaired
      */
-    private function repair(Image $image, string $diskPath, int $bytes, array $check, ?\GdImage $mask): array
+    private function repair(Image $image, string $diskPath, array $check, ?\GdImage $mask): bool
     {
         $regions = $check['regions'] ?? [];
         $result = $check['result'];
@@ -290,9 +457,8 @@ class AiImageProcessor
                     $png = str_ends_with($diskPath, '.png');
                     $tmp = $this->files->tempPath($png ? 'png' : 'jpg');
                     $png ? $edited->savePng($tmp) : $edited->saveJpeg($tmp, 95);
-                    $this->storage->add($image->batch, -$bytes);
-                    $this->files->disk()->delete($diskPath);
-                    $bytes = $this->commit($image, $tmp, $diskPath);
+                    $this->deleteStored($image, $diskPath);
+                    $this->commit($image, $tmp, $diskPath);
                 }
             } finally {
                 $this->files->release($editedLocal);
@@ -310,7 +476,7 @@ class AiImageProcessor
             'regions' => $regions, 'restored' => $restored, 'complete' => $repaired,
         ]])])->save();
 
-        return [$bytes, $repaired];
+        return $repaired;
     }
 
     /**

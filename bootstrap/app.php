@@ -6,6 +6,7 @@ use App\Http\Middleware\RedirectToInstaller;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureCompanyOwner;
 use App\Http\Middleware\EnsureSuperAdmin;
+use App\Http\Middleware\RedirectIfAuthenticated;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -50,6 +51,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'super_admin' => EnsureSuperAdmin::class,
             'company' => EnsureCompanyOwner::class,
             'account.active' => EnsureAccountIsActive::class,
+            // JSON 409 (code already_authenticated) for signed-in users on guest API routes.
+            'guest' => RedirectIfAuthenticated::class,
         ]);
 
         // Guests hitting protected API routes get a 401 JSON instead of a redirect.
@@ -78,8 +81,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
             if ($e instanceof HttpExceptionInterface) {
                 $status = $e->getStatusCode();
-                // Route-model 404s carry "No query results for model [...]": never pass those on.
-                $message = $e->getMessage() !== '' && $status !== 404 ? $e->getMessage() : match ($status) {
+                // Route-model 404s carry (and 429s an English text), "No query results for model [...]": never pass those on.
+                $message = $e->getMessage() !== '' && ! in_array($status, [404, 429], true) ? $e->getMessage() : match ($status) {
                     403 => __('messages.errors.forbidden'),
                     404 => __('messages.errors.not_found'),
                     419 => __('messages.errors.session_expired'),

@@ -32,5 +32,10 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <!-- Small AI processing sizes keep the image tests fast (production: 2048 / 2560). -->
+        <env name="OPENAI_MAX_SIDE" value="512"/>
+        <env name="OPENAI_COMPOSITE_MAX_SIDE" value="512"/>
+        <!-- The short-lived worker stops right away when the queue is empty. -->
+        <env name="BORA_WORKER_SLEEP" value="0"/>
     </php>
 </phpunit>

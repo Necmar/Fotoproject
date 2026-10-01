@@ -216,4 +216,51 @@ class AuthTest extends TestCase
         $this->assertDatabaseMissing('activity_logs', ['properties' => json_encode(['password' => 'fout-wachtwoord'])]);
         $this->assertStringNotContainsString('fout-wachtwoord', ActivityLog::query()->pluck('properties')->toJson());
     }
+
+    public function test_signed_in_user_gets_json_409_on_guest_api_routes(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        foreach (['/api/auth/login' => ['email' => $user->email, 'password' => 'password'], '/api/auth/forgot-password' => ['email' => $user->email], '/api/auth/register' => []] as $url => $body) {
+            $this->postJson($url, $body)
+                ->assertStatus(409)
+                ->assertJsonPath('code', 'already_authenticated')
+                ->assertJsonPath('message', __('messages.errors.already_authenticated'));
+        }
+    }
+
+    public function test_signed_in_admin_can_complete_an_invitation_without_losing_own_session(): void
+    {
+        $admin = User::factory()->superAdmin()->create();
+        $owner = User::factory()->unverified()->create();
+        $token = Password::broker('invites')->createToken($owner);
+        $this->actingAs($admin);
+
+        $this->postJson('/api/auth/reset-password', [
+            'token' => $token,
+            'email' => $owner->email,
+            'password' => 'nieuw-wachtwoord-3',
+            'password_confirmation' => 'nieuw-wachtwoord-3',
+            'invite' => true,
+        ])->assertOk()->assertJsonMissingPath('code');
+
+        $this->assertTrue($owner->fresh()->hasVerifiedEmail());
+        // Still the admin, not logged out and not logged in as the owner.
+        $this->assertAuthenticatedAs($admin);
+        $this->getJson('/api/auth/me')->assertOk()->assertJsonPath('data.id', $admin->id);
+    }
+
+    public function test_signed_in_user_with_invalid_reset_token_gets_422_not_a_redirect(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $other = User::factory()->create();
+
+        $this->postJson('/api/auth/reset-password', [
+            'token' => 'ongeldig',
+            'email' => $other->email,
+            'password' => 'nieuw-wachtwoord-2',
+            'password_confirmation' => 'nieuw-wachtwoord-2',
+        ])->assertUnprocessable()->assertJsonValidationErrors('email');
+    }
 }

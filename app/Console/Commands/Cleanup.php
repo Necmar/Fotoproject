@@ -47,7 +47,8 @@ class Cleanup extends Command
 
         if (! $dry) {
             foreach ([$expired, $emptyDrafts] as $query) {
-                $query->each(function (Batch $batch) use ($deleter) {
+                // By id, not by offset: deleting rows would otherwise skip every other page.
+                $query->lazyById(100)->each(function (Batch $batch) use ($deleter) {
                     try {
                         $deleter->delete($batch, reason: 'retention');
                     } catch (Throwable $e) {

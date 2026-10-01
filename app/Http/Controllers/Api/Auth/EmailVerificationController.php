@@ -47,7 +47,9 @@ class EmailVerificationController extends Controller
             return response()->json(['message' => __('messages.auth.already_verified')]);
         }
 
-        $user->sendEmailVerificationNotification();
+        if (! app(\App\Services\Mail\SafeMailer::class)->send(fn () => $user->sendEmailVerificationNotification(), 'verification_resend')) {
+            throw new \App\Exceptions\DomainRuleException('mail_send_failed');
+        }
 
         return response()->json(['message' => __('messages.auth.verification_sent')]);
     }

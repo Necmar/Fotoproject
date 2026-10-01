@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { LogOut, Menu, UserRound, X } from 'lucide-react';
 import { Logo } from './AuthLayout';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useAuth } from '../auth/AuthContext';
-import { Alert, cx } from '../components/ui';
+import { Alert, PageLoading, cx } from '../components/ui';
 
 /**
  * Shared shell for the company area and the Super Admin area.
@@ -33,7 +33,7 @@ export default function AppLayout({ nav, badge }) {
 
     return (
         <div className="min-h-dvh">
-            <header className="sticky top-0 z-20 border-b pt-[env(safe-area-inset-top)] border-stone-200/70 bg-stone-50/90 backdrop-blur">
+            <header className="sticky top-0 z-20 border-b pt-[env(safe-area-inset-top)] border-stone-200/70 bg-stone-50 md:bg-stone-50/90 md:backdrop-blur">
                 <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
                     <NavLink to={nav[0].to} className="shrink-0">
                         <Logo />
@@ -98,7 +98,9 @@ export default function AppLayout({ nav, badge }) {
                         {meta.maintenance_message}
                     </Alert>
                 )}
-                <Outlet />
+                <Suspense fallback={<PageLoading />}>
+                    <Outlet />
+                </Suspense>
             </main>
         </div>
     );

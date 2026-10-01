@@ -21,7 +21,8 @@
         "crash_title": "Something went wrong",
         "crash_text": "This page could not be shown. Reload the page; your photos and batches are kept.",
         "reload": "Reload page",
-        "home": "Go to dashboard"
+        "home": "Go to dashboard",
+        "unexpected_response": "The server gave an unexpected answer. Reload the page and try again."
     },
     "nav": {
         "main": "Main menu",
@@ -102,7 +103,8 @@
             "submit": "Create account",
             "link": "Register"
         },
-        "session_expired": "Your session has expired. Please sign in again."
+        "session_expired": "Your session has expired. Please sign in again.",
+        "already_signed_in": "You are already signed in in this browser."
     },
     "account": {
         "title": "My account",
@@ -147,7 +149,8 @@
             "title": "Overview",
             "subtitle": "Platform status.",
             "failures": "Recent failed processing",
-            "no_failures": "No failed processing."
+            "no_failures": "No failed processing.",
+            "refresh": "Refresh"
         },
         "stats": {
             "companies": "Companies",
@@ -213,7 +216,11 @@
             "delete_text": "This permanently deletes {{name}}, the owner account and all files. This cannot be undone.",
             "type_name": "Type the company name to confirm",
             "delete_confirm": "Delete permanently",
-            "password_no_mail": "E-mail is off: set the password here and pass it on to the owner yourself."
+            "password_no_mail": "E-mail is off: set the password here and pass it on to the owner yourself.",
+            "created_plain": "The company has been created.",
+            "deleted": "{{name}} has been deleted.",
+            "password_required": "Enter a password, or switch off \"Set password myself\" to send an invitation.",
+            "check_fields": "Please check the details you entered."
         },
         "batches": {
             "title": "Batches",
@@ -223,12 +230,14 @@
             "unnamed": "Unnamed batch",
             "images": "{{done}} of {{total}} done",
             "delete_title": "Delete batch",
-            "delete_text": "The batch and all its files will be deleted permanently."
+            "delete_text": "The batch and all its files will be deleted permanently.",
+            "delete_active": "This batch is still being processed. Deleting it stops the processing."
         },
         "activity": {
             "title": "Activity",
             "subtitle": "Important actions on the platform.",
-            "empty": "No activity yet"
+            "empty": "No activity yet",
+            "deleted_company": "deleted company"
         },
         "settings": {
             "title": "System settings",
@@ -325,7 +334,9 @@
             "password_none": "No password stored yet.",
             "from_address": "Sender address",
             "from_name": "Sender name",
-            "test": "Send a test e-mail to me"
+            "test": "Send a test e-mail to me",
+            "password_clear": "Remove stored password",
+            "password_cleared": "The stored password has been removed."
         },
         "openai_test": {
             "last_error": "Latest failed AI request ({{date}})",
@@ -338,7 +349,8 @@
                 "image_model": "Access to editing model",
                 "analysis": "Test analysis of a sample photo",
                 "edit": "Test edit of a sample photo"
-            }
+            },
+            "edit_note": "The image editing test can take a few minutes. Keep this page open."
         }
     },
     "enums": {
@@ -529,7 +541,13 @@
             "failed_other": "{{count}} photos failed",
             "attention_one": "{{count}} photo needs attention",
             "attention_other": "{{count}} photos need attention"
-        }
+        },
+        "gone": "This batch no longer exists. It was deleted or has expired.",
+        "leave_title": "Uploads are still running",
+        "leave_text": "If you leave this page now, the uploads that are still running stop. Photos that are already uploaded are kept.",
+        "leave_confirm": "Leave anyway",
+        "leave_stay": "Stay",
+        "poll_failed": "Progress could not be updated just now. We will try again automatically."
     },
     "upload": {
         "title": "Add photos",
@@ -584,7 +602,9 @@
         "none_dashboard": "No logo for watermarks yet",
         "upload": "Upload logo",
         "replace": "Replace logo",
-        "remove": "Remove"
+        "remove": "Remove",
+        "remove_title": "Remove logo",
+        "remove_text": "The logo will be removed. Downloads get no watermark until you upload a new logo."
     },
     "download": {
         "title": "Download",
@@ -597,7 +617,13 @@
         "short": "Download",
         "more_coming": "more on the way",
         "zip_count_one": "Download ({{count}})",
-        "zip_count_other": "Download all ({{count}})"
+        "zip_count_other": "Download all ({{count}})",
+        "errors": {
+            "nothing": "There is nothing to download (yet).",
+            "too_many": "Too many downloads in a row. Wait a minute and try again.",
+            "missing": "This file is not available (anymore).",
+            "server": "The download could not be prepared. Please try again later."
+        }
     },
     "history": {
         "title": "My batches",

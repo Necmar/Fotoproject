@@ -86,4 +86,37 @@ class MailSettingsTest extends TestCase
         // Company owners cannot reach it.
         $this->actingAs(User::factory()->create())->getJson('/api/admin/mail')->assertForbidden();
     }
+
+    public function test_saving_the_untouched_mail_card_in_automatic_mode_keeps_it_automatic(): void
+    {
+        config(['mail.default' => 'smtp']);
+        $this->actingAs(User::factory()->superAdmin()->create());
+
+        $this->getJson('/api/admin/mail')->assertJsonPath('data.toggle', null)->assertJsonPath('data.enabled', true);
+        $this->putJson('/api/admin/mail', ['mail_enabled' => true, 'smtp_host' => null, 'smtp_port' => 587, 'mail_from_address' => null])
+            ->assertOk()->assertJsonPath('data.toggle', null)->assertJsonPath('data.enabled', true);
+    }
+
+    public function test_switching_on_without_host_is_allowed_when_env_has_a_mailer(): void
+    {
+        config(['mail.default' => 'smtp']);
+        $this->actingAs(User::factory()->superAdmin()->create());
+
+        $this->putJson('/api/admin/mail', ['mail_enabled' => false])->assertOk();
+        $this->putJson('/api/admin/mail', ['mail_enabled' => true])->assertOk()->assertJsonPath('data.enabled', true);
+
+        // A host given: port and sender are needed as well.
+        $this->putJson('/api/admin/mail', ['mail_enabled' => true, 'smtp_host' => 'mail.example.com', 'smtp_port' => null])
+            ->assertJsonValidationErrors(['smtp_port', 'mail_from_address']);
+    }
+
+    public function test_mail_validation_messages_are_dutch(): void
+    {
+        app()->setLocale('nl');
+        $this->actingAs(User::factory()->superAdmin()->create(['locale' => 'nl']));
+
+        $this->putJson('/api/admin/mail', ['mail_enabled' => true, 'smtp_host' => 'mail.example.com'])
+            ->assertJsonPath('errors.smtp_port.0', 'SMTP-poort is verplicht.')
+            ->assertJsonPath('errors.mail_from_address.0', 'Afzenderadres is verplicht.');
+    }
 }

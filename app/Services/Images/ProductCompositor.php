@@ -130,6 +130,12 @@ class ProductCompositor
             }
         }
 
+        // Placement is relative (scale around the centre, shift as a fraction of the
+        // frame), so it is searched on a small copy of the cut-out: resampling the
+        // full-size cut-out ~300 times took seconds per photo. Twice the target size
+        // keeps the resampled edges the same as before.
+        $cutout = $cutout->copy()->fitWithin(2 * max($w, $h));
+
         $best = ['scale' => 1.0, 'dx' => 0.0, 'dy' => 0.0, 'error' => $this->placementError($luma, $cutout, $key, $w, $h, null)];
         $rounds = [[[0.94, 0.97, 1.0, 1.03, 1.06], [-0.06, -0.04, -0.02, 0.0, 0.02, 0.04, 0.06]], [[-0.015, 0.0, 0.015], [-0.01, 0.0, 0.01]]];
 

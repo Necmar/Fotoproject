@@ -34,7 +34,7 @@ class HistoryCleanupMailTest extends TestCase
     {
         $id = $this->postJson('/api/company/batches', ['name' => $name])->json('data.id');
         for ($i = 0; $i < $photos; $i++) {
-            $img = imagecreatetruecolor(800, 600);
+            $img = imagecreatetruecolor(400, 300);
             imagefill($img, 0, 0, imagecolorallocate($img, 40, 80 + 30 * $i, 120));
             ob_start();
             imagejpeg($img, null, 90);

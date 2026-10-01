@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Mail, Send } from 'lucide-react';
+import { Mail, Send, Trash2 } from 'lucide-react';
 import api, { errorMessage, fieldErrors } from '../../lib/api';
 import { useFetch } from '../../lib/useFetch';
 import { useAuth } from '../../auth/AuthContext';
@@ -41,6 +41,34 @@ export default function MailSettingsCard() {
         } catch (err) {
             setErrors(fieldErrors(err));
             if (err.response?.status !== 422) setStatus({ type: 'error', text: errorMessage(err) });
+        } finally {
+            setBusy(null);
+        }
+    };
+
+    const clearPassword = async () => {
+        setBusy('clear');
+        setErrors({});
+        setStatus(null);
+        try {
+            // Only the password changes: the other values are sent as stored (not the unsaved form).
+            await api.put('/admin/mail', {
+                mail_enabled: !!(data.toggle ?? data.enabled),
+                smtp_host: data.smtp_host,
+                smtp_port: data.smtp_port ? Number(data.smtp_port) : null,
+                smtp_encryption: data.smtp_encryption,
+                smtp_username: data.smtp_username,
+                mail_from_address: data.mail_from_address,
+                mail_from_name: data.mail_from_name,
+                smtp_password: null,
+                clear_password: true,
+            });
+            setStatus({ type: 'success', text: t('admin.mail.password_cleared') });
+            reload();
+            reloadMeta?.();
+        } catch (err) {
+            setErrors(fieldErrors(err));
+            setStatus({ type: 'error', text: errorMessage(err) });
         } finally {
             setBusy(null);
         }
@@ -106,6 +134,11 @@ export default function MailSettingsCard() {
                             hint={data.password_set ? t('admin.mail.password_kept') : t('admin.mail.password_none')}
                             onChange={set('smtp_password')}
                         />
+                        {data.password_set && (
+                            <Button type="button" variant="danger-ghost" size="sm" icon={Trash2} loading={busy === 'clear'} disabled={!!busy} onClick={clearPassword}>
+                                {t('admin.mail.password_clear')}
+                            </Button>
+                        )}
                         <Input label={t('admin.mail.from_address')} type="email" placeholder="noreply@jouwdomein.nl" value={form.mail_from_address ?? ''} error={errors.mail_from_address} onChange={set('mail_from_address')} />
                         <Input label={t('admin.mail.from_name')} value={form.mail_from_name ?? ''} error={errors.mail_from_name} onChange={set('mail_from_name')} />
                     </div>

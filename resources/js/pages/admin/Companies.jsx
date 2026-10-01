@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Building2, Plus, Search } from 'lucide-react';
 import { useFetch } from '../../lib/useFetch';
@@ -16,7 +16,15 @@ export default function Companies() {
     const [search, setSearch] = useState('');
     const [query, setQuery] = useState({ page: 1, search: '', status: '' });
     const { data, meta, loading, error } = useFetch('/admin/companies', query);
+    const location = useLocation();
+    const navigate = useNavigate();
+    const [notice, setNotice] = useState(location.state?.notice ?? null);
     const l = i18n.language;
+
+    // A notice from another page (e.g. "company deleted") is shown once.
+    useEffect(() => {
+        if (location.state?.notice) navigate(location.pathname, { replace: true, state: null });
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const submit = (e) => {
         e.preventDefault();
@@ -41,14 +49,18 @@ export default function Companies() {
                     <input
                         type="search"
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        onChange={(e) => {
+                            setSearch(e.target.value);
+                            // Clearing the field (also the "x" of a search input) shows everything again.
+                            if (e.target.value === '' && query.search !== '') setQuery({ ...query, page: 1, search: '' });
+                        }}
                         placeholder={t('admin.companies.search')}
                         className="h-11 w-full rounded-xl border border-stone-200 bg-white pr-3 pl-10 text-base focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none sm:text-sm"
                     />
                 </div>
                 <select
                     value={query.status}
-                    onChange={(e) => setQuery({ ...query, page: 1, status: e.target.value })}
+                    onChange={(e) => setQuery({ ...query, page: 1, search, status: e.target.value })}
                     className="h-11 rounded-xl border border-stone-200 bg-white px-3 text-sm"
                     aria-label={t('fields.status')}
                 >
@@ -61,6 +73,11 @@ export default function Companies() {
                 </Button>
             </form>
 
+            {notice && (
+                <Alert type="success" onClose={() => setNotice(null)} className="mb-5">
+                    {notice}
+                </Alert>
+            )}
             <Alert type="error">{error}</Alert>
 
             <Card padded={false}>

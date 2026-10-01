@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, Download, RefreshCw, X } from 'lucide-react';
+import { AlertTriangle, Download, Loader2, RefreshCw, X } from 'lucide-react';
 import api, { errorMessage } from '../../lib/api';
 import { useAuth } from '../../auth/AuthContext';
 import { formatBytes } from '../../lib/format';
+import { useDownload } from '../../lib/download';
 import CompareSlider from './CompareSlider';
 import { Choice } from './BatchSettingsForm';
 import { ImageStatusBadge } from './PhotoTile';
@@ -27,6 +28,7 @@ export default function ImageViewer({ image, onClose, onReoptimized, startWithFo
     });
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState(null);
+    const { download, busy: downloading, error: downloadError } = useDownload();
 
     useEffect(() => {
         ref.current?.showModal();
@@ -115,10 +117,16 @@ export default function ImageViewer({ image, onClose, onReoptimized, startWithFo
                     ))}
 
                     {image.urls.download && (
-                        <a href={image.urls.download} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 text-sm font-medium text-white hover:bg-brand-700">
-                            <Download className="size-4" aria-hidden /> {t('download.single', { name: image.output_filename })}
-                        </a>
+                        <button
+                            type="button"
+                            onClick={() => download(image.urls.download)}
+                            disabled={!!downloading}
+                            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-600 text-sm font-medium text-white hover:bg-brand-700 disabled:bg-brand-600/50"
+                        >
+                            {downloading ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Download className="size-4" aria-hidden />} {t('download.single', { name: image.output_filename })}
+                        </button>
                     )}
+                    <Alert type="error">{downloadError}</Alert>
 
                     {finished && (
                         <section className="rounded-2xl bg-white p-4 ring-1 ring-stone-200/80">

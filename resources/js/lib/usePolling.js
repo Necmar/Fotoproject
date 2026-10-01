@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
  * Calls `callback` every `interval` ms while `enabled` is true. In a hidden
  * tab it keeps going at a slower pace (so the tab title and a completion
  * notification stay current), and it refreshes at once when the tab comes back.
+ * Only one request runs at a time and only one timer chain exists.
  * No WebSockets needed; works on shared hosting.
  */
 export function usePolling(callback, interval, enabled, hiddenInterval = interval * 5) {
@@ -18,36 +19,47 @@ export function usePolling(callback, interval, enabled, hiddenInterval = interva
 
         let timer = null;
         let stopped = false;
+        let inFlight = false;
+        // Every (re)schedule gets a new generation; a stale chain stops itself.
+        let generation = 0;
 
-        const next = () => {
-            if (!stopped) timer = setTimeout(tick, document.visibilityState === 'visible' ? interval : hiddenInterval);
+        const schedule = () => {
+            clearTimeout(timer);
+            const mine = ++generation;
+            if (stopped) return;
+            timer = setTimeout(() => tick(mine), document.visibilityState === 'visible' ? interval : hiddenInterval);
         };
 
-        const tick = async () => {
+        const tick = async (mine) => {
+            if (stopped || mine !== generation || inFlight) return;
+            inFlight = true;
             try {
                 await saved.current();
             } catch {
                 // A failed poll is retried on the next tick.
+            } finally {
+                inFlight = false;
             }
-            next();
+            if (mine === generation) schedule();
         };
 
-        const onVisible = () => {
-            if (document.visibilityState === 'visible') {
-                clearTimeout(timer);
-                tick();
-            }
+        // visibilitychange covers tab switches and minimising; focus alone would also fire on
+        // every click back into the window, so it is not used.
+        const onVisibility = () => {
+            if (document.visibilityState !== 'visible') return;
+            if (inFlight) return; // the running request reschedules when it finishes
+            clearTimeout(timer);
+            tick(++generation);
         };
 
-        next();
-        document.addEventListener('visibilitychange', onVisible);
-        window.addEventListener('focus', onVisible);
+        schedule();
+        document.addEventListener('visibilitychange', onVisibility);
 
         return () => {
             stopped = true;
+            generation += 1;
             clearTimeout(timer);
-            document.removeEventListener('visibilitychange', onVisible);
-            window.removeEventListener('focus', onVisible);
+            document.removeEventListener('visibilitychange', onVisibility);
         };
     }, [interval, hiddenInterval, enabled]);
 }

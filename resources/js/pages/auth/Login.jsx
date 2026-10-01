@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { homePathFor, useAuth } from "../../auth/AuthContext";
 import { errorMessage, fieldErrors } from "../../lib/api";
 import { Alert, Button, Input } from "../../components/ui";
+import AlreadySignedIn, { isAlreadyAuthenticated } from "../../components/AlreadySignedIn";
 
 export default function Login() {
     const { t } = useTranslation();
@@ -19,6 +20,7 @@ export default function Login() {
     const [errors, setErrors] = useState({});
     const [error, setError] = useState(null);
     const [busy, setBusy] = useState(false);
+    const [signedIn, setSignedIn] = useState(null);
 
     const verified = params.get("verified");
 
@@ -27,6 +29,7 @@ export default function Login() {
         setBusy(true);
         setErrors({});
         setError(null);
+        setSignedIn(null);
         try {
             const user = await login(form);
             const from = location.state?.from;
@@ -35,6 +38,10 @@ export default function Login() {
                 { replace: true },
             );
         } catch (err) {
+            if (isAlreadyAuthenticated(err)) {
+                setSignedIn(errorMessage(err));
+                return;
+            }
             const fields = fieldErrors(err);
             setErrors(fields);
             if (!Object.keys(fields).length) setError(errorMessage(err));
@@ -64,6 +71,7 @@ export default function Login() {
                     <Alert type="info">{t("auth.session_expired")}</Alert>
                 )}
                 <Alert type="error">{error}</Alert>
+                {signedIn && <AlreadySignedIn message={signedIn} onSignedOut={() => setSignedIn(null)} />}
             </div>
 
             <form onSubmit={submit} className="mt-6 space-y-5" noValidate>

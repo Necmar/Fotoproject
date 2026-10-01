@@ -46,9 +46,10 @@ class OpenAIProcessingTest extends TestCase
         $id = $this->actingAs($this->user)->postJson('/api/company/batches', ['name' => 'Golf 8'] + $settings)->json('data.id');
 
         for ($i = 0; $i < $photos; $i++) {
-            $img = imagecreatetruecolor(1600, 1200);
+            // Small photos keep the tests fast; proportions as a real 4:3 photo.
+            $img = imagecreatetruecolor(400, 300);
             imagefill($img, 0, 0, imagecolorallocate($img, 90 + 30 * $i, 110, 130));
-            imagefilledrectangle($img, 400, 300, 1200, 900, imagecolorallocate($img, 200, 30, 30));
+            imagefilledrectangle($img, 100, 75, 300, 225, imagecolorallocate($img, 200, 30, 30));
             ob_start();
             imagejpeg($img, null, 90);
             $this->postJson("/api/company/batches/{$id}/images", ['file' => UploadedFile::fake()->createWithContent("{$i}.jpg", ob_get_clean())])->assertCreated();
@@ -103,13 +104,14 @@ class OpenAIProcessingTest extends TestCase
         $body = $request ? (string) $request->body() : '';
         if (str_contains($body, 'Cut out the product') && preg_match('/#([0-9A-F]{6})/', $body, $m)) {
             [$r, $g, $b] = sscanf($m[1], '%02x%02x%02x');
-            $img = imagecreatetruecolor(1600, 1200);
+            $img = imagecreatetruecolor(400, 300);
             imagefill($img, 0, 0, imagecolorallocate($img, $r, $g, $b));
-            imagefilledrectangle($img, 400, 300, 1200, 900, imagecolorallocate($img, 200, 30, 30));
+            imagefilledrectangle($img, 100, 75, 300, 225, imagecolorallocate($img, 200, 30, 30));
         } else {
-            $img = imagecreatetruecolor(2048, 1536);
+            // Larger than the photo (as the model may answer): never upscaled.
+            $img = imagecreatetruecolor(512, 384);
             imagefill($img, 0, 0, imagecolorallocate($img, 150, 160, 170));
-            imagefilledrectangle($img, 512, 384, 1536, 1152, imagecolorallocate($img, ...$productColour));
+            imagefilledrectangle($img, 128, 96, 384, 288, imagecolorallocate($img, ...$productColour));
         }
         ob_start();
         imagepng($img);
@@ -207,8 +209,8 @@ class OpenAIProcessingTest extends TestCase
         $edits = Http::recorded(fn (Request $r) => str_ends_with($r->url(), '/images/edits'));
         $this->assertStringContainsString('Bewerk deze originele autofoto', (string) $edits->first()[0]->body());
 
-        // At the photo's own size (1600 px): never upscaled to 2000.
-        $this->assertSame(1600, max($image->output_width, $image->output_height));
+        // At the photo's own size (400 px): never upscaled to 2000.
+        $this->assertSame(400, max($image->output_width, $image->output_height));
 
         $edit = $edits->last()[0];
         $body = (string) $edit->body();
@@ -217,7 +219,7 @@ class OpenAIProcessingTest extends TestCase
         $this->assertStringContainsString('Er is een kenteken zichtbaar', $body);
         $this->assertStringContainsString('Sterkte: sterk', $body);
         $this->assertStringContainsString('scratch on rear bumper', $body);
-        $this->assertStringContainsString('1600x1200', $body, 'size follows the working copy');
+        $this->assertStringContainsString('400x304', $body, 'size follows the working copy (multiples of 16)');
         $this->assertMatchesRegularExpression('/name="quality"\s+(Content-Length: \d+\s+)?high/', $body, 'retouch in high quality');
         $this->assertStringContainsString('input_fidelity', $body, 'stay close to the source photo');
 
@@ -259,11 +261,11 @@ class OpenAIProcessingTest extends TestCase
         $image = $batch->images()->first();
         $this->assertSame('edited', $image->ai_status);
         $out = imagecreatefromstring(Storage::disk('local')->get($image->ai_path));
-        $c = imagecolorat($out, 800, 600); // centre of the product
+        $c = imagecolorat($out, 200, 150); // centre of the product
         $this->assertGreaterThan(170, ($c >> 16) & 0xFF, 'red channel of the original product');
         $this->assertLessThan(80, $c & 0xFF, 'not the blue the model painted');
         // Background (outside the product) comes from the edit.
-        $bg = imagecolorat($out, 100, 100);
+        $bg = imagecolorat($out, 25, 25);
         $this->assertEqualsWithDelta(150, ($bg >> 16) & 0xFF, 12);
     }
 
@@ -280,8 +282,8 @@ class OpenAIProcessingTest extends TestCase
         // The intermediate retouch is not kept.
         $this->assertCount(1, Storage::disk('local')->files($batch->storageDirectory().'/ai'));
         $png = imagecreatefromstring(Storage::disk('local')->get($image->ai_path));
-        $this->assertSame(127, (imagecolorat($png, 50, 50) >> 24) & 0x7F, 'transparent background');
-        $this->assertSame(0, (imagecolorat($png, 800, 600) >> 24) & 0x7F, 'opaque product');
+        $this->assertSame(127, (imagecolorat($png, 12, 12) >> 24) & 0x7F, 'transparent background');
+        $this->assertSame(0, (imagecolorat($png, 200, 150) >> 24) & 0x7F, 'opaque product');
     }
 
     public function test_a_transparent_cutout_still_gives_a_reliable_mask(): void
@@ -289,11 +291,11 @@ class OpenAIProcessingTest extends TestCase
         // Some models answer a cut-out with a transparent PNG (transparent pixels read as black).
         $this->fakeOpenAI($this->analysis(), null, function (Request $r) {
             $this->assertStringContainsString('opaque', (string) $r->body());
-            $img = imagecreatetruecolor(1600, 1200);
+            $img = imagecreatetruecolor(400, 300);
             imagealphablending($img, false);
             imagesavealpha($img, true);
             imagefill($img, 0, 0, imagecolorallocatealpha($img, 0, 0, 0, 127));
-            imagefilledrectangle($img, 400, 300, 1200, 900, imagecolorallocatealpha($img, 200, 30, 30, 0));
+            imagefilledrectangle($img, 100, 75, 300, 225, imagecolorallocatealpha($img, 200, 30, 30, 0));
             ob_start();
             imagepng($img);
 
@@ -314,7 +316,7 @@ class OpenAIProcessingTest extends TestCase
         $this->fakeOpenAI($this->analysis(), null, function (Request $r) {
             preg_match('/#([0-9A-F]{6})/', (string) $r->body(), $m);
             [$red, $green, $blue] = sscanf($m[1] ?? 'FF00FF', '%02x%02x%02x');
-            $img = imagecreatetruecolor(1600, 1200);
+            $img = imagecreatetruecolor(400, 300);
             imagefill($img, 0, 0, imagecolorallocate($img, $red, $green, $blue));
             ob_start();
             imagepng($img);
@@ -327,8 +329,106 @@ class OpenAIProcessingTest extends TestCase
 
         $image = $batch->images()->first();
         $this->assertSame('completed', $image->status->value);
-        $this->assertSame('edit_rejected', $image->ai_status);
-        $this->assertContains('ai_cutout_failed', array_column($image->warnings, 'code'));
+        // The paid retouch is kept, on the photo's own background, with a note.
+        $this->assertSame('edited', $image->ai_status);
+        $this->assertStringEndsWith('.jpg', $image->ai_path);
+        Storage::disk('local')->assertExists($image->ai_path);
+        $this->assertCount(1, Storage::disk('local')->files($batch->storageDirectory().'/ai'));
+        $this->assertContains('ai_background_failed', array_column($image->warnings, 'code'));
+        $this->assertSame(2, $this->sentTo('/images/edits'), 'retouch + cut-out, nothing paid twice');
+    }
+
+    public function test_a_failing_check_after_a_paid_edit_does_not_pay_again_on_retry(): void
+    {
+        $checks = 0;
+        Http::fake(function (Request $request) use (&$checks) {
+            if (str_ends_with($request->url(), '/responses')) {
+                if (($request['text']['format']['name'] ?? '') === 'edit_verification' && ++$checks <= 3) {
+                    return Http::response(['error' => ['message' => 'Server error', 'type' => 'server_error']], 500);
+                }
+
+                return Http::response($this->responsesBody(($request['text']['format']['name'] ?? '') === 'edit_verification' ? $this->verification() : $this->analysis()));
+            }
+
+            return Http::response($this->editBody($request));
+        });
+        $batch = $this->batch(['strength' => 'normal']);
+
+        $this->artisan('bora:work')->assertSuccessful();
+
+        $image = $batch->images()->first();
+        $this->assertSame('completed', $image->status->value);
+        $this->assertSame('edited', $image->ai_status);
+        $this->assertSame(1, $this->sentTo('/images/edits'), 'the retry only redid the check');
+        $this->assertSame(4, $checks);
+        $this->assertTrue($image->analysis['ai_edit']['verified']);
+        Storage::disk('local')->assertExists($image->ai_path);
+        $this->assertCount(1, Storage::disk('local')->files($batch->storageDirectory().'/ai'));
+    }
+
+    public function test_a_check_that_keeps_failing_keeps_the_edit_marked_unverified(): void
+    {
+        Http::fake(function (Request $request) {
+            if (str_ends_with($request->url(), '/responses')) {
+                return ($request['text']['format']['name'] ?? '') === 'edit_verification'
+                    ? Http::response(['error' => ['message' => 'Server error', 'type' => 'server_error']], 500)
+                    : Http::response($this->responsesBody($this->analysis()));
+            }
+
+            return Http::response($this->editBody($request));
+        });
+        $batch = $this->batch(['strength' => 'normal']);
+
+        $this->artisan('bora:work')->assertSuccessful();
+
+        $image = $batch->images()->first();
+        $this->assertSame('completed', $image->status->value);
+        $this->assertSame('edited', $image->ai_status, 'never rejected: the paid edit is used');
+        $this->assertSame(1, $this->sentTo('/images/edits'));
+        $this->assertSame('failed', $image->analysis['ai_edit']['verified']);
+        $this->assertContains('ai_edit_unverified', array_column($image->warnings, 'code'));
+        Storage::disk('local')->assertExists($image->ai_path);
+    }
+
+    public function test_a_temporary_cutout_failure_reuses_the_stored_retouch_on_retry(): void
+    {
+        $cutouts = 0;
+        $this->fakeOpenAI($this->analysis(), null, function (Request $r) use (&$cutouts) {
+            if (str_contains((string) $r->body(), 'Cut out the product') && ++$cutouts === 1) {
+                return Http::response(['error' => ['message' => 'Server error', 'type' => 'server_error']], 500);
+            }
+
+            return Http::response($this->editBody($r));
+        });
+        $batch = $this->batch(['strength' => 'subtle', 'background' => 'neutral']);
+
+        $this->artisan('bora:work')->assertSuccessful();
+
+        $image = $batch->images()->first();
+        $this->assertSame('edited', $image->ai_status);
+        $retouches = Http::recorded(fn (Request $r) => str_ends_with($r->url(), '/images/edits') && ! str_contains((string) $r->body(), 'Cut out the product'));
+        $this->assertCount(1, $retouches, 'the retouch was paid once');
+        $this->assertSame(2, $cutouts);
+        $this->assertNotContains('ai_background_failed', array_column($image->warnings ?? [], 'code'));
+        // Only the final composite is left: the intermediate retouch is removed once the photo is done.
+        $this->assertSame([$image->ai_path], Storage::disk('local')->files($batch->storageDirectory().'/ai'));
+        $this->assertArrayNotHasKey('retouch', $image->analysis['ai_edit'] ?? []);
+    }
+
+    public function test_a_refused_cutout_keeps_the_retouch(): void
+    {
+        $this->fakeOpenAI($this->analysis(), null, fn (Request $r) => str_contains((string) $r->body(), 'Cut out the product')
+            ? Http::response(['error' => ['message' => 'Refused', 'type' => 'invalid_request_error', 'code' => 'moderation_blocked']], 400)
+            : Http::response($this->editBody($r)));
+        $batch = $this->batch(['strength' => 'subtle', 'background' => 'neutral']);
+
+        $this->artisan('bora:work')->assertSuccessful();
+
+        $image = $batch->images()->first();
+        $this->assertSame('edited', $image->ai_status);
+        $this->assertContains('ai_background_failed', array_column($image->warnings, 'code'));
+        $this->assertSame(2, $this->sentTo('/images/edits'));
+        Storage::disk('local')->assertExists($image->ai_path);
     }
 
     public function test_input_fidelity_is_dropped_when_the_model_refuses_it(): void
@@ -424,10 +524,10 @@ class OpenAIProcessingTest extends TestCase
     private function washedOutBatch(): Batch
     {
         $id = $this->actingAs($this->user)->postJson('/api/company/batches', ['name' => 'Wit'])->json('data.id');
-        $img = imagecreatetruecolor(1600, 1200);
-        for ($y = 0; $y < 1200; $y++) {
-            $v = 205 + (int) (50 * $y / 1199);
-            imageline($img, 0, $y, 1599, $y, imagecolorallocate($img, $v, $v, $v));
+        $img = imagecreatetruecolor(400, 300);
+        for ($y = 0; $y < 300; $y++) {
+            $v = 205 + (int) (50 * $y / 299);
+            imageline($img, 0, $y, 399, $y, imagecolorallocate($img, $v, $v, $v));
         }
         ob_start();
         imagejpeg($img, null, 90);
@@ -521,6 +621,7 @@ class OpenAIProcessingTest extends TestCase
     public function test_edit_size_follows_the_photo_ratio_in_multiples_of_16(): void
     {
         $service = app(ImageEditService::class);
+        config(['services.openai.max_side' => 2048]);
 
         $this->assertSame('2048x1536', $service->size(3072, 2304));
         $this->assertSame('1152x2048', $service->size(1728, 3072));
@@ -564,6 +665,8 @@ class OpenAIProcessingTest extends TestCase
         $image->refresh();
         $this->assertSame('edited', $image->ai_status);
         $this->assertSame(3, $this->sentTo('/images/edits'), 'retouch, then retouch + cut-out');
+        // The old edit and the intermediate retouch are gone: only the new result is stored.
+        $this->assertSame([$image->ai_path], Storage::disk('local')->files($batch->storageDirectory().'/ai'));
         // analysis once + a verification per result; no second analysis
         $this->assertSame(3, $this->sentTo('/responses'));
         $this->assertSame(2, ImageProcessingRecord::query()->where('type', 'reoptimize')->count());
@@ -575,13 +678,13 @@ class OpenAIProcessingTest extends TestCase
         $verification = array_replace($this->verification(), [
             'text_or_logos_altered' => true, 'notes' => 'screen text differs',
             'reason_nl' => 'de tekst op het scherm is veranderd', 'reason_en' => 'the text on the screen changed',
-            'regions' => [['kind' => 'display', 'x' => 900 / 2048, 'y' => 700 / 1536, 'width' => 200 / 2048, 'height' => 100 / 1536]],
+            'regions' => [['kind' => 'display', 'x' => 225 / 512, 'y' => 175 / 384, 'width' => 50 / 512, 'height' => 25 / 384]],
         ]);
         $this->fakeOpenAI($this->analysis(), $verification, function (Request $r) {
-            $img = imagecreatetruecolor(2048, 1536);
+            $img = imagecreatetruecolor(512, 384);
             imagefill($img, 0, 0, imagecolorallocate($img, 150, 160, 170));
-            imagefilledrectangle($img, 512, 384, 1536, 1152, imagecolorallocate($img, 200, 30, 30));
-            imagefilledrectangle($img, 900, 700, 1100, 800, imagecolorallocate($img, 20, 20, 20));
+            imagefilledrectangle($img, 128, 96, 384, 288, imagecolorallocate($img, 200, 30, 30));
+            imagefilledrectangle($img, 225, 175, 275, 200, imagecolorallocate($img, 20, 20, 20));
             ob_start();
             imagepng($img);
 
@@ -601,11 +704,11 @@ class OpenAIProcessingTest extends TestCase
 
         // The changed block has the original (red) pixels again; the retouched background stays.
         $out = imagecreatefromstring(Storage::disk('local')->get($image->ai_path));
-        $scale = imagesx($out) / 2048;
-        $c = imagecolorat($out, (int) (1000 * $scale), (int) (750 * $scale));
+        $scale = imagesx($out) / 512;
+        $c = imagecolorat($out, (int) (250 * $scale), (int) (187 * $scale));
         $this->assertGreaterThan(150, ($c >> 16) & 0xFF);
         $this->assertLessThan(80, ($c >> 8) & 0xFF);
-        $bg = imagecolorat($out, 40, 40);
+        $bg = imagecolorat($out, 10, 10);
         $this->assertEqualsWithDelta(150, ($bg >> 16) & 0xFF, 12);
     }
 

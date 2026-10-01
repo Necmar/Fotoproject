@@ -43,7 +43,7 @@ class DownloadAndWatermarkTest extends TestCase
     {
         $id = $this->postJson('/api/company/batches', $settings)->json('data.id');
         for ($i = 0; $i < $photos; $i++) {
-            $img = imagecreatetruecolor(1200, 800);
+            $img = imagecreatetruecolor(600, 400);
             imagefill($img, 0, 0, imagecolorallocate($img, 30, 60 + 40 * $i, 90));
             ob_start();
             imagejpeg($img, null, 90);
@@ -189,5 +189,33 @@ class DownloadAndWatermarkTest extends TestCase
         $this->get("/api/company/batches/{$batch->id}/download")->assertForbidden();
         $this->putJson("/api/company/batches/{$batch->id}/watermark", ['watermark_mode' => 'none', 'watermark_position' => 'center', 'watermark_opacity' => 70])->assertForbidden();
         $this->patchJson("/api/company/images/{$image->id}/watermark", ['apply' => true])->assertForbidden();
+    }
+
+    public function test_missing_file_gives_404_and_zip_skips_it(): void
+    {
+        $batch = $this->processedBatch(photos: 2);
+        [$lost, $kept] = $batch->images()->orderBy('position')->get()->all();
+        Storage::disk(config('bora.disk'))->delete($lost->optimized_path);
+
+        $this->getJson("/api/company/images/{$lost->id}/download")->assertNotFound()->assertJsonPath('code', 'file_missing');
+
+        $zip = new ZipArchive;
+        $path = tempnam(sys_get_temp_dir(), 'zip');
+        file_put_contents($path, $this->downloadBody("/api/company/batches/{$batch->id}/download"));
+        $this->assertTrue($zip->open($path) === true);
+        $this->assertSame([$kept->output_filename], [$zip->getNameIndex(0)]);
+        $this->assertSame(1, $zip->numFiles);
+        $zip->close();
+        @unlink($path);
+    }
+
+    public function test_rate_limits_do_not_share_one_counter(): void
+    {
+        $image = $this->processedBatch(photos: 1)->images()->first();
+        for ($i = 0; $i < 12; $i++) {
+            $this->get("/api/company/images/{$image->id}/download")->assertOk();
+        }
+        // The logo limit is 10 per minute: downloads must not have used it up.
+        $this->post('/api/company/logo', ['logo' => $this->png()], ['Accept' => 'application/json'])->assertSuccessful();
     }
 }

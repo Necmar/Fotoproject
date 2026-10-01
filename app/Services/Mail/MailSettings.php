@@ -60,10 +60,17 @@ class MailSettings
 
         $toggle = $this->toggle();
         if ($toggle !== null) {
-            return $toggle && $this->hasSmtp();
+            // Switched on without an SMTP server in the app: the mailer from .env is used.
+            return $toggle && ($this->hasSmtp() || $this->envMailerUsable());
         }
 
         return ! (app()->isProduction() && config('mail.default') === 'log');
+    }
+
+    /** A real mailer is configured in .env (MAIL_MAILER other than log/array). */
+    public function envMailerUsable(): bool
+    {
+        return ! in_array((string) config('mail.default'), ['log', 'array'], true);
     }
 
     public function hasSmtp(): bool

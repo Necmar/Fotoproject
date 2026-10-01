@@ -32,6 +32,8 @@ class RecoverStuckImages extends Command
             ->whereNotIn('status', [ImageStatus::Completed, ImageStatus::Failed])
             ->where('updated_at', '<', $cutoff)
             ->with('batch')
+            // By id, not by offset: updated rows drop out of the query and would make offsets skip some.
+            ->lazyById(100)
             ->each(function (Image $image) use ($pipeline, $tries, &$requeued, &$failed) {
                 if ($image->attempts >= $tries) {
                     $pipeline->failPermanently($image, new \RuntimeException('No progress after all attempts'));

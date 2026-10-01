@@ -147,6 +147,26 @@ class BatchUploadTest extends TestCase
         $this->assertStringContainsString('/thumbnail', $response->json('data.urls.thumbnail'));
     }
 
+    public function test_image_files_are_cached_privately_with_etag_and_stay_authorized(): void
+    {
+        $user = User::factory()->create();
+        $id = $this->draft($user);
+        $thumb = $this->postJson("/api/company/batches/{$id}/images", ['file' => UploadedFile::fake()->image('a.jpg', 300, 200)])
+            ->assertCreated()->json('data.urls.thumbnail');
+
+        $response = $this->get($thumb)->assertOk();
+        $this->assertStringContainsString('private', $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('max-age=604800', $response->headers->get('Cache-Control'));
+        $this->assertNotNull($etag = $response->headers->get('ETag'));
+        $this->assertNotNull($response->headers->get('Last-Modified'));
+
+        // Same file again: 304 without a body.
+        $this->get($thumb, ['If-None-Match' => $etag])->assertStatus(304);
+
+        // Another company never gets it, not even with the ETag.
+        $this->actingAs(User::factory()->create())->get($thumb, ['If-None-Match' => $etag])->assertForbidden();
+    }
+
     public function test_max_images_per_batch_is_enforced(): void
     {
         app(SystemSettings::class)->update(['max_images_per_batch' => 2]);

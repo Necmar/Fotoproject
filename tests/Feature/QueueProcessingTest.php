@@ -36,7 +36,7 @@ class QueueProcessingTest extends TestCase
         $id = $this->actingAs($this->user)->postJson('/api/company/batches')->json('data.id');
 
         for ($i = 0; $i < $photos; $i++) {
-            $img = imagecreatetruecolor(800, 600);
+            $img = imagecreatetruecolor(400, 300);
             imagefill($img, 0, 0, imagecolorallocate($img, 40 * $i, 120, 200 - 30 * $i));
             imagefilledrectangle($img, 100 + 50 * $i, 100, 400, 400 + 20 * $i, imagecolorallocate($img, 250, 250, 20));
             ob_start();

@@ -40,6 +40,33 @@ class Installer
      */
     public function install(array $data, string $appUrl): string
     {
+        // A double submit must not run two installs side by side: one at a time,
+        // and the second one sees the finished .env and stops.
+        $lock = @fopen($this->lockPath(), 'c');
+        if ($lock === false || ! flock($lock, LOCK_EX | LOCK_NB)) {
+            if ($lock !== false) {
+                fclose($lock);
+            }
+
+            throw new RuntimeException('install_busy');
+        }
+
+        try {
+            return $this->runInstall($data, $appUrl);
+        } finally {
+            flock($lock, LOCK_UN);
+            fclose($lock);
+        }
+    }
+
+    /** storage/install.lock (next to the .env file when a custom path is used, e.g. in tests). */
+    public function lockPath(): string
+    {
+        return $this->envPath === null ? storage_path('install.lock') : $this->envPath.'.install.lock';
+    }
+
+    private function runInstall(array $data, string $appUrl): string
+    {
         if ($this->isInstalled()) {
             throw new RuntimeException('already_installed');
         }

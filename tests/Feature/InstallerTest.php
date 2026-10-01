@@ -26,6 +26,7 @@ class InstallerTest extends TestCase
     protected function tearDown(): void
     {
         @unlink($this->env);
+        @unlink($this->env.'.install.lock');
         parent::tearDown();
     }
 
@@ -104,6 +105,23 @@ class InstallerTest extends TestCase
         $this->fakeInstaller(dbWorks: false);
 
         $this->post('/install', $this->form())->assertStatus(422)->assertSee('Kan geen verbinding maken met de database');
+
+        $this->assertFileDoesNotExist($this->env);
+        $this->assertSame(0, User::query()->count());
+    }
+
+    public function test_a_second_install_while_one_is_running_is_refused(): void
+    {
+        $this->fakeInstaller();
+        $lock = fopen($this->env.'.install.lock', 'c');
+        flock($lock, LOCK_EX);
+
+        try {
+            $this->post('/install', $this->form())->assertStatus(422)->assertSee('De installatie is al bezig');
+        } finally {
+            flock($lock, LOCK_UN);
+            fclose($lock);
+        }
 
         $this->assertFileDoesNotExist($this->env);
         $this->assertSame(0, User::query()->count());

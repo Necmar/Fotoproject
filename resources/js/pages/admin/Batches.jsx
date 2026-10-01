@@ -85,7 +85,7 @@ export default function AdminBatches() {
                 title={t('admin.batches.delete_title')}
                 footer={
                     <>
-                        <Button variant="ghost" onClick={() => setTarget(null)}>
+                        <Button variant="ghost" disabled={busy} onClick={() => setTarget(null)}>
                             {t('common.cancel')}
                         </Button>
                         <Button variant="danger" loading={busy} onClick={remove}>
@@ -94,7 +94,13 @@ export default function AdminBatches() {
                     </>
                 }
             >
+                {target && (
+                    <p className="text-sm font-medium text-stone-800">
+                        {target.name || t('admin.batches.unnamed')} · {target.company?.name ?? t('admin.activity.deleted_company')}
+                    </p>
+                )}
                 <p className="text-sm text-stone-600">{t('admin.batches.delete_text')}</p>
+                {target && ['uploading', 'queued', 'processing'].includes(target.status) && <Alert type="warning">{t('admin.batches.delete_active')}</Alert>}
             </Modal>
         </div>
     );

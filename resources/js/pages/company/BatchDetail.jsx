@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, BellRing, CheckCircle2, Cloud, Download, Stamp, Trash2, XCircle } from 'lucide-react';
@@ -6,6 +6,7 @@ import api, { errorMessage } from '../../lib/api';
 import { useFetch } from '../../lib/useFetch';
 import { usePolling } from '../../lib/usePolling';
 import { formatDate } from '../../lib/format';
+import { useDownload } from '../../lib/download';
 import Stepper from '../../components/batch/Stepper';
 import BatchStatusBadge, { ACTIVE_STATUSES } from '../../components/batch/BatchStatusBadge';
 import { ServerPhotoTile } from '../../components/batch/PhotoTile';
@@ -26,16 +27,21 @@ export default function BatchDetail() {
     const { t, i18n } = useTranslation();
     const { id } = useParams();
     const navigate = useNavigate();
-    const { data: batch, loading, error, reload, setBody } = useFetch(`/company/batches/${id}`);
+    const { data: batch, loading, error, refetch, refetchError, setBody } = useFetch(`/company/batches/${id}`);
     const { user, meta } = useAuth();
     const [confirmDelete, setConfirmDelete] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const [viewer, setViewer] = useState(null); // { id, form }
     const [deleteError, setDeleteError] = useState(null);
     const [filter, setFilter] = useState('all');
     const [watermarkOpen, setWatermarkOpen] = useState(false);
+    const [tileError, setTileError] = useState(null);
+    const zip = useDownload();
 
-    const active = batch && ACTIVE_STATUSES.includes(batch.status);
-    usePolling(reload, POLL_MS, !!active);
+    // The batch is gone (deleted elsewhere, expired) or no longer ours: stop polling, no stale data.
+    const gone = [403, 404, 410].includes(refetchError?.status);
+    const active = batch && ACTIVE_STATUSES.includes(batch.status) && !gone;
+    usePolling(refetch, POLL_MS, !!active);
     useProgressTitle(batch, active, meta?.app_name);
     const notify = useDoneNotification(batch, active);
 
@@ -48,8 +54,33 @@ export default function BatchDetail() {
         };
     }, [batch]);
 
+    // Stable handlers keep the memoised photo tiles from re-rendering on every poll.
+    const openViewer = useCallback((img, action) => setViewer({ id: img.id, form: action === 'reoptimize' }), []);
+    const toggleWatermark = useCallback(
+        async (img, apply) => {
+            setTileError(null);
+            try {
+                await api.patch(`/company/images/${img.id}/watermark`, { apply });
+            } catch (err) {
+                setTileError(errorMessage(err));
+            }
+            refetch().catch(() => null);
+        },
+        [refetch],
+    );
+
     if (loading && !batch) return <Spinner />;
     if (error && !batch) return <Alert type="error">{error}</Alert>;
+    if (gone) {
+        return (
+            <div className="mx-auto max-w-md space-y-4">
+                <Alert type="error">{refetchError.status === 404 || refetchError.status === 410 ? t('batch.gone') : refetchError.message}</Alert>
+                <Button to="/history" variant="secondary">
+                    {t('history.all')}
+                </Button>
+            </div>
+        );
+    }
     if (batch.status === 'draft') return <Navigate to={`/batches/${id}/edit`} replace />;
 
     const p = batch.progress;
@@ -59,11 +90,14 @@ export default function BatchDetail() {
     );
 
     const remove = async () => {
+        setDeleting(true);
+        setDeleteError(null);
         try {
             await api.delete(`/company/batches/${id}`);
             navigate('/', { replace: true });
         } catch (err) {
             setDeleteError(errorMessage(err));
+            setDeleting(false);
         }
     };
 
@@ -119,24 +153,37 @@ export default function BatchDetail() {
 
             {finished && counts.all > 0 && <p className="mb-3 text-xs text-stone-400">{t('batch.compare_hint')}</p>}
 
+            {refetchError && (
+                <Alert type="warning" className="mb-4">
+                    {t('batch.poll_failed')}
+                </Alert>
+            )}
+            {tileError && (
+                <Alert type="error" onClose={() => setTileError(null)} className="mb-4">
+                    {tileError}
+                </Alert>
+            )}
+            {zip.error && (
+                <Alert type="error" onClose={zip.clearError} className="mb-4">
+                    {zip.error}
+                </Alert>
+            )}
+
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
                 {shown.map((image) => (
                     <ServerPhotoTile
                         key={image.id}
                         image={image}
                         showStatus
-                        onOpen={(img, action) => setViewer({ id: img.id, form: action === 'reoptimize' })}
+                        onOpen={openViewer}
                         watermarkSelectable={batch.settings.watermark_mode === 'selected' && !!user.company?.has_logo}
-                        onToggleWatermark={async (img, apply) => {
-                            await api.patch(`/company/images/${img.id}/watermark`, { apply }).catch(() => null);
-                            reload();
-                        }}
+                        onToggleWatermark={toggleWatermark}
                     />
                 ))}
             </div>
 
             {p.completed > 0 && (
-                <div className="fixed inset-x-0 bottom-0 z-20 border-t border-stone-200/70 bg-white/95 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
+                <div className="fixed inset-x-0 bottom-0 z-20 border-t border-stone-200/70 bg-white pb-[max(0.75rem,env(safe-area-inset-bottom))] md:bg-white/95 md:backdrop-blur">
                     <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 pt-3 sm:px-6">
                         <div className="hidden min-w-0 flex-1 sm:block">
                             <p className="font-medium">{t('download.title')}</p>
@@ -148,7 +195,7 @@ export default function BatchDetail() {
                         <Button variant="secondary" icon={Stamp} onClick={() => setWatermarkOpen(true)} className="shrink-0" aria-label={t('settings.watermark')}>
                             <span className="hidden sm:inline">{t('settings.watermark')}</span>
                         </Button>
-                        <Button size="lg" icon={Download} onClick={() => (window.location.href = batch.download_url)} disabled={!batch.download_url} className="flex-1 sm:flex-none">
+                        <Button size="lg" icon={Download} loading={!!zip.busy} onClick={() => zip.download(batch.download_url)} disabled={!batch.download_url} className="flex-1 sm:flex-none">
                             {t('download.zip_count', { count: p.completed })}
                         </Button>
                     </div>
@@ -163,7 +210,7 @@ export default function BatchDetail() {
                     onClose={() => setViewer(null)}
                     onReoptimized={() => {
                         setViewer(null);
-                        reload(); // batch is active again, so polling resumes
+                        refetch().catch(() => null); // batch is active again, so polling resumes
                     }}
                 />
             )}
@@ -178,10 +225,10 @@ export default function BatchDetail() {
                 title={t('batch.delete_title')}
                 footer={
                     <>
-                        <Button variant="ghost" onClick={() => setConfirmDelete(false)}>
+                        <Button variant="ghost" disabled={deleting} onClick={() => setConfirmDelete(false)}>
                             {t('common.cancel')}
                         </Button>
-                        <Button variant="danger" onClick={remove}>
+                        <Button variant="danger" loading={deleting} onClick={remove}>
                             {t('common.delete')}
                         </Button>
                     </>

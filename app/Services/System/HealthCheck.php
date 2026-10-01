@@ -86,6 +86,15 @@ class HealthCheck
         $lastRun = $queue['last_worker_run_at'] ? Carbon::parse($queue['last_worker_run_at']) : null;
         $this->add('cron', $lastRun && $lastRun->gt(now()->subMinutes(5)) ? self::OK : self::ERROR, $lastRun?->diffForHumans());
 
+        // A running photo must never be handed out again while it is still busy.
+        $connection = (string) config('queue.default');
+        $retryAfter = (int) config("queue.connections.{$connection}.retry_after", 0);
+        $jobTimeout = (int) config('bora.queue.job_timeout');
+        if ($connection !== 'sync' && $retryAfter > 0) {
+            $this->add('queue_retry_after', $retryAfter > $jobTimeout + 30 ? self::OK : self::WARNING,
+                __('health.queue_retry_after.value', ['retry' => $retryAfter, 'timeout' => $jobTimeout]));
+        }
+
         // E-mail is optional: off is fine (Super Admin sets passwords). On but without a real mailer is not.
         $mail = app(\App\Services\Mail\MailSettings::class);
         $mail->apply();

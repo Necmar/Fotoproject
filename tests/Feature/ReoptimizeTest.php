@@ -30,7 +30,7 @@ class ReoptimizeTest extends TestCase
     private function processedImage(): Image
     {
         $id = $this->actingAs($this->user)->postJson('/api/company/batches', ['strength' => 'normal'])->json('data.id');
-        $img = imagecreatetruecolor(1200, 900);
+        $img = imagecreatetruecolor(400, 300);
         imagefill($img, 0, 0, imagecolorallocate($img, 90, 110, 130));
         ob_start();
         imagejpeg($img, null, 90);

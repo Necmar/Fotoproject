@@ -35,21 +35,44 @@ export default function CompanyCreate() {
 
     const submit = async (e) => {
         e.preventDefault();
-        setBusy(true);
         setErrors({});
         setError(null);
+        const withPassword = setPassword || !mailOn;
+        // The toggle is on but the field is empty: say so, never fall back to an invitation silently.
+        if (withPassword && !form.password) {
+            setErrors({ password: t("admin.companies.password_required") });
+            return;
+        }
+        setBusy(true);
         try {
-            const payload = {
-                ...form,
-                password: setPassword || !mailOn ? form.password : null,
-            };
+            const { mark_verified, ...rest } = form;
+            const payload = withPassword
+                ? { ...rest, mark_verified }
+                : { ...rest, password: null };
             const { data } = await api.post("/admin/companies", payload);
             navigate(`/admin/companies/${data.data.id}`, {
-                state: { created: true },
+                state: {
+                    created: true,
+                    invited: !withPassword,
+                    warning: data.warning ?? null,
+                },
             });
         } catch (err) {
-            setErrors(fieldErrors(err));
-            if (err.response?.status !== 422) setError(errorMessage(err));
+            const fields = fieldErrors(err);
+            setErrors(fields);
+            // A 422 for a field this form does not show still needs a visible message.
+            const shown = ["company_name", "owner_name", "email", "password", "locale"];
+            if (
+                err.response?.status !== 422 ||
+                !Object.keys(fields).some((k) => shown.includes(k))
+            ) {
+                setError(
+                    err.response?.status === 422 &&
+                        !err.response?.data?.message
+                        ? t("admin.companies.check_fields")
+                        : errorMessage(err),
+                );
+            }
         } finally {
             setBusy(false);
         }

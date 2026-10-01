@@ -51,7 +51,7 @@ class Work extends Command
                 '--max-time' => $maxTime,
                 '--tries' => (int) config('bora.queue.tries'),
                 '--timeout' => $timeout,
-                '--sleep' => 1,
+                '--sleep' => (int) config('bora.queue.worker_sleep', 1),
                 '--memory' => 768,
             ], $this->output);
         } finally {

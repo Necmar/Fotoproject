@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from 'react';
 import { Link } from 'react-router';
+import { useTranslation } from 'react-i18next';
 import { AlertCircle, CheckCircle2, Info, Loader2, X } from 'lucide-react';
 
 /*
@@ -140,6 +141,7 @@ const alertStyles = {
 };
 
 export function Alert({ type = 'info', children, onClose, className }) {
+    const { t } = useTranslation();
     if (!children) return null;
     const [styles, Icon] = alertStyles[type];
     return (
@@ -147,8 +149,8 @@ export function Alert({ type = 'info', children, onClose, className }) {
             <Icon className="mt-0.5 size-4 shrink-0" aria-hidden />
             <div className="flex-1">{children}</div>
             {onClose && (
-                <button type="button" onClick={onClose} className="opacity-60 hover:opacity-100" aria-label="Sluiten">
-                    <X className="size-4" />
+                <button type="button" onClick={onClose} className="-my-2.5 -mr-2.5 grid size-10 shrink-0 place-items-center rounded-lg opacity-60 hover:opacity-100" aria-label={t('common.close')}>
+                    <X className="size-4" aria-hidden />
                 </button>
             )}
         </div>
@@ -175,6 +177,15 @@ export function FullPageSpinner() {
     return (
         <div className="flex min-h-dvh items-center justify-center">
             <Spinner className="size-7" />
+        </div>
+    );
+}
+
+/** Shown inside a layout while a lazily loaded page arrives. */
+export function PageLoading() {
+    return (
+        <div className="flex justify-center py-16">
+            <Spinner className="size-6" />
         </div>
     );
 }
@@ -218,6 +229,7 @@ export function EmptyState({ icon: Icon, title, description, action }) {
 
 /** Accessible modal built on the native <dialog> element. */
 export function Modal({ open, onClose, title, children, footer }) {
+    const { t } = useTranslation();
     const ref = useRef(null);
 
     useEffect(() => {
@@ -238,8 +250,8 @@ export function Modal({ open, onClose, title, children, footer }) {
                 <div className="p-6">
                     <div className="mb-4 flex items-start justify-between gap-4">
                         <h2 className="text-lg font-semibold">{title}</h2>
-                        <button type="button" onClick={onClose} className="rounded-lg p-1 text-stone-400 hover:text-stone-700" aria-label="Sluiten">
-                            <X className="size-5" />
+                        <button type="button" onClick={onClose} className="-m-2 grid size-10 shrink-0 place-items-center rounded-lg text-stone-400 hover:text-stone-700" aria-label={t('common.close')}>
+                            <X className="size-5" aria-hidden />
                         </button>
                     </div>
                     <div className="space-y-4">{children}</div>

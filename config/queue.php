@@ -40,11 +40,10 @@ return [
             'connection' => env('DB_QUEUE_CONNECTION'),
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => env('DB_QUEUE', 'default'),
-            // Must be longer than the longest job (image jobs: 240 s timeout, AI edits can be slow),
-            // otherwise a slow job would be handed out twice.
-            // Must be longer than the longest job (bora.queue.job_timeout), or a
-            // running photo would be handed out a second time.
-            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 660),
+            // Must be safely longer than the longest job (bora.queue.job_timeout), or a
+            // running photo would be handed out a second time (and OpenAI paid twice).
+            // Default: job timeout + 120 s. bora:doctor warns when this is too short.
+            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', (int) env('BORA_JOB_TIMEOUT', 840) + 120),
             'after_commit' => true,
         ],
 
@@ -72,7 +71,7 @@ return [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
-            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 90),
+            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', (int) env('BORA_JOB_TIMEOUT', 840) + 120),
             'block_for' => null,
             'after_commit' => false,
         ],

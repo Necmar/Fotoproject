@@ -31,6 +31,9 @@ class DownloadService
         if ($image->status !== ImageStatus::Completed || ! $image->optimized_path) {
             throw new DomainRuleException('nothing_to_download');
         }
+        if (! $this->files->disk()->exists($image->optimized_path)) {
+            throw new DomainRuleException('file_missing', [], 404);
+        }
 
         $image->loadMissing(['batch', 'company']);
         $settings = BatchSettings::fromArray($image->batch->settings);
@@ -46,7 +49,9 @@ class DownloadService
     public function zip(Batch $batch): array
     {
         $batch->loadMissing('company');
-        $images = $batch->images()->where('status', ImageStatus::Completed)->whereNotNull('optimized_path')->get();
+        $images = $batch->images()->where('status', ImageStatus::Completed)->whereNotNull('optimized_path')->get()
+            // A file lost on disk must not break the whole ZIP.
+            ->filter(fn (Image $i) => $this->files->disk()->exists($i->optimized_path))->values();
 
         if ($images->isEmpty()) {
             throw new DomainRuleException('nothing_to_download');

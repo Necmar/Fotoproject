@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import api, { errorMessage, fieldErrors } from '../../lib/api';
 import { Alert, Button, Input } from '../../components/ui';
+import AlreadySignedIn, { isAlreadyAuthenticated } from '../../components/AlreadySignedIn';
 
 export default function ForgotPassword() {
     const { t } = useTranslation();
@@ -10,6 +11,7 @@ export default function ForgotPassword() {
     const [errors, setErrors] = useState({});
     const [status, setStatus] = useState(null);
     const [busy, setBusy] = useState(false);
+    const [signedIn, setSignedIn] = useState(null);
 
     const submit = async (e) => {
         e.preventDefault();
@@ -20,6 +22,10 @@ export default function ForgotPassword() {
             const { data } = await api.post('/auth/forgot-password', { email });
             setStatus({ type: 'success', text: data.message });
         } catch (err) {
+            if (isAlreadyAuthenticated(err)) {
+                setSignedIn(errorMessage(err));
+                return;
+            }
             setErrors(fieldErrors(err));
             // A 422 without field errors is a rule (e.g. e-mail switched off): show its message.
             if (err.response?.status !== 422 || !err.response?.data?.errors) setStatus({ type: 'error', text: errorMessage(err) });
@@ -38,6 +44,8 @@ export default function ForgotPassword() {
                     {status.text}
                 </Alert>
             )}
+
+            {signedIn && <AlreadySignedIn message={signedIn} onSignedOut={() => setSignedIn(null)} className="mt-6" />}
 
             <form onSubmit={submit} className="mt-6 space-y-5" noValidate>
                 <Input

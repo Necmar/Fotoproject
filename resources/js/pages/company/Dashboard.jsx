@@ -13,10 +13,10 @@ export default function Dashboard() {
     const { t, i18n } = useTranslation();
     const { user, meta } = useAuth();
     const { data: stats } = useFetch('/company/stats');
-    const { data: batches, reload } = useFetch('/company/batches', { per_page: 6 });
+    const { data: batches, refetch } = useFetch('/company/batches', { per_page: 6 });
     const l = i18n.language;
 
-    usePolling(reload, 5000, !!batches?.some((b) => ACTIVE_STATUSES.includes(b.status)));
+    usePolling(refetch, 5000, !!batches?.some((b) => ACTIVE_STATUSES.includes(b.status)));
 
     return (
         <div className="space-y-10">

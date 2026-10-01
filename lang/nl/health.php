@@ -16,6 +16,7 @@ return [
     'storage' => ['label' => 'Schrijfrechten', 'hint' => 'storage/ en bootstrap/cache/ moeten schrijfbaar zijn voor PHP.'],
     'disk_space' => ['label' => 'Vrije schijfruimte', 'hint' => 'Maak ruimte vrij of verkort de bewaartermijn.'],
     'cron' => ['label' => 'Cronjob', 'hint' => 'De geplande taak draait niet: foto\'s worden niet verwerkt. Controleer de taak in Plesk (iedere minuut).'],
+    'queue_retry_after' => ['label' => 'Wachtrij retry_after', 'hint' => 'DB_QUEUE_RETRY_AFTER moet groter zijn dan BORA_JOB_TIMEOUT (minstens 120 s meer), anders kan een foto twee keer worden verwerkt en wordt OpenAI dubbel betaald. Zet bijvoorbeeld DB_QUEUE_RETRY_AFTER=960 in .env.', 'value' => 'retry_after :retry s / job-timeout :timeout s'],
     'mail' => ['label' => 'E-mail', 'hint' => 'E-mail staat aan, maar er is geen mailserver ingesteld. Vul SMTP in bij Systeem > E-mail, of zet e-mail uit.', 'off' => 'uit (niet nodig)'],
     'openai' => ['label' => 'OpenAI', 'hint' => 'Geen API-key: foto\'s krijgen alleen lokale basiscorrecties. Zet OPENAI_API_KEY in .env.'],
     'frontend_build' => ['label' => 'React-build', 'hint' => 'public/build ontbreekt: upload de React-build (zie de installatiehandleiding).'],

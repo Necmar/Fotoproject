@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import api from '../lib/api';
-import i18n from '../lib/i18n';
+import i18n, { changeLocale } from '../lib/i18n';
 
 const AuthContext = createContext(null);
 
@@ -16,7 +16,7 @@ export function AuthProvider({ children }) {
     const applyUser = useCallback((next) => {
         setUser(next);
         if (next?.locale && next.locale !== i18n.language) {
-            i18n.changeLanguage(next.locale);
+            changeLocale(next.locale);
         }
     }, []);
 

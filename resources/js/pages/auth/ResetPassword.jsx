@@ -3,6 +3,8 @@ import { Link, useParams, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import api, { errorMessage, fieldErrors } from '../../lib/api';
 import { Alert, Button, Input } from '../../components/ui';
+import { homePathFor, useAuth } from '../../auth/AuthContext';
+import AlreadySignedIn, { isAlreadyAuthenticated } from '../../components/AlreadySignedIn';
 
 /**
  * Used for both "reset password" (/reset-password/:token) and for the
@@ -17,16 +19,25 @@ export default function ResetPassword({ invite = false }) {
     const [error, setError] = useState(null);
     const [done, setDone] = useState(false);
     const [busy, setBusy] = useState(false);
+    const [signedIn, setSignedIn] = useState(null);
+    const { user } = useAuth();
 
     const submit = async (e) => {
         e.preventDefault();
         setBusy(true);
         setErrors({});
         setError(null);
+        setSignedIn(null);
         try {
-            await api.post('/auth/reset-password', { ...form, token, invite });
-            setDone(true);
+            const { status } = await api.post('/auth/reset-password', { ...form, token, invite });
+            // Only a real API success counts (api.js already rejects non-JSON answers).
+            if (status >= 200 && status < 300) setDone(true);
+            else setError(t('errors.generic'));
         } catch (err) {
+            if (isAlreadyAuthenticated(err)) {
+                setSignedIn(errorMessage(err));
+                return;
+            }
             const fields = fieldErrors(err);
             setErrors(fields);
             if (!Object.keys(fields).length) setError(errorMessage(err));
@@ -41,9 +52,15 @@ export default function ResetPassword({ invite = false }) {
         return (
             <div className="space-y-6">
                 <Alert type="success">{t(`${prefix}.done`)}</Alert>
-                <Button to="/login" size="lg" className="w-full">
-                    {t('auth.login.submit')}
-                </Button>
+                {user ? (
+                    <Button to={homePathFor(user)} size="lg" className="w-full">
+                        {t('errors.home')}
+                    </Button>
+                ) : (
+                    <Button to="/login" size="lg" className="w-full">
+                        {t('auth.login.submit')}
+                    </Button>
+                )}
             </div>
         );
     }
@@ -56,6 +73,7 @@ export default function ResetPassword({ invite = false }) {
             <Alert type="error" className="mt-6">
                 {error}
             </Alert>
+            {signedIn && <AlreadySignedIn message={signedIn} onSignedOut={() => setSignedIn(null)} className="mt-6" />}
 
             <form onSubmit={submit} className="mt-6 space-y-5" noValidate>
                 <Input

@@ -59,6 +59,8 @@ Zonder sleutel staat deze URL uit (404).
 
 **Mag het niet iedere minuut?** Kies dan de kortste interval die kan (bijvoorbeeld iedere 5 minuten); verwerking duurt dan langer. Verhoog eventueel `BORA_WORKER_MAX_TIME` (seconden per run) tot maximaal de `max_execution_time` van PHP.
 
+**Timeouts:** één foto mag maximaal `BORA_JOB_TIMEOUT` seconden duren (standaard 840: analyse + maximaal 3 AI-bewerkingen van elk `OPENAI_EDIT_TIMEOUT`=180 s + controle). `DB_QUEUE_RETRY_AFTER` moet daar ruim boven liggen (standaard 960 = timeout + 120), anders kan een foto die nog bezig is opnieuw worden uitgedeeld en wordt OpenAI dubbel betaald. `bora:doctor` waarschuwt als dit niet klopt.
+
 **Controle:** Super Admin > Overzicht > kaart "Wachtrij". Staat daar "Wacht op cronjob" terwijl er foto's klaarstaan, dan draait de geplande taak niet.
 
 ## E-mail
@@ -66,6 +68,8 @@ Zonder sleutel staat deze URL uit (404).
 E-mail is **optioneel**. Zonder e-mail werkt alles: de Super Admin stelt wachtwoorden zelf in bij Bedrijven, e-mailadressen hoeven niet bevestigd te worden, en resultaten zijn alleen in het portaal te zien. "Wachtwoord vergeten" en "Wachtwoordreset versturen" zijn dan verborgen.
 
 Aanzetten: **Super Admin > Systeem > E-mail**. Vul de SMTP-server in (bijvoorbeeld een mailbox uit Plesk > Mail: server `mail.jouwdomein.nl`, poort 587, STARTTLS), de gebruikersnaam, het wachtwoord en het afzenderadres, en klik op **Testmail naar mij sturen**. Het wachtwoord wordt versleuteld opgeslagen en nooit teruggestuurd naar de browser. Stel SPF en DKIM in voor het domein (Plesk > Mail-instellingen) tegen spamfilters.
+
+Staat e-mail aan zonder SMTP-server in de app, dan wordt de mailer uit `.env` gebruikt (`MAIL_MAILER`, behalve `log`/`array`). De SMTP-velden zijn alleen verplicht als je een server invult of als `.env` geen echte mailer heeft. Mislukt het versturen (bijvoorbeeld bij een nieuw bedrijf), dan wordt het bedrijf toch aangemaakt met een melding; stuur later een wachtwoordreset.
 
 Automatisch: zolang er niets is ingesteld, staat e-mail in productie uit als `MAIL_MAILER=log`. `BORA_MAIL_ENABLED=true|false` in `.env` overschrijft de schakelaar.
 

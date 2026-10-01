@@ -26,25 +26,43 @@ class MailController extends Controller
         return response()->json(['data' => $this->mail->forAdmin()]);
     }
 
+    /**
+     * SMTP fields are only required when the admin actually configures SMTP:
+     * - a host is filled in: port and sender are required too;
+     * - "on" without a host is fine when e-mail already works without one
+     *   (automatic mode that is on, or a real MAIL_MAILER in .env). Saving the
+     *   untouched card in automatic mode keeps it automatic.
+     */
     public function update(Request $request): JsonResponse
     {
+        $request->validate(['mail_enabled' => ['required', 'boolean']]);
+
+        $on = $request->boolean('mail_enabled');
+        $smtp = $request->filled('smtp_host');
+        $keepAutomatic = $on && ! $smtp && $this->mail->toggle() === null && $this->mail->isEnabled();
+        $needsSmtp = $on && ! $keepAutomatic && ($smtp || ! $this->mail->envMailerUsable());
+
         $data = $request->validate([
             'mail_enabled' => ['required', 'boolean'],
-            'smtp_host' => ['nullable', 'required_if:mail_enabled,true', 'string', 'max:255', 'regex:/^[A-Za-z0-9.\-]+$/'],
-            'smtp_port' => ['nullable', 'required_if:mail_enabled,true', 'integer', 'between:1,65535'],
+            'smtp_host' => ['nullable', Rule::requiredIf($needsSmtp), 'string', 'max:255', 'regex:/^[A-Za-z0-9.\-]+$/'],
+            'smtp_port' => ['nullable', Rule::requiredIf($needsSmtp && $smtp), 'integer', 'between:1,65535'],
             'smtp_encryption' => ['nullable', Rule::in(['tls', 'ssl', 'none'])],
             'smtp_username' => ['nullable', 'string', 'max:255'],
             'smtp_password' => ['nullable', 'string', 'max:255'],
             'clear_password' => ['sometimes', 'boolean'],
-            'mail_from_address' => ['nullable', 'required_if:mail_enabled,true', 'email', 'max:255'],
+            'mail_from_address' => ['nullable', Rule::requiredIf($needsSmtp), 'email', 'max:255'],
             'mail_from_name' => ['nullable', 'string', 'max:120'],
         ]);
+
+        if ($keepAutomatic) {
+            unset($data['mail_enabled']);
+        }
 
         $this->mail->update($data);
 
         // Never log the password, only what changed.
         $this->activity->log(ActivityAction::AdminSettingsUpdated, properties: [
-            'mail_enabled' => (bool) $data['mail_enabled'],
+            'mail_enabled' => $keepAutomatic ? 'automatic' : (bool) $data['mail_enabled'],
             'smtp_host' => $data['smtp_host'] ?? null,
             'password_changed' => filled($data['smtp_password'] ?? null),
         ]);

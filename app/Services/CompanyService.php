@@ -11,6 +11,7 @@ use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\User;
 use App\Notifications\CompanyInvitation;
+use App\Services\Mail\SafeMailer;
 use App\Services\Storage\BatchDeletionService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
@@ -26,7 +27,11 @@ class CompanyService
     public function __construct(
         private readonly ActivityLogger $activity,
         private readonly BatchDeletionService $batches,
+        private readonly SafeMailer $mailer,
     ) {}
+
+    /** Whether the last create()/update() could not send its e-mail (the account itself was saved). */
+    public bool $mailFailed = false;
 
     /**
      * Create a company, its settings row and its owner.
@@ -65,13 +70,15 @@ class CompanyService
             return [$company, $owner];
         });
 
+        // A mail failure never undoes the company: the Super Admin can send a reset later.
+        $this->mailFailed = false;
         if ($sendMail) {
             if ($hasPassword) {
                 if (! $owner->hasVerifiedEmail()) {
-                    $owner->sendEmailVerificationNotification();
+                    $this->mailFailed = ! $this->mailer->send(fn () => $owner->sendEmailVerificationNotification(), 'company_verification');
                 }
-            } else {
-                $this->sendInvitation($owner);
+            } elseif (app(\App\Services\Mail\MailSettings::class)->isEnabled()) {
+                $this->mailFailed = ! $this->mailer->send(fn () => $this->sendInvitation($owner), 'company_invitation');
             }
         }
 
@@ -81,7 +88,8 @@ class CompanyService
     /** @param array<string, mixed> $data */
     public function update(Company $company, array $data): Company
     {
-        DB::transaction(function () use ($company, $data) {
+        $this->mailFailed = false;
+        $verify = DB::transaction(function () use ($company, $data) {
             $company->fill(array_filter([
                 'name' => $data['company_name'] ?? null,
             ], fn ($v) => $v !== null))->save();
@@ -117,10 +125,17 @@ class CompanyService
                 }
 
                 if ($emailChanged) {
-                    $owner->sendEmailVerificationNotification();
+                    return $owner;
                 }
             }
+
+            return null;
         });
+
+        // Sent after the commit: a mail failure must not roll the change back.
+        if ($verify) {
+            $this->mailFailed = ! $this->mailer->send(fn () => $verify->sendEmailVerificationNotification(), 'company_email_changed');
+        }
 
         return $company->refresh()->load('owner', 'settings');
     }

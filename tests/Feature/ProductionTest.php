@@ -35,6 +35,52 @@ class ProductionTest extends TestCase
         $this->assertNotNull($checks['debug']['hint']);
     }
 
+    public function test_queue_retry_after_shorter_than_job_timeout_is_a_warning(): void
+    {
+        config(['queue.default' => 'database', 'bora.queue.job_timeout' => 840, 'queue.connections.database.retry_after' => 300]);
+        $checks = collect(app(\App\Services\System\HealthCheck::class)->run())->keyBy('key');
+        $this->assertSame('warning', $checks['queue_retry_after']['status']);
+        $this->assertNotNull($checks['queue_retry_after']['hint']);
+
+        config(['queue.connections.database.retry_after' => 960]);
+        $checks = collect(app(\App\Services\System\HealthCheck::class)->run())->keyBy('key');
+        $this->assertSame('ok', $checks['queue_retry_after']['status']);
+    }
+
+    public function test_queue_defaults_keep_retry_after_above_the_job_timeout(): void
+    {
+        // Defaults when the .env does not set them.
+        $saved = [];
+        foreach (['DB_QUEUE_RETRY_AFTER', 'BORA_JOB_TIMEOUT', 'OPENAI_EDIT_TIMEOUT', 'OPENAI_ANALYSIS_TIMEOUT'] as $var) {
+            $saved[$var] = [$_ENV[$var] ?? null, $_SERVER[$var] ?? null, getenv($var)];
+            unset($_ENV[$var], $_SERVER[$var]);
+            putenv($var);
+        }
+
+        try {
+            $queue = require config_path('queue.php');
+            $bora = require config_path('bora.php');
+            $services = require config_path('services.php');
+        } finally {
+            foreach ($saved as $var => [$env, $server, $put]) {
+                if ($env !== null) {
+                    $_ENV[$var] = $env;
+                }
+                if ($server !== null) {
+                    $_SERVER[$var] = $server;
+                }
+                if ($put !== false) {
+                    putenv("{$var}={$put}");
+                }
+            }
+        }
+
+        $timeout = $bora['queue']['job_timeout'];
+        $this->assertGreaterThanOrEqual($timeout + 120, $queue['connections']['database']['retry_after']);
+        $t = $services['openai']['timeouts'];
+        $this->assertLessThan($timeout, 2 * $t['analysis'] + 3 * $t['edit']);
+    }
+
     public function test_heic_and_equal_upload_limits_are_not_reported_as_problems(): void
     {
         $checks = collect(app(\App\Services\System\HealthCheck::class)->run())->keyBy('key');

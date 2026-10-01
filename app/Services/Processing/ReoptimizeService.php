@@ -51,7 +51,10 @@ class ReoptimizeService
                 throw new DomainRuleException('reoptimize_limit', ['max' => $max]);
             }
 
-            $oldAi = $locked->ai_path;
+            // The final edit and any stored intermediate retouch were made with the old settings.
+            $oldFiles = array_values(array_unique(array_filter([$locked->ai_path, $locked->analysis['ai_edit']['retouch'] ?? null])));
+            $analysis = $locked->analysis ?? [];
+            unset($analysis['ai_edit']);
 
             $locked->forceFill([
                 'settings_override' => array_replace($locked->settings_override ?? [], [
@@ -61,6 +64,7 @@ class ReoptimizeService
                 ]),
                 'status' => ImageStatus::Queued,
                 'ai_path' => null,
+                'analysis' => $analysis,
                 'attempts' => 0,
                 'reoptimize_count' => $locked->reoptimize_count + 1,
                 'error_code' => null,
@@ -70,9 +74,9 @@ class ReoptimizeService
                 'warnings' => $this->preparer->mergeWarnings($locked->warnings ?? [], 'ai_edit', []),
             ])->save();
 
-            if ($oldAi) {
-                $bytes = $this->files->disk()->exists($oldAi) ? (int) $this->files->disk()->size($oldAi) : 0;
-                $this->files->disk()->delete($oldAi);
+            foreach ($oldFiles as $old) {
+                $bytes = $this->files->disk()->exists($old) ? (int) $this->files->disk()->size($old) : 0;
+                $this->files->disk()->delete($old);
                 $this->storage->add($image->batch, -$bytes);
             }
 
