@@ -513,7 +513,10 @@
                 }
             },
             "change": "Change",
-            "collapse": "Collapse"
+            "collapse": "Collapse",
+            "watermark_switch": "Logo on photos on or off",
+            "no_logo_inline": "You don't have a company logo yet. Upload it here (a PNG with a transparent background looks best); the watermark is switched on afterwards.",
+            "upload_logo": "Upload logo"
         },
         "ai_status": {
             "skipped": "Improved locally",

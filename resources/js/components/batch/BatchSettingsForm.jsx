@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Brush, ChevronDown, Crop, Droplet, Eraser, Feather, Image, PenLine, Scissors, SlidersHorizontal, Sparkles, Square, Stamp, UserX, Wand2 } from 'lucide-react';
+import { Brush, ChevronDown, Crop, Droplet, Eraser, Feather, Image, ImageUp, PenLine, Scissors, SlidersHorizontal, Sparkles, Square, Stamp, UserX, Wand2 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
-import { Card, Input, Toggle, cx } from '../ui';
+import api, { errorMessage } from '../../lib/api';
+import { Alert, Button, Card, Input, Toggle, cx } from '../ui';
 
 const STRENGTH_ICONS = { subtle: Feather, normal: Sparkles, strong: Wand2 };
 const BACKGROUND_ICONS = { keep: Image, clean_subtle: Brush, remove_distractions: Eraser, blur_light: Droplet, remove: Scissors, neutral: Square };
@@ -49,30 +50,64 @@ export function Choice({ label, options, value, onChange, columns = 'grid-cols-2
 }
 
 /** A card that can fold away behind a one-line summary. */
-function Section({ icon: Icon, title, summary, collapsible = false, defaultOpen = true, children }) {
+function Section({ icon: Icon, title, summary, collapsible = false, open: openProp, onOpenChange, defaultOpen = true, action, children }) {
     const { t } = useTranslation();
-    const [open, setOpen] = useState(defaultOpen);
+    const [openState, setOpenState] = useState(defaultOpen);
+    const open = openProp ?? openState;
+    const setOpen = onOpenChange ?? setOpenState;
     const shown = !collapsible || open;
+
+    const head = (
+        <>
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-stone-100 text-stone-600">
+                <Icon className="size-4.5" aria-hidden />
+            </span>
+            <span className="min-w-0 flex-1 text-left">
+                <span className="block font-semibold">{title}</span>
+                {collapsible && !open && summary && <span className="block truncate text-sm text-stone-500">{summary}</span>}
+            </span>
+        </>
+    );
 
     return (
         <Card padded={false}>
-            <div className="flex items-center gap-3 p-5">
-                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-stone-100 text-stone-600">
-                    <Icon className="size-4.5" aria-hidden />
-                </span>
-                <div className="min-w-0 flex-1">
-                    <h2 className="font-semibold">{title}</h2>
-                    {collapsible && !open && summary && <p className="truncate text-sm text-stone-500">{summary}</p>}
-                </div>
-                {collapsible && (
-                    <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="inline-flex h-10 items-center gap-1 rounded-lg px-3 text-sm font-medium text-brand-700 hover:bg-brand-50">
-                        {open ? <ChevronDown className="size-4 rotate-180" aria-hidden /> : <PenLine className="size-4" aria-hidden />}
-                        {open ? t('batch.settings.collapse') : t('batch.settings.change')}
+            <div className="flex items-center gap-2 p-3 sm:p-4">
+                {collapsible ? (
+                    // The whole header opens and closes the section, not only the small link.
+                    <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-2 hover:bg-stone-50">
+                        {head}
+                        <span className="inline-flex h-10 shrink-0 items-center gap-1 px-1 text-sm font-medium text-brand-700">
+                            {open ? <ChevronDown className="size-4 rotate-180" aria-hidden /> : <PenLine className="size-4" aria-hidden />}
+                            <span className="hidden sm:inline">{open ? t('batch.settings.collapse') : t('batch.settings.change')}</span>
+                        </span>
                     </button>
+                ) : (
+                    <div className="flex min-w-0 flex-1 items-center gap-3 p-2">{head}</div>
                 )}
+                {action}
             </div>
             {shown && <div className="space-y-6 border-t border-stone-100 p-5">{children}</div>}
         </Card>
+    );
+}
+
+/** Small on/off switch for a section header. */
+function HeaderSwitch({ checked, onChange, label, busy }) {
+    return (
+        <button
+            type="button"
+            role="switch"
+            aria-checked={checked}
+            aria-label={label}
+            title={label}
+            disabled={busy}
+            onClick={() => onChange(!checked)}
+            className="grid h-11 w-14 shrink-0 place-items-center rounded-xl disabled:opacity-60"
+        >
+            <span className={cx('relative h-6 w-11 rounded-full transition', checked ? 'bg-brand-600' : 'bg-stone-300')}>
+                <span className={cx('absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition', checked && 'translate-x-5')} />
+            </span>
+        </button>
     );
 }
 
@@ -96,8 +131,43 @@ function RatioShape({ ratio, selected }) {
  */
 export default function BatchSettingsForm({ value, onChange, hasLogo, errors = {} }) {
     const { t } = useTranslation();
-    const { meta } = useAuth();
+    const { meta, refresh } = useAuth();
     const s = value.settings;
+    const [watermarkOpen, setWatermarkOpen] = useState(false);
+    const [logoBusy, setLogoBusy] = useState(false);
+    const [logoError, setLogoError] = useState(null);
+    const logoInput = useRef(null);
+    const watermarkOn = hasLogo && s.watermark_mode !== 'none';
+
+    // Functional update: the logo upload finishes later, the form may have changed meanwhile.
+    const setWatermarkMode = (mode) => onChange((f) => ({ ...f, settings: { ...f.settings, watermark_mode: mode } }));
+
+    const toggleWatermark = (on) => {
+        setLogoError(null);
+        if (!on) return setWatermarkMode('none');
+        setWatermarkOpen(true);
+        if (hasLogo) return setWatermarkMode(s.watermark_mode === 'none' ? 'all' : s.watermark_mode);
+        logoInput.current?.click(); // No logo yet: upload one right here.
+    };
+
+    const uploadLogo = async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+        const body = new FormData();
+        body.append('logo', file);
+        setLogoBusy(true);
+        setLogoError(null);
+        try {
+            await api.post('/company/logo', body);
+            await refresh(); // hasLogo becomes true before the mode is set
+            setWatermarkMode('all');
+        } catch (err) {
+            setLogoError(err.response?.data?.errors?.logo?.[0] ?? errorMessage(err));
+        } finally {
+            setLogoBusy(false);
+        }
+    };
 
     const opts = (key, group, withDescription = false, icons = null) =>
         (meta?.options?.[key] ?? []).map((v) => ({
@@ -154,8 +224,26 @@ export default function BatchSettingsForm({ value, onChange, hasLogo, errors = {
                 {s.aspect_ratio !== 'original' && <p className="-mt-3 text-sm text-stone-500">{t('batch.settings.crop_hint')}</p>}
             </Section>
 
-            <Section icon={Stamp} title={t('settings.watermark')} summary={watermarkSummary} collapsible defaultOpen={false}>
-                {!hasLogo && <p className="text-sm text-stone-500">{t('batch.settings.no_logo')}</p>}
+            {/* Always mounted: the header switch opens it while the section is still closed. */}
+            <input ref={logoInput} type="file" accept="image/png,image/jpeg" hidden onChange={uploadLogo} />
+            <Section
+                icon={Stamp}
+                title={t('settings.watermark')}
+                summary={watermarkSummary}
+                collapsible
+                open={watermarkOpen}
+                onOpenChange={setWatermarkOpen}
+                action={<HeaderSwitch checked={watermarkOn} onChange={toggleWatermark} busy={logoBusy} label={t('batch.settings.watermark_switch')} />}
+            >
+                {logoError && <Alert type="error">{logoError}</Alert>}
+                {!hasLogo && (
+                    <div className="flex flex-col gap-3 rounded-xl bg-stone-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-sm text-stone-600">{t('batch.settings.no_logo_inline')}</p>
+                        <Button icon={ImageUp} loading={logoBusy} onClick={() => logoInput.current?.click()} className="shrink-0">
+                            {t('batch.settings.upload_logo')}
+                        </Button>
+                    </div>
+                )}
                 <Choice
                     label={t('fields.watermark_mode')}
                     options={opts('watermark_mode', 'watermark_mode').map((o) => ({ ...o, disabled: !hasLogo && o.value !== 'none' }))}
