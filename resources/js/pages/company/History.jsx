@@ -6,7 +6,7 @@ import api, { errorMessage } from '../../lib/api';
 import { useAuth } from '../../auth/AuthContext';
 import { useFetch } from '../../lib/useFetch';
 import { usePolling } from '../../lib/usePolling';
-import { formatDate } from '../../lib/format';
+import { batchTiming, batchTitle, formatDate } from '../../lib/format';
 import { useDownload } from '../../lib/download';
 import BatchStatusBadge, { ACTIVE_STATUSES } from '../../components/batch/BatchStatusBadge';
 import { Alert, Button, Card, EmptyState, Modal, PageHeader, Pagination, Spinner } from '../../components/ui';
@@ -90,11 +90,11 @@ export default function History() {
                                 </Link>
                                 <div className="flex flex-1 flex-col gap-2 p-4">
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <span className="truncate font-medium">{b.name || t('batch.unnamed')}</span>
+                                        <span className="truncate font-medium">{batchTitle(b, t, l)}</span>
                                         <BatchStatusBadge status={b.status} />
                                     </div>
                                     <p className="text-sm text-stone-500">
-                                        {formatDate(b.started_at ?? b.created_at, l)} · {t('batch.photo_count_short', { count: b.images_count })}
+                                        {t('batch.photo_count_short', { count: b.images_count })} · {batchTiming(b, t, l)}
                                     </p>
                                     <p className="text-xs text-stone-400">{summary(b.settings)}</p>
                                     {b.expires_at && <p className="text-xs text-stone-400">{t('batch.expires', { date: formatDate(b.expires_at, l, false) })}</p>}

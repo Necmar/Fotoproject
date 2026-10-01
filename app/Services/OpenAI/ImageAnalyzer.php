@@ -67,6 +67,9 @@ class ImageAnalyzer
         return "Analyse this product photo.\n"
             ."Chosen options (context only): background={$s->background->value}, remove_people=".($s->removePeople ? 'yes' : 'no')
             .", strength={$s->strength->value}.\n"
+            ."- product.short_name: 2 to 5 words naming the whole product for a listing title and file name, brand and model when clearly visible"
+            ." (e.g. 'BMW 320i Touring', 'Volkswagen Golf 8', 'Eiken eettafel'). For a detail or interior shot, still name the whole product."
+            ." Generic items in Dutch. No colour, condition or camera angle.\n"
             ."- product_box: tight box around the complete product (all parts, mirrors, wheels, cables), as fractions 0..1 of width/height.\n"
             ."- corrections: global adjustments on a -1..1 scale (0 = leave as is); keep them modest. warmth>0 = warmer; tint>0 = more magenta.\n"
             ."  rotate_degrees: only for a clearly crooked horizon/vertical, otherwise 0.\n"
@@ -90,8 +93,8 @@ class ImageAnalyzer
             'properties' => [
                 'product' => [
                     'type' => 'object', 'additionalProperties' => false,
-                    'required' => ['description', 'category'],
-                    'properties' => ['description' => ['type' => 'string'], 'category' => ['type' => 'string']],
+                    'required' => ['description', 'category', 'short_name'],
+                    'properties' => ['description' => ['type' => 'string'], 'category' => ['type' => 'string'], 'short_name' => ['type' => 'string']],
                 ],
                 'product_box' => [
                     'type' => 'object', 'additionalProperties' => false,
@@ -165,6 +168,7 @@ class ImageAnalyzer
             'product' => [
                 'description' => mb_substr((string) data_get($d, 'product.description', ''), 0, 300),
                 'category' => mb_substr((string) data_get($d, 'product.category', ''), 0, 60),
+                'short_name' => mb_substr(trim((string) data_get($d, 'product.short_name', '')), 0, 60),
             ],
             'product_box' => ['x' => $x, 'y' => $y, 'w' => $w, 'h' => $h],
             'issues' => array_map('boolval', (array) ($d['issues'] ?? [])),

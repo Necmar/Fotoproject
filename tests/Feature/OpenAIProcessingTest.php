@@ -43,7 +43,7 @@ class OpenAIProcessingTest extends TestCase
 
     private function batch(array $settings = [], int $photos = 1, int $width = 400): Batch
     {
-        $id = $this->actingAs($this->user)->postJson('/api/company/batches', ['name' => 'Golf 8'] + $settings)->json('data.id');
+        $id = $this->actingAs($this->user)->postJson('/api/company/batches', $settings + ['name' => 'Golf 8'])->json('data.id');
 
         for ($i = 0; $i < $photos; $i++) {
             // Small photos keep the tests fast; proportions as a real 4:3 photo.
@@ -64,7 +64,7 @@ class OpenAIProcessingTest extends TestCase
     private function analysis(array $override = []): array
     {
         return array_replace_recursive([
-            'product' => ['description' => 'red hatchback car', 'category' => 'car'],
+            'product' => ['description' => 'red hatchback car', 'category' => 'car', 'short_name' => 'Volkswagen Golf 8'],
             'product_box' => ['x' => 0.2, 'y' => 0.2, 'w' => 0.6, 'h' => 0.6],
             'issues' => array_fill_keys(['too_dark', 'too_bright', 'blurry', 'motion_blur', 'noisy', 'poor_white_balance', 'low_contrast', 'low_quality', 'crooked', 'distracting_background', 'harsh_shadows'], false),
             'severity' => 'minor',
@@ -744,5 +744,32 @@ class OpenAIProcessingTest extends TestCase
         $image = $batch->images()->first();
         // Square crop of a 1600 x 1200 photo: at most 1200 px.
         $this->assertSame([1200, 1200], [$image->output_width, $image->output_height]);
+    }
+
+    public function test_unnamed_batch_is_named_from_the_analysis_and_files_follow(): void
+    {
+        $this->fakeOpenAI($this->analysis());
+        $batch = $this->batch(['name' => null], photos: 2);
+        $this->assertNull($batch->name);
+
+        $this->artisan('bora:work')->assertSuccessful();
+
+        $batch->refresh();
+        $this->assertSame('Volkswagen Golf 8', $batch->name);
+        $this->assertTrue($batch->auto_named);
+        $this->assertSame(['volkswagen-golf-8-01.jpg', 'volkswagen-golf-8-02.jpg'], $batch->images()->orderBy('position')->pluck('output_filename')->all());
+        $this->getJson("/api/company/batches/{$batch->id}")->assertJsonPath('data.auto_named', true);
+    }
+
+    public function test_a_typed_name_is_never_replaced(): void
+    {
+        $this->fakeOpenAI($this->analysis());
+        $batch = $this->batch(['name' => 'Mijn auto']);
+        $this->artisan('bora:work')->assertSuccessful();
+
+        $batch->refresh();
+        $this->assertSame('Mijn auto', $batch->name);
+        $this->assertFalse($batch->auto_named);
+        $this->assertSame('mijn-auto-01.jpg', $batch->images()->first()->output_filename);
     }
 }

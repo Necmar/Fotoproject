@@ -550,7 +550,17 @@
         "leave_text": "If you leave this page now, the uploads that are still running stop. Photos that are already uploaded are kept.",
         "leave_confirm": "Leave anyway",
         "leave_stay": "Stay",
-        "poll_failed": "Progress could not be updated just now. We will try again automatically."
+        "poll_failed": "Progress could not be updated just now. We will try again automatically.",
+        "unnamed_dated": "Batch of {{date}}",
+        "auto_named": "Name chosen by the AI",
+        "timing": {
+            "created": "Created {{date}}",
+            "running": "Started {{date}} · in progress",
+            "done": "Started {{date}} · finished at {{end}} ({{duration}})",
+            "under_minute": "under 1 min",
+            "minutes": "{{count}} min",
+            "hours": "{{hours}} h {{minutes}} min"
+        }
     },
     "upload": {
         "title": "Add photos",

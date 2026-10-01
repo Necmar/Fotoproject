@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Images, Trash2 } from 'lucide-react';
 import api, { errorMessage } from '../../lib/api';
 import { useFetch } from '../../lib/useFetch';
-import { formatBytes, formatDate } from '../../lib/format';
+import { batchTiming, batchTitle, formatBytes } from '../../lib/format';
 import { Alert, Badge, Button, Card, EmptyState, Modal, PageHeader, Pagination, Spinner } from '../../components/ui';
 
 export default function AdminBatches() {
@@ -52,14 +52,14 @@ export default function AdminBatches() {
                             <li key={b.id} className="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                                 <div>
                                     <div className="flex items-center gap-2">
-                                        <span className="font-medium">{b.name || t('admin.batches.unnamed')}</span>
+                                        <span className="font-medium">{batchTitle(b, t, l)}</span>
                                         <Badge>{t(`enums.batch_status.${b.status}`)}</Badge>
                                     </div>
                                     <p className="text-sm text-stone-500">
                                         <Link to={`/admin/companies/${b.company?.id}`} className="hover:underline">
                                             {b.company?.name}
                                         </Link>{' '}
-                                        · {formatDate(b.created_at, l)} · {t('admin.batches.images', { done: b.completed_count, total: b.images_count })} · {formatBytes(b.storage_bytes, l)}
+                                        · {batchTiming(b, t, l)} · {t('admin.batches.images', { done: b.completed_count, total: b.images_count })} · {formatBytes(b.storage_bytes, l)}
                                     </p>
                                 </div>
                                 <Button variant="danger-ghost" size="sm" icon={Trash2} onClick={() => setTarget(b)}>
@@ -96,7 +96,7 @@ export default function AdminBatches() {
             >
                 {target && (
                     <p className="text-sm font-medium text-stone-800">
-                        {target.name || t('admin.batches.unnamed')} · {target.company?.name ?? t('admin.activity.deleted_company')}
+                        {batchTitle(target, t, l)} · {target.company?.name ?? t('admin.activity.deleted_company')}
                     </p>
                 )}
                 <p className="text-sm text-stone-600">{t('admin.batches.delete_text')}</p>
